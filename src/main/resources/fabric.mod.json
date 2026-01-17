@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"id": "ascension",
+	"version": "${version}",
+	"name": "ascension",
+	"description": "The seven natural orders of the Minecraft world are selecting their champions. Ascend, and prove yourself!",
+	"authors": [
+		"freq1062"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/ascension/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"freq.ascension.Ascension"
+		],
+		"client": [
+			"freq.ascension.AscensionClient"
+		],
+		"fabric-datagen": [
+			"freq.ascension.AscensionDataGenerator"
+		]
+	},
+	"mixins": [
+		"ascension.mixins.json",
+		{
+			"config": "ascension.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.18.4",
+		"minecraft": "~1.21.10",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
