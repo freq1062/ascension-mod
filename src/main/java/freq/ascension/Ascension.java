@@ -1,9 +1,15 @@
 package freq.ascension;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.server.MinecraftServer;
+
+import java.io.IOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import freq.ascension.api.TaskScheduler;
 
 public class Ascension implements ModInitializer {
 	public static final String MOD_ID = "ascension";
@@ -12,6 +18,9 @@ public class Ascension implements ModInitializer {
 	// It is considered best practice to use your mod id as the logger's name.
 	// That way, it's clear which mod wrote info, warnings, and errors.
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+	public static final TaskScheduler scheduler = new TaskScheduler();
+	public static Config CONFIG;
+	private static MinecraftServer server;
 
 	@Override
 	public void onInitialize() {
@@ -19,6 +28,23 @@ public class Ascension implements ModInitializer {
 		// However, some things (like resources) may still be uninitialized.
 		// Proceed with mild caution.
 
-		LOGGER.info("Hello Fabric world!");
+		try {
+			CONFIG = Config.load();
+		} catch (IOException e) {
+			LOGGER.error("Failed to load Ascension Config", e);
+			throw new RuntimeException("Configuration loading failed", e);
+		}
+
+		// Register a server tick event to process scheduled tasks
+		ServerTickEvents.END_SERVER_TICK.register((MinecraftServer s) -> {
+			server = s;
+			scheduler.tick(s.getTickCount());
+		});
+
+		LOGGER.info("Ascension SMP Mod Loaded!");
+	}
+
+	public static MinecraftServer getServer() {
+		return server;
 	}
 }

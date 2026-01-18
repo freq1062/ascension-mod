@@ -18,9 +18,6 @@
 		"main": [
 			"freq.ascension.Ascension"
 		],
-		"client": [
-			"freq.ascension.AscensionClient"
-		],
 		"fabric-datagen": [
 			"freq.ascension.AscensionDataGenerator"
 		]
