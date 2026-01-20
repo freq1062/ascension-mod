@@ -7,54 +7,18 @@ import java.util.function.Consumer;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import org.bukkit.entity.Projectile;
-import org.bukkit.entity.Trident;
-import org.bukkit.event.Event;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.block.BlockDamageEvent;
-import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.EntityPickupItemEvent;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.inventory.InventoryType;
-import org.bukkit.event.inventory.PrepareAnvilEvent;
-import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerPickupArrowEvent;
-import org.bukkit.event.player.PlayerToggleFlightEvent;
-import org.bukkit.inventory.ItemStack;
-
-import com.ascension.managers.DivineDataManager;
-import com.ascension.managers.Spell;
-import com.ascension.managers.SpellCooldownManager;
-import com.ascension.managers.WeaponRegistry;
-import com.ascension.orders.Ocean;
-import com.ascension.weapons.MythicWeapon;
 
 import freq.ascension.Ascension;
 import freq.ascension.api.ContinuousTask;
 import freq.ascension.orders.Order;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 
 public class AbilityManager {
-    private final DivineDataManager data = DivineDataManager.getInstance();
-
-    private List<Order> getPlayerOrders(Player player) {
-        if (player == null || data == null)
-            return List.of();
-        return data.getEquippedOrders(player);
-    }
-
     public static void broadcast(ServerPlayer player, Consumer<Order> action) {
-        for (Order order : getPlayerOrders(player)) {
+        AscensionData data = (AscensionData) player;
+        for (Order order : data.getEquippedOrders()) {
             action.accept(order);
         }
     }
@@ -64,7 +28,7 @@ public class AbilityManager {
         // Block Break Events
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, entity) -> {
             if (player instanceof ServerPlayer serverPlayer && world instanceof ServerLevel serverLevel)
-                broadcast(serverPlayer, (order) -> order.onBlockBreak(serverLevel, pos, state, entity));
+                broadcast(serverPlayer, (order) -> order.onBlockBreak(serverPlayer, serverLevel, pos, state, entity));
             return true; // Return true to allow the break
         });
 
@@ -72,7 +36,7 @@ public class AbilityManager {
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
             if (player instanceof ServerPlayer serverPlayer && world instanceof ServerLevel serverLevel) {
                 AbilityManager.broadcast(serverPlayer,
-                        (order) -> order.onBlockDamage(serverLevel, pos, player.getItemInHand(hand)));
+                        (order) -> order.onBlockDamage(serverPlayer, serverLevel, pos, player.getItemInHand(hand)));
             }
             return InteractionResult.PASS;
         });
@@ -171,7 +135,7 @@ public class AbilityManager {
             return;
         if (WeaponRegistry.get(trident.getItemStack()) == null)
             return;
-        DivineDataManager manager = DivineDataManager.getInstance();
+        DataManager manager = DataManager.getInstance();
         Player player = event.getPlayer();
         if (manager == null || player == null)
             return;
@@ -181,7 +145,7 @@ public class AbilityManager {
             return;
 
         // Also allow Ocean gods to pick up any Tempest Trident
-        if (manager.getRank(player) == DivineDataManager.Rank.GOD
+        if (manager.getRank(player) == DataManager.Rank.GOD
                 && manager.getGodOrder(player) == Ocean.INSTANCE.getOrderName())
             return;
 

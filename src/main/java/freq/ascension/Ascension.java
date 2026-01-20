@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import freq.ascension.api.TaskScheduler;
+import freq.ascension.managers.SpellCooldownManager;
+import freq.ascension.registry.OrderRegistry;
 
 public class Ascension implements ModInitializer {
 	public static final String MOD_ID = "ascension";
@@ -40,6 +42,8 @@ public class Ascension implements ModInitializer {
 			server = s;
 			scheduler.tick(s.getTickCount());
 		});
+
+		SpellCooldownManager.updateActiveSpells();
 
 		LOGGER.info("Ascension SMP Mod Loaded!");
 	}

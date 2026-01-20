@@ -1,41 +1,25 @@
 package freq.ascension.orders;
 
-import com.ascension.managers.DivineDataManager;
-import com.ascension.managers.Spell;
-import com.ascension.managers.SpellCooldownManager;
-import com.ascension.managers.SpellStats;
-
+import freq.ascension.managers.AscensionData;
+import freq.ascension.managers.Spell;
+import freq.ascension.managers.SpellCooldownManager;
+import freq.ascension.managers.SpellStats;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.inventory.AnvilMenu;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 public interface Order {
-    // Event listeners
-    default void onEntityDamageByEntity(EntityDamageByEntityEvent event, Player player) {
-    }
+    String getOrderName();
 
-    default void onEntityDamage(EntityDamageEvent event, Player player) {
-    }
+    ItemStack getOrderItem();
 
-    default void onToggleFlight(PlayerToggleFlightEvent event, Player player) {
-    }
-
-    default void onBlockDamage(BlockDamageEvent event, Player player) {
-    }
-
-    default void onBlockBreak(ServerLevel world, BlockPos pos, BlockState state, BlockEntity entity) {
-    }
-
-    default void onAnvilPrepare(PrepareAnvilEvent event, Player player) {
-    }
-
-    // Ability methods
-    default void applyEffect(Player player) {
-    }
+    TextColor getOrderColor();
 
     default String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
@@ -46,21 +30,49 @@ public interface Order {
         };
     }
 
-    default boolean hasCapability(Player player, String type) {
-        DivineDataManager.DivineData data = DivineDataManager.get(player);
+    // Event listeners
+
+    default void onBlockDamage(ServerPlayer player, ServerLevel level, BlockPos pos, ItemStack stack) {
+    }
+
+    default void onBlockBreak(ServerPlayer player, ServerLevel world, BlockPos pos, BlockState state,
+            BlockEntity entity) {
+    }
+
+    default void onAnvilPrepare(AnvilMenu menu) {
+
+    }
+
+    default void onEntityDamageByEntity(ServerPlayer attacker, ServerPlayer victim, DamageSource source, float amount) {
+
+    }
+
+    default void onEntityDamage(ServerPlayer victim, DamageSource source, float amount) {
+
+    }
+
+    default void onToggleFlight(ServerPlayer player, boolean flying) {
+    }
+
+    // Ability methods
+    default void applyEffect(ServerPlayer player) {
+    }
+
+    default boolean hasCapability(ServerPlayer player, String type) {
+        AscensionData data = (AscensionData) player;
         switch (type) {
             case "passive":
-                return data.passive != null && data.passive.equals(this.getOrderName());
+                return data.getPassive() != null && data.getPassive().equals(this.getOrderName());
             case "utility":
-                return data.utility != null && data.utility.equals(this.getOrderName());
+                return data.getUtility() != null && data.getUtility().equals(this.getOrderName());
             case "combat":
-                return data.combat != null && data.combat.equals(this.getOrderName());
+                return data.getUtility() != null && data.getCombat().equals(this.getOrderName());
             default:
                 return false;
         }
     }
 
-    default void executeActiveSpell(String spellId, Player player) {
+    default void executeActiveSpell(String spellId, ServerPlayer player) {
         Spell spell = SpellCooldownManager.get(spellId);
         if (spell == null)
             return;
@@ -79,14 +91,8 @@ public interface Order {
         return null;
     }
 
-    default Order getVersion(DivineDataManager.Rank rank) {
+    default Order getVersion(String rank) {
         return this;
     }
-
-    String getOrderName();
-
-    Item getOrderItem();
-
-    TextColor getOrderColor();
 
 }
