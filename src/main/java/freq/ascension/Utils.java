@@ -2,9 +2,12 @@ package freq.ascension;
 
 import java.util.UUID;
 
+import com.mojang.authlib.GameProfile;
+
 import freq.ascension.managers.AscensionData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -16,6 +19,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.level.Level;
 
 /**
@@ -30,12 +34,21 @@ public class Utils {
     // Utils.spellDmg(world, Utils.SPELL_DAMAGE_TYPE, (Entity) attacker)
 
     // Custom damage type for spells, bypasses armor
-    public static DamageSource spellDmg(Level world, Entity attacker) {
+    public static DamageSource spellDmgType(Level world, Entity attacker) {
         Holder<DamageType> damageTypeHolder = world.registryAccess()
                 .getOrThrow(ResourceKey.create(
                         Registries.DAMAGE_TYPE,
                         ResourceLocation.fromNamespaceAndPath("ascension", "spell")));
         return new DamageSource(damageTypeHolder, attacker);
+    }
+
+    @SuppressWarnings("deprecation")
+    public static void spellDmg(Entity target, Entity attacker, float percent) {
+        if (target instanceof net.minecraft.world.entity.LivingEntity livingTarget) {
+            float damageAmount = livingTarget.getMaxHealth() * percent;
+            DamageSource source = spellDmgType(target.level(), attacker);
+            livingTarget.hurt(source, damageAmount);
+        }
     }
 
     public static boolean isGod(ServerPlayer player) {
@@ -63,19 +76,14 @@ public class Utils {
         if (skull.getItem() instanceof net.minecraft.world.item.PlayerHeadItem) {
             try {
                 // Create a GameProfile with a random UUID
-                com.mojang.authlib.GameProfile profile = new com.mojang.authlib.GameProfile(UUID.randomUUID(),
+                GameProfile profile = new GameProfile(UUID.randomUUID(),
                         "OrderHead");
 
                 // Add the texture property
-                profile.getProperties().put("textures",
+                profile.properties().put("textures",
                         new com.mojang.authlib.properties.Property("textures", textureString));
 
-                // Apply the profile to the skull
-                skull.getOrDefault(net.minecraft.core.component.DataComponents.PROFILE,
-                        new net.minecraft.world.item.component.ResolvableProfile(profile))
-                        .gameProfile();
-                skull.set(net.minecraft.core.component.DataComponents.PROFILE,
-                        new net.minecraft.world.item.component.ResolvableProfile(profile));
+                skull.set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile));
             } catch (Throwable ignored) {
             }
         }

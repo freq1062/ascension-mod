@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 
 import freq.ascension.api.TaskScheduler;
 import freq.ascension.managers.SpellCooldownManager;
-import freq.ascension.registry.OrderRegistry;
 
 public class Ascension implements ModInitializer {
 	public static final String MOD_ID = "ascension";

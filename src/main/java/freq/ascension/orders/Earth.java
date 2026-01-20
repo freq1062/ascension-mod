@@ -5,19 +5,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
-
 import freq.ascension.Utils;
 import freq.ascension.managers.*;
 import freq.ascension.registry.*;
-import net.minecraft.client.particle.Particle;
-import net.minecraft.client.resources.model.Material;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraft.network.chat.OutgoingChatMessage;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -31,7 +26,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.SkullBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -61,19 +55,6 @@ public class Earth implements Order {
             case "combat" -> "Magma bubble spell";
             default -> "";
         };
-    }
-
-    public static void toggleSupermine(ServerPlayer player) {
-        UUID uuid = player.getUUID();
-        boolean current = SUPERMINE_ENABLED.getOrDefault(uuid, false);
-        SUPERMINE_ENABLED.put(uuid, !current);
-
-        String status = !current ? "enabled" : "disabled";
-        Utils.sendChatMessage(player, "§a[Earth] §7Supermine " + status + ".");
-        player.playSound(
-                !current ? net.minecraft.sounds.SoundEvents.ANVIL_USE : net.minecraft.sounds.SoundEvents.ANVIL_LAND,
-                1.0f,
-                1.0f);
     }
 
     @Override
@@ -116,6 +97,10 @@ public class Earth implements Order {
     private static final TagKey<Item> SHOVELS = TagKey.create(Registries.ITEM,
             ResourceLocation.fromNamespaceAndPath("minecraft", "shovels"));
 
+    private boolean isSupermineTool(ItemStack tool) {
+        return tool != null && (tool.is(PICKAXES) || tool.is(SHOVELS));
+    }
+
     private ItemStack getSmeltedResult(ServerLevel level, BlockState state) {
         // 1. Get the item representation of the block
         ItemStack input = new ItemStack(state.getBlock().asItem());
@@ -124,10 +109,10 @@ public class Earth implements Order {
         SingleRecipeInput recipeInput = new SingleRecipeInput(input);
 
         // 3. Search for a Smelting Recipe
-        return level
+        return level.recipeAccess()
                 .getRecipeFor(RecipeType.SMELTING, recipeInput, level)
-                .map(recipe -> recipe.value().getResultItem(level.registryAccess()).copy())
-                .orElse(ItemStack.EMPTY); // Returns empty if not smeltable
+                .map(recipe -> recipe.value().assemble(recipeInput, level.registryAccess()))
+                .orElse(ItemStack.EMPTY);
     }
 
     public String getOrderName() {
@@ -146,6 +131,19 @@ public class Earth implements Order {
                     net.minecraft.world.effect.MobEffects.HASTE, 60, 0));
     }
 
+    public static void toggleSupermine(ServerPlayer player) {
+        UUID uuid = player.getUUID();
+        boolean current = SUPERMINE_ENABLED.getOrDefault(uuid, false);
+        SUPERMINE_ENABLED.put(uuid, !current);
+
+        String status = !current ? "enabled" : "disabled";
+        Utils.sendChatMessage(player, "§a[Earth] §7Supermine " + status + ".");
+
+        player.level().playSound(player, player.blockPosition(),
+                !current ? SoundEvents.ANVIL_USE : SoundEvents.ANVIL_LAND,
+                SoundSource.UI, 1.0f, 1.0f);
+    }
+
     @Override
     public void onBlockBreak(ServerPlayer player, ServerLevel world, BlockPos pos, BlockState state,
             BlockEntity entity) {
@@ -154,9 +152,6 @@ public class Earth implements Order {
         if (IS_MINING_INTERNALLY.contains(uuid))
             return;
 
-        BlockState blockState = state;
-        Block minecraftBlock = blockState.getBlock();
-
         ItemStack tool = player.getMainHandItem();
         int silkLevel = EnchantmentHelper.getItemEnchantmentLevel(
                 player.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH),
@@ -164,22 +159,13 @@ public class Earth implements Order {
         boolean hasSilkTouch = silkLevel > 0;
 
         try {
-            // Allow autosmelt to work with supermine
+            // Allow autosmelt to work with supermine if enabled
             boolean supermine = SUPERMINE_ENABLED.getOrDefault(uuid, false);
-            if (!supermine)
-                return;
-
-            // If using Silk Touch, do not autosmelt (and skip supermine smelting behavior)
-            if (hasSilkTouch)
-                return;
-
-            if (!isSupermineTool(tool))
-                return;
-
-            // event.setDropItems(false); // Handle drops manually in Fabric
-            SpellStats stats = getSpellStats("supermine");
-            IS_MINING_INTERNALLY.add(uuid);
-            breakSurroundingCube(player, pos, stats.getInt(0), stats.getInt(1));
+            if (supermine && !hasSilkTouch && isSupermineTool(tool)) {
+                SpellStats stats = getSpellStats("supermine");
+                IS_MINING_INTERNALLY.add(uuid);
+                breakSurroundingCube(player, pos, stats.getInt(0), stats.getInt(1));
+            }
         } catch (Throwable ignored) {
         } finally {
             IS_MINING_INTERNALLY.remove(uuid);
@@ -189,16 +175,13 @@ public class Earth implements Order {
         if (hasSilkTouch)
             return;
 
-        if (state.is(ORE_TAG))
+        // Ensure player is using a valid tool (pick/shovel)
+        if (!isSupermineTool(tool))
             return;
 
-        // Prevent normal drops - in Fabric, you'll need to handle this via mixin or
-        // event cancellation
-        // event.setDropItems(false);
-
-        // Determine the smelted result
+        // Determine the smelted result to check if we should intervene
         ItemStack smelted = getSmeltedResult(world, state);
-        if (smelted == null)
+        if (smelted.isEmpty())
             return;
 
         // Spawn small fire particles around the broken block
@@ -208,7 +191,9 @@ public class Earth implements Order {
                 10, 0.2, 0.2, 0.2, 0.01);
 
         double xpMultiplier = Utils.isGod(player) ? 2.0 : 1.0;
-        dropSmeltedOre(world, pos, blockState, xpMultiplier);
+
+        // This handles the doubling (count * 2) and XP dropping
+        dropSmeltedOre(world, pos, state, xpMultiplier);
     }
 
     // ????
@@ -265,13 +250,14 @@ public class Earth implements Order {
                     if (targetState.is(ORE_TAG)) {
                         dropSmeltedOre(world, targetPos, targetState, 1.0);
                     } else {
-                        ItemStack held = player.getMainHandItem();
                         // Break the block and spawn drops
                         world.destroyBlock(targetPos, true, player);
                     }
 
                     if (durabilityUsed < maxDurabilityLoss) {
-                        if (!Utils.applyDurabilityLoss(player, player.getInventory().getSelectedItem()))
+                        ItemStack tool = player.getInventory().getSelectedItem();
+                        tool.hurtAndBreak(1, player, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
+                        if (tool.isEmpty())
                             return;
                         durabilityUsed++;
                     }
@@ -319,10 +305,6 @@ public class Earth implements Order {
         if (block == net.minecraft.world.level.block.Blocks.NETHER_GOLD_ORE)
             return 1;
         return 1;
-    }
-
-    private boolean isSupermineTool(ItemStack tool) {
-        return tool != null && (tool.is(PICKAXES) || tool.is(SHOVELS));
     }
 
     @Override

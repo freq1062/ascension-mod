@@ -1,12 +1,8 @@
-package com.ascension.orders;
+package freq.ascension.orders;
 
-import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.PrepareAnvilEvent;
-import org.bukkit.inventory.view.AnvilView;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
-
-import com.ascension.managers.SpellStats;
+import freq.ascension.managers.SpellStats;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.inventory.AnvilMenu;
 
 public class EarthGod extends Earth {
     public static final EarthGod INSTANCE = new EarthGod();
@@ -16,10 +12,10 @@ public class EarthGod extends Earth {
     }
 
     @Override
-    public void applyEffect(Player player) {
+    public void applyEffect(ServerPlayer player) {
         if (hasCapability(player, "passive"))
-            player.addPotionEffect(new PotionEffect(
-                    PotionEffectType.HASTE, 60, 1));
+            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                    net.minecraft.world.effect.MobEffects.HASTE, 60, 1));
     }
 
     @Override
@@ -34,16 +30,19 @@ public class EarthGod extends Earth {
     }
 
     @Override
-    public void onAnvilPrepare(PrepareAnvilEvent event, Player player) {
-        if (!(event.getView() instanceof AnvilView view))
-            return;
-
-        int originalCost = view.getRepairCost();
+    public void onAnvilPrepare(AnvilMenu menu) {
+        int originalCost = menu.getCost();
         if (originalCost <= 0)
             return;
 
-        int reducedCost = (int) Math.floor(originalCost * 0.2);
-        view.setRepairCost(Math.max(1, reducedCost));
+        int reducedCost = (int) Math.floor(originalCost * 0.1);
+        try {
+            var costField = AnvilMenu.class.getDeclaredField("cost");
+            costField.setAccessible(true);
+            costField.setInt(menu, Math.max(1, reducedCost));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
