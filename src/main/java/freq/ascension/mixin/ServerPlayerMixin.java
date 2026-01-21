@@ -11,13 +11,12 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Mixin(ServerPlayer.class)
-public class ServerPlayerEntityMixin implements AscensionData {
+public class ServerPlayerMixin implements AscensionData {
     @Unique
     private final Map<Integer, String> spell_bindings = new HashMap<>();
     @Unique
@@ -32,6 +31,20 @@ public class ServerPlayerEntityMixin implements AscensionData {
     private String combat = null;
     @Unique
     private String godOrder = null;
+    @Unique
+    private final Map<String, OrderUnlock> unlocked_orders = new HashMap<>();
+
+    // Item drop broadcasting
+    // @Inject(method =
+    // "drop(Lnet/minecraft/world/item/ItemStack;ZZ)Lnet/minecraft/world/entity/item/ItemEntity;",
+    // at = @At("HEAD"), cancellable = true)
+    // private void onDrop(ItemStack stack, boolean throwRandomly, boolean
+    // retainOwnership,
+    // CallbackInfoReturnable<ItemEntity> cir) {
+    // ServerPlayer player = (ServerPlayer) (Object) this;
+    // AbilityManager.broadcast(player, (order) -> order.onItemDrop(player, stack));
+    // // goes to mythic weapons later
+    // }
 
     // SAVING DATA
     @Inject(method = "addAdditionalSaveData", at = @At("TAIL"))
@@ -57,6 +70,16 @@ public class ServerPlayerEntityMixin implements AscensionData {
         });
         ascensionTag.put("spell_bindings", spellsTag);
 
+        CompoundTag ordersTag = new CompoundTag();
+        this.unlocked_orders.forEach((name, unlock) -> {
+            CompoundTag detail = new CompoundTag();
+            detail.putBoolean("passive", unlock.passive());
+            detail.putBoolean("utility", unlock.utility());
+            detail.putBoolean("combat", unlock.combat());
+            ordersTag.put(name, detail);
+        });
+        nbt.put("UnlockedOrders", ordersTag);
+
         nbt.put("ascension_data", ascensionTag);
     }
 
@@ -80,12 +103,27 @@ public class ServerPlayerEntityMixin implements AscensionData {
             spellsTag.forEach((String s, Tag t) -> {
                 this.spell_bindings.put(Integer.parseInt(s), t.asString().orElse(""));
             });
+
+            CompoundTag ordersTag = nbt.getCompound("UnlockedOrders").orElse(new CompoundTag());
+
+            ordersTag.forEach((String s, Tag t) -> {
+                CompoundTag detail = (CompoundTag) t;
+                this.unlocked_orders.put(s, new OrderUnlock(
+                        detail.getBoolean("passive").orElse(false),
+                        detail.getBoolean("utility").orElse(false),
+                        detail.getBoolean("combat").orElse(false)));
+            });
         }
     }
 
     @Override
     public String getRank() {
         return this.rank;
+    }
+
+    @Override
+    public void setRank(String rank) {
+        this.rank = rank;
     }
 
     @Override
@@ -104,8 +142,8 @@ public class ServerPlayerEntityMixin implements AscensionData {
     }
 
     @Override
-    public String getPassive() {
-        return this.passive;
+    public Order getPassive() {
+        return OrderRegistry.get(this.passive);
     }
 
     @Override
@@ -114,8 +152,8 @@ public class ServerPlayerEntityMixin implements AscensionData {
     }
 
     @Override
-    public String getUtility() {
-        return this.utility;
+    public Order getUtility() {
+        return OrderRegistry.get(this.utility);
     }
 
     @Override
@@ -124,8 +162,8 @@ public class ServerPlayerEntityMixin implements AscensionData {
     }
 
     @Override
-    public String getCombat() {
-        return this.combat;
+    public Order getCombat() {
+        return OrderRegistry.get(this.combat);
     }
 
     @Override
@@ -148,6 +186,33 @@ public class ServerPlayerEntityMixin implements AscensionData {
         this.godOrder = order;
     }
 
+    @Override
+    public Map<String, OrderUnlock> getUnlocked() {
+        return this.unlocked_orders;
+    }
+
+    @Override
+    public OrderUnlock getUnlockedOrder(String order) {
+        return this.unlocked_orders.get(order);
+    }
+
+    @Override
+    public void unlock(String order, String type) {
+        // 1. Get the current state or a blank one if they've never touched this order
+        OrderUnlock current = this.unlocked_orders.getOrDefault(order, OrderUnlock.EMPTY);
+
+        // 2. Determine the new state
+        OrderUnlock updated = switch (type.toLowerCase()) {
+            case "passive" -> new OrderUnlock(true, current.utility(), current.combat());
+            case "utility" -> new OrderUnlock(current.passive(), true, current.combat());
+            case "combat" -> new OrderUnlock(current.passive(), current.utility(), true);
+            default -> current; // No change if type is invalid
+        };
+
+        // 3. Put it back in the map (replaces the old record)
+        this.unlocked_orders.put(order, updated);
+    }
+
     // Helper methods
     /**
      * Returns the player's equipped orders in passive/utility/combat order.
@@ -156,8 +221,7 @@ public class ServerPlayerEntityMixin implements AscensionData {
      */
     @Override
     public List<Order> getEquippedOrders() {
-        return List.of(OrderRegistry.get(getPassive()), OrderRegistry.get(getUtility()),
-                OrderRegistry.get(getCombat()));
+        return List.of(getPassive(), getUtility(), getCombat());
     }
 }
 

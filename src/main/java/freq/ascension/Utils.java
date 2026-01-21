@@ -10,7 +10,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -27,11 +26,40 @@ import net.minecraft.world.level.Level;
  */
 public class Utils {
 
-    public static void sendChatMessage(ServerPlayer player, String msg) {
-        player.sendSystemMessage(Component.literal(msg));
+    public static String smallCaps(String input) {
+        if (input == null)
+            return "";
+        String lower = input.toLowerCase();
+        StringBuilder sb = new StringBuilder();
+        String map = "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡxʏᴢ";
+        for (char c : lower.toCharArray()) {
+            if (c >= 'a' && c <= 'z') {
+                sb.append(map.charAt(c - 'a'));
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
-    // Utils.spellDmg(world, Utils.SPELL_DAMAGE_TYPE, (Entity) attacker)
+    public static String unsmallCaps(String input) {
+        if (input == null)
+            return "";
+
+        StringBuilder sb = new StringBuilder();
+        String map = "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡxʏᴢ";
+
+        for (char c : input.toCharArray()) {
+            int idx = map.indexOf(c);
+            if (idx >= 0 && idx < 26) {
+                sb.append((char) ('a' + idx));
+            } else {
+                sb.append(c);
+            }
+        }
+
+        return sb.toString();
+    }
 
     // Custom damage type for spells, bypasses armor
     public static DamageSource spellDmgType(Level world, Entity attacker) {

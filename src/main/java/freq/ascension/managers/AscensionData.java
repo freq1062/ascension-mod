@@ -6,7 +6,31 @@ import java.util.Map;
 import freq.ascension.orders.Order;
 
 public interface AscensionData {
+
+    public record OrderUnlock(boolean passive, boolean utility, boolean combat) {
+
+        public static final OrderUnlock EMPTY = new OrderUnlock(false, false, false);
+
+        public boolean isFullyUnlocked() {
+            return passive && utility && combat;
+        }
+
+        public boolean hasPassive() {
+            return passive;
+        }
+
+        public boolean hasUtility() {
+            return utility;
+        }
+
+        public boolean hasCombat() {
+            return combat;
+        }
+    }
+
     String getRank();
+
+    void setRank(String rank);
 
     int getInfluence();
 
@@ -14,15 +38,21 @@ public interface AscensionData {
 
     void addInfluence(int amount);
 
-    String getPassive();
+    Map<String, OrderUnlock> getUnlocked();
+
+    OrderUnlock getUnlockedOrder(String order);
+
+    void unlock(String order, String type);
+
+    Order getPassive();
 
     void setPassive(String order);
 
-    String getUtility();
+    Order getUtility();
 
     void setUtility(String order);
 
-    String getCombat();
+    Order getCombat();
 
     void setCombat(String order);
 

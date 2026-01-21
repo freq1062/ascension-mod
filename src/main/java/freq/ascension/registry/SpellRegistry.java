@@ -5,6 +5,7 @@ import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.orders.Earth;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
@@ -25,7 +26,7 @@ public class SpellRegistry {
                         && p.level().getFluidState(center.below()).is(net.minecraft.tags.FluidTags.LAVA));
 
         if (!standingOnSolid && !submergedInLava) {
-            Utils.sendChatMessage(p, "You need solid ground or lava to unleash Magma Bubble.");
+            p.sendSystemMessage(Component.literal("You need solid ground or lava to unleash Magma Bubble."));
             return;
         }
 

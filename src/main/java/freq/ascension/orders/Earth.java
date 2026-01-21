@@ -13,6 +13,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -137,8 +138,7 @@ public class Earth implements Order {
         SUPERMINE_ENABLED.put(uuid, !current);
 
         String status = !current ? "enabled" : "disabled";
-        Utils.sendChatMessage(player, "§a[Earth] §7Supermine " + status + ".");
-
+        player.sendSystemMessage(Component.literal("§a[Earth] §7Supermine " + status + "."));
         player.level().playSound(player, player.blockPosition(),
                 !current ? SoundEvents.ANVIL_USE : SoundEvents.ANVIL_LAND,
                 SoundSource.UI, 1.0f, 1.0f);

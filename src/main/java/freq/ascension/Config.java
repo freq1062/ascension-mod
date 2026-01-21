@@ -1,198 +1,83 @@
 package freq.ascension;
 
-import net.fabricmc.loader.api.FabricLoader;
-
-import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.*;
+import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 
 public class Config {
-    public static final Path CONFIG_DIR = FabricLoader.getInstance().getConfigDir();
-    public static final Path CONFIG_FILE = CONFIG_DIR.resolve("ascension.properties");
+    private static final String CONFIG_PATH = "ascension-config.toml";
 
-    private final LinkedHashMap<String, Object> values = new LinkedHashMap<>();
-    private final List<ConfigOption> options;
+    // These are the actual variables you use in your game code
+    public static boolean spellsDamageTeammates = false;
+    public static boolean earthEnabled = true;
+    public static boolean skyEnabled = true;
+    public static boolean oceanEnabled = true;
+    public static boolean floraEnabled = true;
+    public static boolean magicEnabled = true;
+    public static boolean netherEnabled = true;
+    public static boolean endEnabled = true;
 
-    private Config(List<ConfigOption> options) {
-        this.options = options;
-        // populate defaults
-        for (ConfigOption opt : options)
-            values.put(opt.key(), opt.defaultValue());
-    }
+    public static boolean earthGodEnabled = true;
+    public static boolean skyGodEnabled = true;
+    public static boolean oceanGodEnabled = true;
+    public static boolean floraGodEnabled = true;
+    public static boolean magicGodEnabled = true;
+    public static boolean netherGodEnabled = true;
+    public static boolean endGodEnabled = true;
 
-    // A small container for a key, default value, and comment.
-    private record ConfigOption(String key, Object defaultValue, String comment) {
-    }
+    public static int godDeathCooldown = 86400;
+    public static int influenceBanDuration = 86400;
 
-    /* ========== Define your options concisely here ========== */
-    private static List<ConfigOption> buildOptions() {
-        return List.of(
-                new ConfigOption("spells_damage_teammates", false,
-                        "Whether spells deal damage to teammates."),
-                new ConfigOption("earth", true,
-                        "Earth abilities unlocking enabled."),
-                new ConfigOption("sky", true,
-                        "Sky abilities unlocking enabled."),
-                new ConfigOption("ocean", true,
-                        "Ocean abilities unlocking enabled."),
-                new ConfigOption("flora", true,
-                        "Flora abilities unlocking enabled."),
-                new ConfigOption("magic", true,
-                        "Magic abilities unlocking enabled."),
-                new ConfigOption("nether", true,
-                        "Nether abilities unlocking enabled."),
-                new ConfigOption("end", true,
-                        "End abilities unlocking enabled."),
+    public static void load() {
+        CommentedFileConfig config = CommentedFileConfig.builder(CONFIG_PATH).sync().build();
+        config.load();
 
-                new ConfigOption("earth_god", true,
-                        "Earth god ascending enabled."),
-                new ConfigOption("sky_god", true,
-                        "Sky god ascending enabled."),
-                new ConfigOption("ocean_god", true,
-                        "Ocean god ascending enabled."),
-                new ConfigOption("flora_god", true,
-                        "Flora god ascending enabled."),
-                new ConfigOption("magic_god", true,
-                        "Magic god ascending enabled."),
-                new ConfigOption("nether_god", true,
-                        "Nether god ascending enabled."),
-                new ConfigOption("end_god", true,
-                        "End god ascending enabled."),
-                new ConfigOption("god_death_cooldown", 86400,
-                        "How long a player must wait after dying as a god before they can become god again, in s"),
-                new ConfigOption("influence_ban_duration", 86400,
-                        "How long a player is banned when their influence drops below -5."));
-    }
+        spellsDamageTeammates = config.getOrElse("spells_damage_teammates", false);
+        earthEnabled = config.getOrElse("earth", true);
+        skyEnabled = config.getOrElse("sky", true);
+        oceanEnabled = config.getOrElse("ocean", true);
+        floraEnabled = config.getOrElse("flora", true);
+        magicEnabled = config.getOrElse("magic", true);
+        netherEnabled = config.getOrElse("nether", true);
+        endEnabled = config.getOrElse("end", true);
 
-    /* ========== Loading / saving ========== */
-    public static Config load() throws IOException {
-        List<ConfigOption> opts = buildOptions();
-        Config cfg = new Config(opts);
+        earthGodEnabled = config.getOrElse("earth_god", true);
+        skyGodEnabled = config.getOrElse("sky_god", true);
+        oceanGodEnabled = config.getOrElse("ocean_god", true);
+        floraGodEnabled = config.getOrElse("flora_god", true);
+        magicGodEnabled = config.getOrElse("magic_god", true);
+        netherGodEnabled = config.getOrElse("nether_god", true);
+        endGodEnabled = config.getOrElse("end_god", true);
 
-        // Read existing properties if present
-        Properties p = new Properties();
-        Files.createDirectories(CONFIG_DIR);
-        if (Files.exists(CONFIG_FILE)) {
-            try (InputStream in = Files.newInputStream(CONFIG_FILE)) {
-                p.load(in);
-            }
-        }
+        godDeathCooldown = config.getOrElse("god_death_cooldown", 86400);
+        influenceBanDuration = config.getOrElse("influence_ban_duration", 86400);
 
-        // For each option, parse the string into the proper type (fallback to default
-        // on parse errors)
-        for (ConfigOption opt : opts) {
-            String key = opt.key();
-            Object def = opt.defaultValue();
-            String prop = p.getProperty(key);
-            Object value = def;
-            try {
-                if (def instanceof Integer) {
-                    value = prop != null ? Integer.parseInt(prop.trim()) : def;
-                } else if (def instanceof Long) {
-                    value = prop != null ? Long.parseLong(prop.trim()) : def;
-                } else if (def instanceof Double) {
-                    value = prop != null ? Double.parseDouble(prop.trim()) : def;
-                } else if (def instanceof Boolean) {
-                    value = prop != null ? Boolean.parseBoolean(prop.trim()) : def;
-                } else { // treat as string
-                    value = prop != null ? prop : def;
-                }
-            } catch (NumberFormatException ignore) {
-                /* keep default */ }
+        // Save back with comments
+        config.set("spells_damage_teammates", spellsDamageTeammates);
+        config.setComment("spells_damage_teammates", "Whether spells deal damage to teammates.");
 
-            cfg.values.put(key, value);
-            p.setProperty(key, value.toString()); // ensure property exists for saving
-        }
+        config.set("abilities.earth", earthEnabled);
+        config.set("abilities.sky", skyEnabled);
+        config.set("abilities.ocean", oceanEnabled);
+        config.set("abilities.flora", floraEnabled);
+        config.set("abilities.magic", magicEnabled);
+        config.set("abilities.nether", netherEnabled);
+        config.set("abilities.end", endEnabled);
+        config.setComment("abilities", "Toggle whether order abilities can be unlocked");
 
-        // Save back with pretty formatting (comments, blank lines, order)
-        cfg.savePretty();
+        config.set("ascend.earth_god", earthGodEnabled);
+        config.set("ascend.sky_god", skyGodEnabled);
+        config.set("ascend.ocean_god", oceanGodEnabled);
+        config.set("ascend.flora_god", floraGodEnabled);
+        config.set("ascend.magic_god", magicGodEnabled);
+        config.set("ascend.nether_god", netherGodEnabled);
+        config.set("ascend.end_god", endGodEnabled);
+        config.setComment("abilities", "Toggle whether players can ascend to gods");
 
-        return cfg;
-    }
+        config.set("god_death_cooldown", godDeathCooldown);
+        config.setComment("god_death_cooldown", "How long a player must wait after dying as a god (in seconds).");
+        config.set("influence_ban_duration", influenceBanDuration);
+        config.setComment("influence_ban_duration", "How long a player is banned when their influence drops below -5.");
 
-    /**
-     * Writes a nicer, human-friendly properties file with comments and blank lines.
-     * This is done instead of Properties.store() so we can control
-     * ordering/comments.
-     */
-    private void savePretty() throws IOException {
-        try (BufferedWriter w = Files.newBufferedWriter(CONFIG_FILE)) {
-            w.write("# Ascension mod settings");
-            w.newLine();
-            w.write("# Edit the values below. Blank lines and comments are preserved here.");
-            w.newLine();
-            w.newLine();
-
-            // Example of grouping: we infer groups by comments embedded in
-            // ConfigOption.comment (you design)
-            for (ConfigOption opt : options) {
-                String comment = opt.comment();
-                if (comment != null && !comment.isBlank()) {
-                    // allow multi-line comments separated by '\n'
-                    String[] lines = comment.split("\n");
-                    for (String c : lines) {
-                        w.write("# " + c.trim());
-                        w.newLine();
-                    }
-                }
-                // key = value
-                Object val = values.get(opt.key());
-                w.write(opt.key() + " = " + String.valueOf(val));
-                w.newLine();
-                w.newLine(); // blank line between entries for readability
-            }
-            w.flush();
-        }
-    }
-
-    /* ========== Typed getters ========== */
-    public int getInt(String key) {
-        return asType(key, Integer.class);
-    }
-
-    public long getLong(String key) {
-        return asType(key, Long.class);
-    }
-
-    public double getDouble(String key) {
-        return asType(key, Double.class);
-    }
-
-    public boolean getBoolean(String key) {
-        return asType(key, Boolean.class);
-    }
-
-    public String getString(String key) {
-        return asType(key, String.class);
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T> T asType(String key, Class<T> cls) {
-        if (!values.containsKey(key))
-            throw new IllegalArgumentException("Unknown config key: " + key);
-        Object v = values.get(key);
-        if (cls.isInstance(v))
-            return (T) v;
-        // attempt conversions for common mismatches (e.g., integer stored as Long)
-        if (cls == Integer.class && v instanceof Number)
-            return (T) Integer.valueOf(((Number) v).intValue());
-        if (cls == Long.class && v instanceof Number)
-            return (T) Long.valueOf(((Number) v).longValue());
-        if (cls == Double.class && v instanceof Number)
-            return (T) Double.valueOf(((Number) v).doubleValue());
-        if (cls == String.class)
-            return (T) v.toString();
-        if (cls == Boolean.class && v instanceof String)
-            return (T) Boolean.valueOf((String) v);
-        throw new ClassCastException("Config key '" + key + "' is not of type " + cls.getSimpleName());
-    }
-
-    /* ========== Optional: set and persist at runtime ========== */
-    public void set(String key, Object value) throws IOException {
-        if (!values.containsKey(key))
-            throw new IllegalArgumentException("Unknown config key: " + key);
-        values.put(key, value);
-        savePretty();
+        config.save();
+        config.close();
     }
 }

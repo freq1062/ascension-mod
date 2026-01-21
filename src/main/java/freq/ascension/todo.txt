@@ -4,3 +4,7 @@ ability managers
 earth
 items
 menu
+luckperms
+
+
+serverPlayer.sendSystemMessage(Component.literal(msg));

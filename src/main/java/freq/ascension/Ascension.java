@@ -4,12 +4,12 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.MinecraftServer;
 
-import java.io.IOException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import freq.ascension.api.TaskScheduler;
+import freq.ascension.managers.AbilityManager;
+import freq.ascension.managers.InfluenceManager;
 import freq.ascension.managers.SpellCooldownManager;
 
 public class Ascension implements ModInitializer {
@@ -20,7 +20,6 @@ public class Ascension implements ModInitializer {
 	// That way, it's clear which mod wrote info, warnings, and errors.
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 	public static final TaskScheduler scheduler = new TaskScheduler();
-	public static Config CONFIG;
 	private static MinecraftServer server;
 
 	@Override
@@ -29,12 +28,7 @@ public class Ascension implements ModInitializer {
 		// However, some things (like resources) may still be uninitialized.
 		// Proceed with mild caution.
 
-		try {
-			CONFIG = Config.load();
-		} catch (IOException e) {
-			LOGGER.error("Failed to load Ascension Config", e);
-			throw new RuntimeException("Configuration loading failed", e);
-		}
+		Config.load();
 
 		// Register a server tick event to process scheduled tasks
 		ServerTickEvents.END_SERVER_TICK.register((MinecraftServer s) -> {
@@ -42,7 +36,9 @@ public class Ascension implements ModInitializer {
 			scheduler.tick(s.getTickCount());
 		});
 
+		AbilityManager.init();
 		SpellCooldownManager.updateActiveSpells();
+		InfluenceManager.init();
 
 		LOGGER.info("Ascension SMP Mod Loaded!");
 	}
