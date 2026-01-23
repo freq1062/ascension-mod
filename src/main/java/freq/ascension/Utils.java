@@ -1,11 +1,15 @@
 package freq.ascension;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import com.mojang.authlib.GameProfile;
 
 import freq.ascension.managers.AscensionData;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.state.BlockState;
@@ -59,6 +63,115 @@ public class Utils {
         }
 
         return sb.toString();
+    }
+
+    public static List<Component> wrapToComponents(String input) {
+        return wrapToComponents(input, 45);
+    }
+
+    public static List<Component> wrapToComponents(String input, int maxVisibleCharsPerLine) {
+        List<Component> out = new ArrayList<>();
+        if (input == null || input.isEmpty())
+            return out;
+
+        int limit = Math.max(1, maxVisibleCharsPerLine);
+        String normalized = input.replace("\r", "");
+
+        for (String paragraph : normalized.split("\n", -1)) {
+            if (paragraph.isEmpty()) {
+                out.add(Component.literal(""));
+                continue;
+            }
+
+            String[] words = paragraph.trim().isEmpty() ? new String[0] : paragraph.trim().split("\\s+");
+            StringBuilder line = new StringBuilder();
+
+            for (String word : words) {
+                if (line.length() == 0) {
+                    if (visibleLength(word) <= limit) {
+                        line.append(word);
+                    } else {
+                        splitLongToken(word, limit, out);
+                    }
+                    continue;
+                }
+
+                int newLen = visibleLength(line) + 1 + visibleLength(word);
+                if (newLen <= limit) {
+                    line.append(' ').append(word);
+                } else {
+                    out.add(Component.literal(line.toString()));
+                    line.setLength(0);
+
+                    if (visibleLength(word) <= limit) {
+                        line.append(word);
+                    } else {
+                        splitLongToken(word, limit, out);
+                    }
+                }
+            }
+
+            if (line.length() > 0) {
+                out.add(Component.literal(line.toString()));
+            }
+        }
+
+        return out;
+    }
+
+    private static int visibleLength(CharSequence s) {
+        if (s == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '§' && i + 1 < s.length()) {
+                i++; // skip formatting code character
+                continue;
+            }
+            count++;
+        }
+        return count;
+    }
+
+    private static void splitLongToken(String token, int limit, List<Component> out) {
+        if (token == null || token.isEmpty()) {
+            out.add(Component.literal(""));
+            return;
+        }
+
+        StringBuilder part = new StringBuilder();
+        int visible = 0;
+
+        for (int i = 0; i < token.length(); i++) {
+            char c = token.charAt(i);
+
+            if (c == '§' && i + 1 < token.length()) {
+                part.append(c).append(token.charAt(i + 1));
+                i++;
+                continue;
+            }
+
+            part.append(c);
+            visible++;
+
+            if (visible >= limit) {
+                out.add(Component.literal(part.toString()));
+                part.setLength(0);
+                visible = 0;
+            }
+        }
+
+        if (part.length() > 0) {
+            out.add(Component.literal(part.toString()));
+        }
+    }
+
+    public static Component costComponent(int cost) {
+        return Component.literal("Cost: " + cost + " influence").withStyle(style -> style
+                .withColor(ChatFormatting.LIGHT_PURPLE)
+                .withItalic(false));
     }
 
     // Custom damage type for spells, bypasses armor

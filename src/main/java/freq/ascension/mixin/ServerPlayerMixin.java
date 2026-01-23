@@ -4,13 +4,16 @@ import freq.ascension.managers.AscensionData;
 import freq.ascension.orders.Order;
 import freq.ascension.registry.OrderRegistry;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,27 +51,28 @@ public class ServerPlayerMixin implements AscensionData {
 
     // SAVING DATA
     @Inject(method = "addAdditionalSaveData", at = @At("TAIL"))
-    private void saveAscensionData(CompoundTag nbt, CallbackInfo ci) {
-        CompoundTag ascensionTag = new CompoundTag();
-
-        ascensionTag.putInt("influence", this.influence);
-        ascensionTag.putString("rank", this.rank != null ? this.rank : "demigod");
+    private void saveAscensionData(ValueOutput output, CallbackInfo ci) {
+        output.putInt("influence", this.influence);
+        output.putString("rank", this.rank != null ? this.rank : "demigod");
 
         if (this.passive != null)
-            ascensionTag.putString("passive", this.passive);
+            output.putString("passive", this.passive);
         if (this.utility != null)
-            ascensionTag.putString("utility", this.utility);
+            output.putString("utility", this.utility);
         if (this.combat != null)
-            ascensionTag.putString("combat", this.combat);
+            output.putString("combat", this.combat);
         if (this.godOrder != null)
-            ascensionTag.putString("godOrder", this.godOrder);
+            output.putString("godOrder", this.godOrder);
 
         // Save the Map (Spell Bindings)
-        CompoundTag spellsTag = new CompoundTag();
+        StringBuilder bindings_sb = new StringBuilder();
         this.spell_bindings.forEach((slot, spellId) -> {
-            spellsTag.putString(slot.toString(), spellId);
+            bindings_sb.append(slot).append(":").append(spellId);
+            // 0:id;2:id;
+            if (bindings_sb.length() > 0)
+                bindings_sb.append(";");
         });
-        ascensionTag.put("spell_bindings", spellsTag);
+        output.putString("spell_bindings", bindings_sb.toString());
 
         CompoundTag ordersTag = new CompoundTag();
         this.unlocked_orders.forEach((name, unlock) -> {
@@ -78,41 +82,65 @@ public class ServerPlayerMixin implements AscensionData {
             detail.putBoolean("combat", unlock.combat());
             ordersTag.put(name, detail);
         });
-        nbt.put("UnlockedOrders", ordersTag);
 
-        nbt.put("ascension_data", ascensionTag);
+        StringBuilder orders_sb = new StringBuilder();
+        this.unlocked_orders.forEach((name, unlock) -> {
+            orders_sb.append(name + ":" + (unlock.hasPassive() ? "1" : "0") + "," + (unlock.hasUtility() ? "1" : "0")
+                    + "," + (unlock.hasCombat() ? "1" : "0"));
+            // order1:1,1,1;order2:0,1,1; <passive, utility, combat>
+            if (orders_sb.length() > 0)
+                orders_sb.append(";");
+        });
+
+        output.putString("unlocked_orders", orders_sb.toString());
     }
 
     // LOADING DATA
     @Inject(method = "readAdditionalSaveData", at = @At("TAIL"))
-    private void readAscensionData(CompoundTag nbt, CallbackInfo ci) {
-        if (nbt.contains("ascension_data")) { // 10 is the type ID for CompoundTag
-            CompoundTag ascensionTag = nbt.getCompoundOrEmpty("ascension_data");
+    private void readAscensionData(ValueInput input, CallbackInfo ci) {
+        if (input.contains("ascension_data")) { // 10 is the type ID for CompoundTag
+            this.influence = input.getInt("influence").orElse(0);
+            this.rank = input.getString("rank").orElse("demigod");
 
-            this.influence = ascensionTag.getInt("influence").orElse(0);
-            this.rank = ascensionTag.getString("rank").orElse("demigod");
+            this.passive = input.getStringOr("passive", null);
+            this.utility = input.getStringOr("utility", null);
+            this.combat = input.getStringOr("combat", null);
+            this.godOrder = input.getStringOr("godOrder", null);
 
-            this.passive = ascensionTag.getString("passive").orElse(null);
-            this.utility = ascensionTag.getString("utility").orElse(null);
-            this.combat = ascensionTag.getString("combat").orElse(null);
-            this.godOrder = ascensionTag.getString("godOrder").orElse(null);
-
-            // Load the Map
             this.spell_bindings.clear();
-            CompoundTag spellsTag = ascensionTag.getCompound("spell_bindings").orElse(new CompoundTag());
-            spellsTag.forEach((String s, Tag t) -> {
-                this.spell_bindings.put(Integer.parseInt(s), t.asString().orElse(""));
-            });
+            String encodedBindings = input.getStringOr("spell_bindings", "");
+            if (!encodedBindings.isEmpty()) {
+                String[] bindingsRaw = encodedBindings.split(";");
+                for (String raw : bindingsRaw) {
+                    String[] parts = raw.split(":");
+                    if (parts.length == 2) {
+                        try {
+                            this.spell_bindings.put(Integer.parseInt(parts[0]), parts[1]);
+                        } catch (NumberFormatException ignored) {
+                            // Ignore invalid slots
+                        }
+                    }
+                }
+            }
 
-            CompoundTag ordersTag = nbt.getCompound("UnlockedOrders").orElse(new CompoundTag());
-
-            ordersTag.forEach((String s, Tag t) -> {
-                CompoundTag detail = (CompoundTag) t;
-                this.unlocked_orders.put(s, new OrderUnlock(
-                        detail.getBoolean("passive").orElse(false),
-                        detail.getBoolean("utility").orElse(false),
-                        detail.getBoolean("combat").orElse(false)));
-            });
+            this.unlocked_orders.clear();
+            String encodedOrders = input.getStringOr("unlocked_orders", "");
+            if (!encodedOrders.isEmpty()) {
+                String[] ordersRaw = encodedOrders.split(";");
+                for (String e : ordersRaw) {
+                    String[] parts = e.split(":");
+                    if (parts.length == 2) {
+                        String name = parts[0];
+                        String[] flags = parts[1].split(",");
+                        if (flags.length == 3) {
+                            this.unlocked_orders.put(name, new OrderUnlock(
+                                    "1".equals(flags[0]),
+                                    "1".equals(flags[1]),
+                                    "1".equals(flags[2])));
+                        }
+                    }
+                }
+            }
         }
     }
 

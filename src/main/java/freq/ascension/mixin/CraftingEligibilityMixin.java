@@ -17,13 +17,14 @@ import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.inventory.CraftingMenu;
 import net.minecraft.world.inventory.ResultContainer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
 
 @Mixin(CraftingMenu.class)
 public abstract class CraftingEligibilityMixin {
 
     @Inject(method = "slotChangedCraftingGrid", at = @At("TAIL"))
     private static void onCraftingUpdate(AbstractContainerMenu menu, ServerLevel level, Player player,
-            CraftingContainer container, ResultContainer resultContainer, CallbackInfo ci) {
+            CraftingContainer container, ResultContainer resultContainer, RecipeHolder<?> recipe, CallbackInfo ci) {
         if (!(player instanceof ServerPlayer serverPlayer))
             return;
         ItemStack result = resultContainer.getItem(0);

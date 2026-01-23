@@ -3,10 +3,28 @@ package freq.ascension.menus;
 import java.util.ArrayList;
 import java.util.List;
 
+import freq.ascension.Ascension;
+import freq.ascension.Utils;
+import freq.ascension.items.InfluenceItem;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.orders.Order;
 import freq.ascension.registry.OrderRegistry;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.resources.model.Material;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
 
 public class OrderDetailMenu {
     private final Order order;
@@ -15,187 +33,143 @@ public class OrderDetailMenu {
         this.order = OrderRegistry.get(order.toLowerCase());
     }
 
-    public void open(ServerPlayer player) {
+    public boolean hasAllEquipped(ServerPlayer player) {
         AscensionData data = (AscensionData) player;
-        if (data.getPassive() == order) {
-            return;
-        }
+        return data.getPassive() == order && data.getUtility() == order && data.getCombat() == order;
     }
 
-    // public void open(Player player) {
-    // if (!hasAllEquipped(player) ||
-    // !GodSelector.isInitialPromotionEnabled(order.getOrderName())
-    // || GodSelector.isOnGodCooldown(player)) {
-    // Inventory inv = Bukkit.createInventory(null, 9,
-    // Component.text(Utils.smallCaps("Order - " + order.getOrderName()))
-    // .color(NamedTextColor.DARK_PURPLE)
-    // .decoration(TextDecoration.ITALIC, false));
-    // updateDemigod(player, inv);
-    // player.openInventory(inv);
-    // } else {
-    // Inventory inv = Bukkit.createInventory(null, 18,
-    // Component.text(Utils.smallCaps("Order - " + order.getOrderName()))
-    // .color(NamedTextColor.DARK_PURPLE)
-    // .decoration(TextDecoration.ITALIC, false));
-    // updateGod(player, inv, true);
-    // player.openInventory(inv);
-    // }
-    // }
+    public void open(ServerPlayer player) {
 
-    // public void update(Player player, Inventory inv) {
-    // if (!hasAllEquipped(player)) {
-    // updateDemigod(player, inv);
-    // } else {
-    // if (inv.getSize() == 9) {
-    // // Need to reopen with larger inventory
-    // player.closeInventory();
-    // open(player);
-    // } else {
-    // updateGod(player, inv, dm.getGodOrder(player) == order.getOrderName());
-    // }
-    // }
-    // }
+        AscensionData data = (AscensionData) player;
+        Component title = Component.literal(Utils.smallCaps("Order - " + order.getOrderName()))
+                .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_PURPLE).withItalic(false));
+        SimpleMenuProvider menuProvider;
 
-    // public void updateDemigod(Player player, Inventory inv) {
-    // DivineDataManager dm = DivineDataManager.getInstance();
-    // inv.setItem(0, dm.getInfluenceDisplayItem(player));
+        if (hasAllEquipped(player)) {
+            menuProvider = new SimpleMenuProvider(
+                    (syncId, playerInventory, playerEntity) -> {
+                        ChestMenu menu = new ChestMenu(MenuType.GENERIC_9x2, syncId, playerInventory,
+                                new net.minecraft.world.SimpleContainer(9), 1);
+                        updateGod(data, menu);
+                        return menu;
+                    },
+                    title);
+        } else {
+            menuProvider = new SimpleMenuProvider(
+                    (syncId, playerInventory, playerEntity) -> {
+                        // Create a 9-slot (1 row) generic chest menu
+                        ChestMenu menu = new ChestMenu(MenuType.GENERIC_9x1, syncId, playerInventory,
+                                new net.minecraft.world.SimpleContainer(9), 1);
+                        updateDemigod(data, menu);
+                        return menu;
+                    },
+                    title);
+        }
 
-    // inv.setItem(2, makeSubIcon(Material.BOOK, "passive",
-    // dm.isOrderPassiveUnlocked(player, order.getOrderName()),
-    // dm.getPassive(player) == order));
-    // inv.setItem(4, makeSubIcon(Material.IRON_BOOTS, "utility",
-    // dm.isOrderUtilityUnlocked(player, order.getOrderName()),
-    // dm.getUtility(player) == order));
-    // inv.setItem(6, makeSubIcon(Material.IRON_SWORD, "combat",
-    // dm.isOrderCombatUnlocked(player, order.getOrderName()), dm.getCombat(player)
-    // == order));
-    // inv.setItem(8, makeBackButton());
-    // }
+        player.openMenu(menuProvider);
+    }
 
-    // public void updateGod(Player player, Inventory inv, boolean showGlassPanes) {
-    // updateDemigod(player, inv);
+    public void updateDemigod(AscensionData data, ChestMenu menu) {
+        menu.getContainer().setItem(0, InfluenceItem.getInfluenceDisplayItem(player));
 
-    // if (showGlassPanes) {
-    // inv.setItem(9, new ItemStack(Material.PURPLE_STAINED_GLASS_PANE));
-    // inv.setItem(10, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-    // inv.setItem(11, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-    // inv.setItem(12, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-    // inv.setItem(14, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-    // inv.setItem(15, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-    // inv.setItem(16, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-    // inv.setItem(17, new ItemStack(Material.PURPLE_STAINED_GLASS_PANE));
-    // } else {
-    // // Clear glass panes
-    // inv.setItem(9, null);
-    // inv.setItem(10, null);
-    // inv.setItem(11, null);
-    // inv.setItem(12, null);
-    // inv.setItem(14, null);
-    // inv.setItem(15, null);
-    // inv.setItem(16, null);
-    // inv.setItem(17, null);
-    // }
+        menu.getContainer().setItem(2, makeSubIcon(Items.BOOK, "passive",
+                data.getUnlockedOrder(order.getOrderName()).hasPassive(), data.getPassive() == order));
+        menu.getContainer().setItem(4, makeSubIcon(Items.IRON_BOOTS, "utility",
+                data.getUnlockedOrder(order.getOrderName()).hasUtility(), data.getUtility() == order));
+        menu.getContainer().setItem(6, makeSubIcon(Items.IRON_SWORD, "combat",
+                data.getUnlockedOrder(order.getOrderName()).hasCombat(), data.getCombat() == order));
+        menu.getContainer().setItem(8, makeBackButton());
+    }
 
-    // inv.setItem(13, makePromotionIcon(player));
-    // inv.setItem(8, makeBackButton());
-    // }
+    public void updateGod(AscensionData data, ChestMenu menu) {
+        updateDemigod(data, menu);
 
-    // public void playPromotionAnimation(Player player, Inventory inv) {
-    // org.bukkit.plugin.Plugin plugin =
-    // org.bukkit.Bukkit.getPluginManager().getPlugin("AscensionSMP");
-    // if (plugin == null)
-    // return;
+        menu.getContainer().setItem(9, new ItemStack(Items.PURPLE_STAINED_GLASS_PANE));
+        for (int i = 10; i < 17; i++) {
+            if (i != 13)
+                menu.getContainer().setItem(i, new ItemStack(Items.YELLOW_STAINED_GLASS_PANE));
+        }
+        menu.getContainer().setItem(17, new ItemStack(Items.PURPLE_STAINED_GLASS_PANE));
 
-    // // Stage 1: slots 12 and 14
-    // org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-    // inv.setItem(12, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-    // inv.setItem(14, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-    // }, 10L);
+        menu.getContainer().setItem(13, new ItemStack(makePromotionIcon(data.getGodOrder() == order.getOrderName())));
+    }
 
-    // // Stage 2: slots 11 and 15
-    // org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-    // inv.setItem(11, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-    // inv.setItem(15, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-    // }, 20L);
+    public void playPromotionAnimation(Player player, Inventory inv) {
+        org.bukkit.plugin.Plugin plugin = org.bukkit.Bukkit.getPluginManager().getPlugin("AscensionSMP");
+        if (plugin == null)
+            return;
 
-    // // Stage 3: slots 10 and 16
-    // org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-    // inv.setItem(10, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-    // inv.setItem(16, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-    // }, 30L);
+        // Stage 1: slots 12 and 14
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            inv.setItem(12, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
+            inv.setItem(14, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
+        }, 10L);
 
-    // // Stage 4: edge slots 9 and 17 (purple)
-    // org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-    // inv.setItem(9, new ItemStack(Material.PURPLE_STAINED_GLASS_PANE));
-    // inv.setItem(17, new ItemStack(Material.PURPLE_STAINED_GLASS_PANE));
-    // // Update the promotion icon to reflect god status
-    // inv.setItem(13, makePromotionIcon(player));
-    // }, 40L);
-    // }
+        // Stage 2: slots 11 and 15
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            inv.setItem(11, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
+            inv.setItem(15, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
+        }, 20L);
 
-    // private ItemStack makePromotionIcon(Player player) {
-    // ItemStack item = order.getOrderItem();
-    // ItemMeta meta = item.getItemMeta();
-    // String godOrder = dm.getGodOrder(player);
-    // boolean ascended = godOrder != null &&
-    // godOrder.equalsIgnoreCase(order.getOrderName());
-    // meta.displayName(Component.text(Utils.smallCaps("Ascend"))
-    // .color(ascended ? NamedTextColor.GOLD : NamedTextColor.GRAY)
-    // .decoration(TextDecoration.ITALIC, false)
-    // .decoration(TextDecoration.BOLD, ascended));
-    // List<Component> lore = new ArrayList<>();
-    // if (ascended) {
-    // lore.add(Component.text("You are the god of " + order.getOrderName() + "!")
-    // .color(NamedTextColor.GOLD)
-    // .decoration(TextDecoration.ITALIC, false));
-    // } else {
-    // lore.add(Component.text("Click to become the god of " + order.getOrderName()
-    // + "!")
-    // .color(NamedTextColor.LIGHT_PURPLE)
-    // .decoration(TextDecoration.ITALIC, false));
-    // lore.add(Component.text("Cost: 1 influence")
-    // .color(NamedTextColor.YELLOW)
-    // .decoration(TextDecoration.ITALIC, false));
-    // }
-    // meta.lore(lore);
-    // item.setItemMeta(meta);
-    // return item;
-    // }
+        // Stage 3: slots 10 and 16
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            inv.setItem(10, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
+            inv.setItem(16, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
+        }, 30L);
 
-    // private ItemStack makeSubIcon(Material mat, String type, boolean unlocked,
-    // boolean equipped) {
-    // ItemStack item = new ItemStack(mat);
-    // ItemMeta meta = item.getItemMeta();
-    // meta.displayName(Component.text(Utils.smallCaps(type))
-    // .color(unlocked ? NamedTextColor.GREEN : NamedTextColor.RED)
-    // .decoration(TextDecoration.ITALIC, false)
-    // .decoration(TextDecoration.BOLD, equipped));
-    // List<Component> lore = new ArrayList<>();
-    // List<Component> description =
-    // Utils.wrapToComponents(order.getDescription(type));
-    // if (description != null) {
-    // lore.addAll(description.stream().map(c -> c.decoration(TextDecoration.ITALIC,
-    // false)).toList());
-    // }
+        // Stage 4: edge slots 9 and 17 (purple)
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            inv.setItem(9, new ItemStack(Material.PURPLE_STAINED_GLASS_PANE));
+            inv.setItem(17, new ItemStack(Material.PURPLE_STAINED_GLASS_PANE));
+            // Update the promotion icon to reflect god status
+            inv.setItem(13, makePromotionIcon(player));
+        }, 40L);
+    }
 
-    // lore.add(Component.text(equipped ? "Currently equipped!"
-    // : (unlocked ? "Click to equip!"
-    // : "Click to unlock (costs 1 influence)"))
-    // .color(NamedTextColor.GRAY)
-    // .decoration(TextDecoration.ITALIC, false));
+    private ItemStack makePromotionIcon(boolean currentlyGod) {
+        ItemStack icon = order.getOrderItem().copy();
+        icon.set(DataComponents.ITEM_NAME, Component.literal(
+                Utils.smallCaps(currentlyGod ? "Ascend!" : "Ascended"))
+                .withStyle(style -> style
+                        .withColor(currentlyGod ? TextColor.fromRgb(ChatFormatting.GOLD.getColor())
+                                : order.getOrderColor())
+                        .withBold(currentlyGod)
+                        .withItalic(false)));
 
-    // meta.lore(lore);
-    // item.setItemMeta(meta);
-    // return item;
-    // }
+        List<Component> lore = List.of(
+                Component
+                        .literal((currentlyGod ? "You are the god of " + order.getOrderName() + "!"
+                                : "Click to become the god of ") + order.getOrderName() + "!")
+                        .withStyle(style -> style
+                                .withColor(ChatFormatting.GOLD)
+                                .withShadowColor(ChatFormatting.WHITE.getColor())));
+        if (!currentlyGod)
+            lore.add(Utils.costComponent(1));
 
-    // private static ItemStack makeBackButton() {
-    // ItemStack backButton = new ItemStack(Material.ARROW);
-    // ItemMeta meta = backButton.getItemMeta();
-    // meta.displayName(Component.text("Back")
-    // .color(NamedTextColor.YELLOW)
-    // .decoration(TextDecoration.ITALIC, false));
-    // backButton.setItemMeta(meta);
-    // return backButton;
-    // }
+        icon.set(DataComponents.LORE, new ItemLore(lore));
+        return icon;
+    }
+
+    private ItemStack makeSubIcon(Item item, String type, boolean unlocked, boolean equipped) {
+        ItemStack icon = new ItemStack(item);
+        icon.set(DataComponents.ITEM_NAME, Component.literal(
+                Utils.smallCaps(type))
+                .withStyle(unlocked ? ChatFormatting.GREEN : ChatFormatting.RED)
+                .withStyle(ChatFormatting.BOLD));
+
+        List<Component> lore = new ArrayList<>(Utils.wrapToComponents(order.getDescription(type)));
+        lore.add(Component
+                .literal(equipped ? "Currently equipped!"
+                        : (unlocked ? "Click to equip!" : "Click to unlock (costs 1 influence)"))
+                .withStyle(ChatFormatting.GRAY));
+
+        icon.set(DataComponents.LORE, new ItemLore(lore));
+        return icon;
+    }
+
+    private static ItemStack makeBackButton() {
+        ItemStack backButton = new ItemStack(Items.ARROW);
+        backButton.set(DataComponents.ITEM_NAME, Component.literal("back").withStyle(ChatFormatting.YELLOW));
+        return backButton;
+    }
 }
