@@ -91,40 +91,41 @@ public class OrderDetailMenu {
         }
         menu.getContainer().setItem(17, new ItemStack(Items.PURPLE_STAINED_GLASS_PANE));
 
-        menu.getContainer().setItem(13, new ItemStack(makePromotionIcon(data.getGodOrder() == order.getOrderName())));
+        menu.getContainer().setItem(13, makePromotionIcon(data.getGodOrder() == order.getOrderName()));
     }
 
-    public void playPromotionAnimation(Player player, Inventory inv) {
-        org.bukkit.plugin.Plugin plugin = org.bukkit.Bukkit.getPluginManager().getPlugin("AscensionSMP");
-        if (plugin == null)
-            return;
+    // public void playPromotionAnimation(Player player, Inventory inv) {
+    // org.bukkit.plugin.Plugin plugin =
+    // org.bukkit.Bukkit.getPluginManager().getPlugin("AscensionSMP");
+    // if (plugin == null)
+    // return;
 
-        // Stage 1: slots 12 and 14
-        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            inv.setItem(12, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-            inv.setItem(14, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-        }, 10L);
+    // // Stage 1: slots 12 and 14
+    // org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+    // inv.setItem(12, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
+    // inv.setItem(14, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
+    // }, 10L);
 
-        // Stage 2: slots 11 and 15
-        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            inv.setItem(11, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-            inv.setItem(15, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-        }, 20L);
+    // // Stage 2: slots 11 and 15
+    // org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+    // inv.setItem(11, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
+    // inv.setItem(15, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
+    // }, 20L);
 
-        // Stage 3: slots 10 and 16
-        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            inv.setItem(10, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-            inv.setItem(16, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
-        }, 30L);
+    // // Stage 3: slots 10 and 16
+    // org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+    // inv.setItem(10, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
+    // inv.setItem(16, new ItemStack(Material.YELLOW_STAINED_GLASS_PANE));
+    // }, 30L);
 
-        // Stage 4: edge slots 9 and 17 (purple)
-        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            inv.setItem(9, new ItemStack(Material.PURPLE_STAINED_GLASS_PANE));
-            inv.setItem(17, new ItemStack(Material.PURPLE_STAINED_GLASS_PANE));
-            // Update the promotion icon to reflect god status
-            inv.setItem(13, makePromotionIcon(player));
-        }, 40L);
-    }
+    // // Stage 4: edge slots 9 and 17 (purple)
+    // org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+    // inv.setItem(9, new ItemStack(Material.PURPLE_STAINED_GLASS_PANE));
+    // inv.setItem(17, new ItemStack(Material.PURPLE_STAINED_GLASS_PANE));
+    // // Update the promotion icon to reflect god status
+    // inv.setItem(13, makePromotionIcon(player));
+    // }, 40L);
+    // }
 
     private ItemStack makePromotionIcon(boolean currentlyGod) {
         ItemStack icon = order.getOrderItem().copy();
