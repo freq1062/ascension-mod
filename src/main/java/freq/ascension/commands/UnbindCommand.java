@@ -1,70 +1,95 @@
-package com.ascension.commands;
+package freq.ascension.commands;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import freq.ascension.managers.AscensionData;
+import freq.ascension.managers.SpellCooldownManager;
+
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
-import org.bukkit.entity.Player;
+public class UnbindCommand {
 
-import com.ascension.managers.DivineDataManager;
-import com.ascension.managers.SpellCooldownManager;
-
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-
-public class UnbindCommand implements CommandExecutor, TabCompleter {
-    private final DivineDataManager dataManager = DivineDataManager.getInstance();
-
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage("Players only.");
-            return true;
-        }
-        if (args.length != 1) {
-            player.sendMessage(Component.text("Usage: /unbind <spellId|all>", NamedTextColor.RED));
-            return true;
-        }
-        String arg = args[0];
-        if (arg.equalsIgnoreCase("all")) {
-            dataManager.unbindAll(player);
-            player.sendMessage(Component.text("All spell bindings cleared.", NamedTextColor.GREEN));
-            return true;
-        }
-
-        String spellId = arg;
-        if (SpellCooldownManager.get(spellId) == null) {
-            player.sendMessage(Component.text("Spell not found: " + spellId, NamedTextColor.RED));
-            return true;
-        }
-
-        Map<Integer, String> bindings = dataManager.getSpellBindings(player);
-        boolean found = bindings.values().stream().anyMatch(s -> s.equals(spellId));
-        if (!found) {
-            player.sendMessage(Component.text("That spell is not bound.", NamedTextColor.RED));
-            return true;
-        }
-
-        dataManager.unbindSpell(player, spellId);
-        player.sendMessage(Component.text("Unbound " + spellId, NamedTextColor.GREEN));
-        return true;
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(Commands.literal("unbind")
+                // Argument 1: Spell ID (String) or "all"
+                .then(Commands.argument("spellId", StringArgumentType.string())
+                        .suggests(UnbindCommand::suggestBoundSpells) // Tab Completion
+                        .executes(UnbindCommand::execute) // Main Logic
+                ));
     }
 
-    @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!(sender instanceof Player)) {
-            return null;
-        }
+    private static int execute(CommandContext<CommandSourceStack> context) {
+        try {
+            ServerPlayer player = context.getSource().getPlayerOrException();
+            AscensionData data = (AscensionData) player;
+            String arg = StringArgumentType.getString(context, "spellId");
 
-        List<String> completions = new ArrayList<>();
-        if (args.length == 1) {
-            completions.addAll(dataManager.getSpellBindings((Player) sender).values());
-            completions.add("all");
+            // Handle "all" case
+            if (arg.equalsIgnoreCase("all")) {
+                data.unbindAll();
+                context.getSource().sendSuccess(
+                        () -> Component.literal("All spell bindings cleared.").withStyle(ChatFormatting.GREEN), false);
+                return 1;
+            }
+
+            // Verify spell exists in general registry
+            if (SpellCooldownManager.get(arg) == null) {
+                context.getSource().sendFailure(
+                        Component.literal("Spell not found: " + arg).withStyle(ChatFormatting.RED));
+                return 0;
+            }
+
+            // Verify spell is actually bound
+            Map<Integer, String> bindings = data.getSpellBindings();
+            boolean found = bindings.values().stream().anyMatch(s -> s.equals(arg));
+            if (!found) {
+                context.getSource().sendFailure(
+                        Component.literal("That spell is not bound.").withStyle(ChatFormatting.RED));
+                return 0;
+            }
+
+            // Unbind logic
+            data.unbind(arg);
+            context.getSource().sendSuccess(
+                    () -> Component.literal("Unbound " + arg).withStyle(ChatFormatting.GREEN), false);
+
+            return 1;
+        } catch (CommandSyntaxException e) {
+            context.getSource().sendFailure(Component.literal("Players only."));
+            return 0;
         }
-        return completions;
+    }
+
+    private static CompletableFuture<Suggestions> suggestBoundSpells(CommandContext<CommandSourceStack> context,
+            SuggestionsBuilder builder) {
+        CommandSourceStack source = context.getSource();
+
+        if (source.getEntity() instanceof ServerPlayer player) {
+            AscensionData data = (AscensionData) player;
+            String remaining = builder.getRemaining().toLowerCase();
+
+            // Suggest "all"
+            if ("all".startsWith(remaining)) {
+                builder.suggest("all");
+            }
+
+            // Suggest currently bound spells
+            for (String boundSpellId : data.getSpellBindings().values()) {
+                if (boundSpellId.toLowerCase().startsWith(remaining)) {
+                    builder.suggest(boundSpellId);
+                }
+            }
+        }
+        return builder.buildFuture();
     }
 }

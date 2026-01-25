@@ -8,6 +8,7 @@ import java.util.Map;
 
 import freq.ascension.Ascension;
 import freq.ascension.api.ContinuousTask;
+import freq.ascension.registry.SpellRegistry;
 import net.minecraft.server.level.ServerPlayer;
 
 public final class SpellCooldownManager {
@@ -17,6 +18,7 @@ public final class SpellCooldownManager {
 
     public static void register(Spell spell) {
         SPELLS.put(spell.getId(), spell);
+        SpellRegistry.register(spell);
     }
 
     public static SpellCooldownManager getInstance() {

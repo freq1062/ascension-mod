@@ -1,109 +1,93 @@
-package com.ascension.commands;
+package freq.ascension.commands;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
-import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.util.StringUtil;
+import freq.ascension.items.InfluenceItem;
+import freq.ascension.managers.AscensionData;
 
-import com.ascension.items.InfluenceItem;
-import com.ascension.managers.DivineDataManager;
+public class WithdrawCommand {
 
-public class WithdrawCommand implements CommandExecutor, TabCompleter {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(Commands.literal("withdraw")
+                .then(Commands.literal("all")
+                        .executes(context -> withdraw(context, -1))) // Use -1 as a flag for "all"
+                .then(Commands.argument("amount", IntegerArgumentType.integer(1))
+                        .executes(context -> withdraw(context, IntegerArgumentType.getInteger(context, "amount")))));
+    }
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage("Only players can use this command.");
-            return true;
-        }
+    private static int withdraw(CommandContext<CommandSourceStack> context, int requestedAmount) {
+        try {
+            ServerPlayer player = context.getSource().getPlayerOrException();
+            AscensionData data = (AscensionData) player;
 
-        if (args.length != 1) {
-            player.sendMessage("Usage: /withdraw <amount|all>");
-            return true;
-        }
-
-        DivineDataManager dataManager = DivineDataManager.getInstance();
-        if (dataManager == null) {
-            player.sendMessage("Internal error.");
-            return true;
-        }
-
-        int storedInfluence = dataManager.getInfluence(player);
-        if (storedInfluence <= 0) {
-            player.sendMessage("You have no influence to withdraw.");
-            return true;
-        }
-
-        int amount;
-        if (args[0].equalsIgnoreCase("all")) {
-            amount = storedInfluence;
-        } else {
-            try {
-                amount = Integer.parseInt(args[0]);
-            } catch (NumberFormatException ex) {
-                player.sendMessage("Usage: /withdraw <amount|all>");
-                return true;
+            int storedInfluence = data.getInfluence();
+            if (storedInfluence <= 0) {
+                context.getSource().sendFailure(Component.literal("You have no influence to withdraw."));
+                return 0;
             }
-        }
 
-        if (amount <= 0) {
-            player.sendMessage("You must withdraw at least 1 influence.");
-            return true;
-        }
+            int amountToWithdraw;
+            // If requestedAmount is -1 (from 'all'), take everything. Otherwise take the
+            // number.
+            if (requestedAmount == -1) {
+                amountToWithdraw = storedInfluence;
+            } else {
+                amountToWithdraw = requestedAmount;
 
-        if (amount > storedInfluence) {
-            player.sendMessage("You cannot withdraw that much influence.");
-            return true;
-        }
+                if (amountToWithdraw > storedInfluence) {
+                    context.getSource().sendFailure(Component
+                            .literal("You cannot withdraw that much influence (Current: " + storedInfluence + ")."));
+                    return 0;
+                }
+            }
 
-        dataManager.setInfluence(player, storedInfluence - amount);
-        giveInfluenceItems(player, amount);
-        return true;
+            // Deduct influence
+            data.setInfluence(storedInfluence - amountToWithdraw);
+
+            // Give items
+            giveInfluenceItems(player, amountToWithdraw);
+
+            context.getSource().sendSuccess(() -> Component.literal("Withdrew " + amountToWithdraw + " influence."),
+                    true);
+            return 1;
+
+        } catch (CommandSyntaxException e) {
+            context.getSource().sendFailure(Component.literal("Only players can use this command."));
+            return 0;
+        } catch (ClassCastException e) {
+            context.getSource().sendFailure(Component.literal("Internal error: Player data capabilities missing."));
+            return 0;
+        }
     }
 
-    @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!(sender instanceof Player player)) return Collections.emptyList();
-        if (args.length != 1) return Collections.emptyList();
-
-        DivineDataManager dataManager = DivineDataManager.getInstance();
-        if (dataManager == null) return Collections.emptyList();
-
-        int storedInfluence = dataManager.getInfluence(player);
-
-        List<String> options = new ArrayList<>();
-        options.add("all");
-        options.add("1");
-        if (storedInfluence > 0) {
-            options.add(String.valueOf(storedInfluence));
-        }
-
-        String token = args[0] == null ? "" : args[0];
-        List<String> completions = new ArrayList<>();
-        StringUtil.copyPartialMatches(token, options, completions);
-        Collections.sort(completions);
-        return completions;
-    }
-
-    private void giveInfluenceItems(Player player, int amount) {
+    private static void giveInfluenceItems(ServerPlayer player, int amount) {
         int remaining = amount;
         while (remaining > 0) {
-            int stack = Math.min(remaining, 64);
-            ItemStack item = InfluenceItem.createItem();
-            item.setAmount(stack);
+            int stackSize = Math.min(remaining, 64);
 
-            var leftovers = player.getInventory().addItem(item);
-            for (ItemStack leftover : leftovers.values()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+            // Assuming InfluenceItem.createItem() returns a
+            // net.minecraft.world.item.ItemStack
+            ItemStack item = InfluenceItem.createItem();
+            item.setCount(stackSize);
+
+            // Attempt to add to inventory
+            boolean added = player.getInventory().add(item);
+
+            // If the inventory was full or couldn't take the whole stack, drop the
+            // remainder
+            if (!added || !item.isEmpty()) {
+                player.drop(item, false);
             }
-            remaining -= stack;
+
+            remaining -= stackSize;
         }
     }
 }

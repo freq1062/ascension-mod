@@ -1,9 +1,17 @@
 package freq.ascension.registry;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import freq.ascension.Utils;
 import freq.ascension.managers.ActiveSpell;
+import freq.ascension.managers.AscensionData;
+import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.orders.Earth;
+import freq.ascension.orders.Order;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -12,6 +20,40 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.AABB;
 
 public class SpellRegistry {
+    // {id: spell}
+    public static final Map<String, Spell> SPELLS = new HashMap<>();
+    // {order: {type: [ spell1, spell2 ]}}
+    private static final Map<Order, Map<String, List<Spell>>> BY_ORDER_AND_TYPE = new HashMap<>();
+
+    public static void register(Spell spell) {
+        SPELLS.put(spell.getId(), spell);
+        BY_ORDER_AND_TYPE
+                .computeIfAbsent(spell.getOrder(), k -> new HashMap<>())
+                .computeIfAbsent(spell.getType(), k -> new ArrayList<>())
+                .add(spell);
+    }
+
+    public static List<Spell> getEquippableSpells(ServerPlayer player) {
+        List<Spell> equippable = new ArrayList<>();
+        AscensionData data = (AscensionData) player;
+        
+        addSpellsIfPresent(equippable, data.getPassive(), "passive");
+        addSpellsIfPresent(equippable, data.getUtility(), "utility");
+        addSpellsIfPresent(equippable, data.getCombat(), "combat");
+        
+        return equippable;
+    }
+
+    private static void addSpellsIfPresent(List<Spell> targetList, Order order, String type) {
+        if (order == null) return;
+        Map<String, List<Spell>> orderSpells = BY_ORDER_AND_TYPE.get(order);
+        if (orderSpells == null) return;
+        List<Spell> spells = orderSpells.get(type);
+        if (spells != null) {
+            targetList.addAll(spells);
+        }
+    }
+
     public static void magmaBubble(ServerPlayer p, int radius, float damagePercent, boolean launch) {
         BlockPos center = p.getOnPos();
 

@@ -1,82 +1,94 @@
-package com.ascension.commands;
+package freq.ascension.commands;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import freq.ascension.managers.AscensionData;
+import freq.ascension.managers.Spell;
+import freq.ascension.managers.SpellCooldownManager;
+import freq.ascension.registry.SpellRegistry;
 
-import com.ascension.managers.DivineDataManager;
-import com.ascension.managers.Spell;
-import com.ascension.managers.SpellCooldownManager;
-import org.bukkit.command.TabCompleter;
-import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 import java.util.List;
 
-public class BindCommand implements CommandExecutor, TabCompleter {
-    private final DivineDataManager dataManager = DivineDataManager.getInstance();
+public class BindCommand {
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("Players only.", NamedTextColor.RED));
-            return true;
-        }
-        if (args.length != 2) {
-            player.sendMessage(Component.text("Usage: /bind <slot> <spellId>", NamedTextColor.RED));
-            return true;
-        }
-        int slot;
-        try {
-            slot = Integer.parseInt(args[0]);
-        } catch (NumberFormatException e) {
-            player.sendMessage(Component.text("Slot must be a number.", NamedTextColor.RED));
-            return true;
-        }
-        if (slot < 1 || slot > 9) {
-            player.sendMessage(Component.text("Slot must be between 1 and 9.", NamedTextColor.RED));
-            return true;
-        }
-        String spellId = args[1];
-        Spell spell = SpellCooldownManager.get(spellId);
-        if (spell == null) {
-            player.sendMessage(Component.text("Spell not found: " + spellId, NamedTextColor.RED));
-            return true;
-        }
-        ArrayList<String> unlocked = dataManager.getUnlockedSpellIds(player);
-
-        if (!unlocked.contains(spellId)) {
-            player.sendMessage(Component.text("You do not have that spell unlocked.", NamedTextColor.RED));
-            return true;
-        }
-        ArrayList<String> equipped = dataManager.getEquippableSpellids(player);
-        if (!equipped.contains(spellId)) {
-            player.sendMessage(Component.text("You do not have the associated order equipped.", NamedTextColor.RED));
-            return true;
-        }
-
-        dataManager.bindSpell(player, slot - 1, spellId); // Subtract 1 from slot
-        player.sendMessage(Component.text("Bound " + spellId + " to slot " + slot, NamedTextColor.GREEN));
-        return true;
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(Commands.literal("bind")
+                // Argument 1: Slot (Integer 1-9)
+                .then(Commands.argument("slot", IntegerArgumentType.integer(1, 9))
+                        // Argument 2: Spell ID (String)
+                        .then(Commands.argument("spellId", StringArgumentType.string())
+                                .suggests(BindCommand::suggestSpells) // Tab Completion
+                                .executes(BindCommand::execute) // Main Logic
+                        )));
     }
 
-    @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!(sender instanceof Player)) {
-            return null;
-        }
+    private static int execute(CommandContext<CommandSourceStack> context) {
+        try {
+            // Throws exception if sender is console or command block
+            ServerPlayer player = context.getSource().getPlayerOrException();
+            AscensionData data = (AscensionData) player;
 
-        List<String> completions = new ArrayList<>();
-        if (args.length == 1) {
-            // Suggest slots 1-9
-            for (int i = 1; i <= 9; i++) {
-                completions.add(String.valueOf(i));
+            // Get arguments directly from context
+            int slot = IntegerArgumentType.getInteger(context, "slot");
+            String spellId = StringArgumentType.getString(context, "spellId");
+
+            // Logic Check 1: Does spell exist globally?
+            Spell spell = SpellCooldownManager.get(spellId);
+            if (spell == null) {
+                context.getSource()
+                        .sendFailure(Component.literal("Spell not found: " + spellId).withStyle(ChatFormatting.RED));
+                return 0;
             }
-        } else if (args.length == 2) {
-            // Suggest available spell IDs
-            completions.addAll(dataManager.getEquippableSpellids((Player) sender));
+
+            List<Spell> equippable = SpellRegistry.getEquippableSpells(player);
+            List<String> equippableIds = equippable.stream().map(Spell::getId).toList();
+
+            if (!equippableIds.contains(spellId)) {
+                Spell s = SpellRegistry.SPELLS.get(spellId);
+                context.getSource().sendFailure(
+                        Component.literal("That spell requires equipping " + s.getOrder().getOrderName() + " "
+                                + s.getType() + "!").withStyle(ChatFormatting.RED));
+                return 0;
+            }
+            // Bind Action
+            data.bind(slot - 1, spellId);
+            context.getSource().sendSuccess(
+                    () -> Component.literal("Bound " + spellId + " to slot " + slot).withStyle(ChatFormatting.GREEN),
+                    false);
+
+            return 1; // Success
+        } catch (CommandSyntaxException e) {
+            context.getSource().sendFailure(Component.literal("Players only."));
+            return 0;
         }
-        return completions;
+    }
+
+    private static CompletableFuture<Suggestions> suggestSpells(CommandContext<CommandSourceStack> context,
+            SuggestionsBuilder builder) {
+        CommandSourceStack source = context.getSource();
+
+        if (source.getEntity() instanceof ServerPlayer player) {
+            List<Spell> equippable = SpellRegistry.getEquippableSpells(player);
+            List<String> equippableIds = equippable.stream().map(Spell::getId).toList();
+            String remaining = builder.getRemaining().toLowerCase();
+
+            for (String spellId : equippableIds) {
+                if (spellId.toLowerCase().startsWith(remaining)) {
+                    builder.suggest(spellId);
+                }
+            }
+        }
+        return builder.buildFuture();
     }
 }

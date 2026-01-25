@@ -205,6 +205,21 @@ public class ServerPlayerMixin implements AscensionData {
     }
 
     @Override
+    public void bind(int slot, String spellId) {
+        this.spell_bindings.put(slot, spellId);
+    }
+
+    @Override
+    public void unbind(String spellId) {
+        this.spell_bindings.values().remove(spellId);
+    }
+
+    @Override
+    public void unbindAll() {
+        this.spell_bindings.clear();
+    }
+
+    @Override
     public String getGodOrder() {
         return this.godOrder;
     }
@@ -221,7 +236,7 @@ public class ServerPlayerMixin implements AscensionData {
 
     @Override
     public OrderUnlock getUnlockedOrder(String order) {
-        return this.unlocked_orders.get(order);
+        return this.unlocked_orders.getOrDefault(order, OrderUnlock.EMPTY);
     }
 
     @Override
@@ -249,7 +264,14 @@ public class ServerPlayerMixin implements AscensionData {
      */
     @Override
     public List<Order> getEquippedOrders() {
-        return List.of(getPassive(), getUtility(), getCombat());
+        java.util.List<Order> list = new java.util.ArrayList<>();
+        if (getPassive() != null)
+            list.add(getPassive());
+        if (getUtility() != null)
+            list.add(getUtility());
+        if (getCombat() != null)
+            list.add(getCombat());
+        return list;
     }
 }
 

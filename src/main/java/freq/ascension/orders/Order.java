@@ -1,5 +1,8 @@
 package freq.ascension.orders;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -28,6 +31,10 @@ public interface Order {
             case "combat" -> "§7No combat effect defined.";
             default -> "";
         };
+    }
+
+    default List<Spell> getOrderSpells() {
+        return new ArrayList<>();
     }
 
     // Event listeners

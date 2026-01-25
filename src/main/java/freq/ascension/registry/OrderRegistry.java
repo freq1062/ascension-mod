@@ -28,4 +28,10 @@ public class OrderRegistry {
     public static Iterable<Order> iterable() {
         return java.util.Collections.unmodifiableCollection(ORDERS.values());
     }
+
+    public static void registerAllSpells() {
+        for (Order order : ORDERS.values()) {
+            order.registerSpells();
+        }
+    }
 }

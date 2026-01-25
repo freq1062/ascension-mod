@@ -1,40 +1,40 @@
-package com.ascension.commands;
+package freq.ascension.commands;
 
-import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.context.CommandContext;
 
-import com.ascension.managers.DivineDataManager;
+import freq.ascension.managers.AscensionData;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 
-public class GetInfluenceCommand implements CommandExecutor {
+public class GetInfluenceCommand {
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("ascension.admin")) {
-            sender.sendMessage("You do not have permission to use this command.");
-            return true;
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(Commands.literal("getinfluence")
+                .requires(source -> source.hasPermission(2)) // Permission level 2 (op)
+                .then(Commands.argument("target", EntityArgument.player())
+                        .executes(GetInfluenceCommand::run)));
+    }
+
+    private static int run(CommandContext<CommandSourceStack> context) {
+        try {
+            ServerPlayer target = EntityArgument.getPlayer(context, "target");
+            AscensionData data = (AscensionData) target;
+            CommandSourceStack source = context.getSource();
+
+            int influence = data.getInfluence();
+            source.sendSuccess(
+                    () -> Component
+                            .literal("§e" + target.getName().getString() + "§7 has §e" + influence + "§7 influence."),
+                    false);
+
+            return 1;
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("An error occurred while querying influence."));
+            return 0;
         }
-        if (args.length < 1) {
-            sender.sendMessage("Usage: /getinfluence <player>");
-            return true;
-        }
-
-        Player target = Bukkit.getPlayerExact(args[0]);
-        if (target == null) {
-            sender.sendMessage("§cThat player must be online.");
-            return true;
-        }
-
-        DivineDataManager dm = DivineDataManager.getInstance();
-        if (dm == null) {
-            sender.sendMessage("§cData manager not ready.");
-            return true;
-        }
-
-        int influence = dm.getInfluence(target);
-        sender.sendMessage("§e" + target.getName() + "§7 has §e" + influence + "§7 influence.");
-        return true;
     }
 }

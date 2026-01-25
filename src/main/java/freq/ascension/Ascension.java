@@ -1,6 +1,7 @@
 package freq.ascension;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.MinecraftServer;
 
@@ -8,9 +9,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import freq.ascension.api.TaskScheduler;
+import freq.ascension.commands.AscensionMenuOpenCommand;
+import freq.ascension.commands.BindCommand;
+import freq.ascension.commands.GetInfluenceCommand;
+import freq.ascension.commands.GiveInfluenceCommand;
+import freq.ascension.commands.UnbindCommand;
+import freq.ascension.commands.WithdrawCommand;
 import freq.ascension.managers.AbilityManager;
 import freq.ascension.managers.InfluenceManager;
 import freq.ascension.managers.SpellCooldownManager;
+import freq.ascension.registry.OrderRegistry;
 
 public class Ascension implements ModInitializer {
 	public static final String MOD_ID = "ascension";
@@ -39,6 +47,17 @@ public class Ascension implements ModInitializer {
 		AbilityManager.init();
 		SpellCooldownManager.updateActiveSpells();
 		InfluenceManager.init();
+		OrderRegistry.registerAllSpells();
+
+		// Register Commands
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+			AscensionMenuOpenCommand.register(dispatcher);
+			BindCommand.register(dispatcher);
+			GetInfluenceCommand.register(dispatcher);
+			GiveInfluenceCommand.register(dispatcher);
+			UnbindCommand.register(dispatcher);
+			WithdrawCommand.register(dispatcher);
+		});
 
 		LOGGER.info("Ascension SMP Mod Loaded!");
 	}

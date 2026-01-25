@@ -12,6 +12,7 @@ base {
 
 repositories {
 	mavenCentral()
+	maven { url 'https://maven.nucleoid.xyz' }
 	// Add repositories to retrieve artifacts from in here.
 	// You should only use this when depending on other mods because
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
@@ -49,6 +50,9 @@ dependencies {
 	// Nightconfig
 	include implementation("com.electronwill.night-config:core:3.8.3")
     include implementation("com.electronwill.night-config:toml:3.8.3")
+
+	// sgui
+	modImplementation "eu.pb4:sgui:1.11.0+1.21.9"
 }
 
 processResources {

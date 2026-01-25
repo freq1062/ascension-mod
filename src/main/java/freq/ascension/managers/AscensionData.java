@@ -58,6 +58,12 @@ public interface AscensionData {
 
     Map<Integer, String> getSpellBindings();
 
+    void bind(int slot, String spellId);
+
+    void unbind(String spellId);
+
+    void unbindAll();
+
     String getGodOrder();
 
     void setGodOrder(String order);
