@@ -85,7 +85,7 @@ public class AscensionMenu {
                                                                                                 ? ChatFormatting.GREEN
                                                                                                 : ChatFormatting.RED)
                                                                                 .withItalic(false)
-                                                                                .withBold(data.getPassive() == order)),
+                                                                                .withBold(data.getUtility() == order)),
 
                                                 Component.literal("Combat")
                                                                 .withStyle(style -> style
@@ -93,7 +93,7 @@ public class AscensionMenu {
                                                                                                 ? ChatFormatting.GREEN
                                                                                                 : ChatFormatting.RED)
                                                                                 .withItalic(false)
-                                                                                .withBold(data.getPassive() == order))
+                                                                                .withBold(data.getCombat() == order))
 
                                 )));
                 return item;

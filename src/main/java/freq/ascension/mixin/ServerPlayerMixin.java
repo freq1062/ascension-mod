@@ -3,7 +3,6 @@ package freq.ascension.mixin;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.orders.Order;
 import freq.ascension.registry.OrderRegistry;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -52,17 +51,19 @@ public class ServerPlayerMixin implements AscensionData {
     // SAVING DATA
     @Inject(method = "addAdditionalSaveData", at = @At("TAIL"))
     private void saveAscensionData(ValueOutput output, CallbackInfo ci) {
-        output.putInt("influence", this.influence);
-        output.putString("rank", this.rank != null ? this.rank : "demigod");
+        ValueOutput ascensionData = output.child("ascension_data");
+
+        ascensionData.putInt("influence", this.influence);
+        ascensionData.putString("rank", this.rank != null ? this.rank : "demigod");
 
         if (this.passive != null)
-            output.putString("passive", this.passive);
+            ascensionData.putString("passive", this.passive);
         if (this.utility != null)
-            output.putString("utility", this.utility);
+            ascensionData.putString("utility", this.utility);
         if (this.combat != null)
-            output.putString("combat", this.combat);
+            ascensionData.putString("combat", this.combat);
         if (this.godOrder != null)
-            output.putString("godOrder", this.godOrder);
+            ascensionData.putString("godOrder", this.godOrder);
 
         // Save the Map (Spell Bindings)
         StringBuilder bindings_sb = new StringBuilder();
@@ -72,16 +73,7 @@ public class ServerPlayerMixin implements AscensionData {
             if (bindings_sb.length() > 0)
                 bindings_sb.append(";");
         });
-        output.putString("spell_bindings", bindings_sb.toString());
-
-        CompoundTag ordersTag = new CompoundTag();
-        this.unlocked_orders.forEach((name, unlock) -> {
-            CompoundTag detail = new CompoundTag();
-            detail.putBoolean("passive", unlock.passive());
-            detail.putBoolean("utility", unlock.utility());
-            detail.putBoolean("combat", unlock.combat());
-            ordersTag.put(name, detail);
-        });
+        ascensionData.putString("spell_bindings", bindings_sb.toString());
 
         StringBuilder orders_sb = new StringBuilder();
         this.unlocked_orders.forEach((name, unlock) -> {
@@ -92,13 +84,72 @@ public class ServerPlayerMixin implements AscensionData {
                 orders_sb.append(";");
         });
 
-        output.putString("unlocked_orders", orders_sb.toString());
+        ascensionData.putString("unlocked_orders", orders_sb.toString());
+    }
+
+    @Unique
+    private void parseSpellBindings(String encoded) {
+        this.spell_bindings.clear();
+        if (encoded != null && !encoded.isEmpty()) {
+            String[] bindingsRaw = encoded.split(";");
+            for (String raw : bindingsRaw) {
+                String[] parts = raw.split(":");
+                if (parts.length == 2) {
+                    try {
+                        this.spell_bindings.put(Integer.parseInt(parts[0]), parts[1]);
+                    } catch (NumberFormatException ignored) {
+                        // Ignore invalid slots
+                    }
+                }
+            }
+        }
+    }
+
+    @Unique
+    private void parseUnlockedOrders(String encoded) {
+        this.unlocked_orders.clear();
+        if (encoded != null && !encoded.isEmpty()) {
+            String[] ordersRaw = encoded.split(";");
+            for (String e : ordersRaw) {
+                String[] parts = e.split(":");
+                if (parts.length == 2) {
+                    String name = parts[0];
+                    String[] flags = parts[1].split(",");
+                    if (flags.length == 3) {
+                        this.unlocked_orders.put(name, new OrderUnlock(
+                                "1".equals(flags[0]),
+                                "1".equals(flags[1]),
+                                "1".equals(flags[2])));
+                    }
+                }
+            }
+        }
     }
 
     // LOADING DATA
     @Inject(method = "readAdditionalSaveData", at = @At("TAIL"))
     private void readAscensionData(ValueInput input, CallbackInfo ci) {
-        if (input.contains("ascension_data")) { // 10 is the type ID for CompoundTag
+        // Try to read from the new nested tag first
+        ValueInput ascensionData = input.childOrEmpty("ascension_data");
+
+        // Use "influence" existence as a check for whether the new data format exists.
+        // It is always saved, so if it's there, we have a valid child tag.
+        var childInfluenceOpt = ascensionData.getInt("influence");
+
+        if (childInfluenceOpt.isPresent()) {
+            // LOAD FROM CHILD (New Interpretation)
+            this.influence = childInfluenceOpt.get();
+            this.rank = ascensionData.getString("rank").orElse("demigod");
+
+            this.passive = ascensionData.getStringOr("passive", null);
+            this.utility = ascensionData.getStringOr("utility", null);
+            this.combat = ascensionData.getStringOr("combat", null);
+            this.godOrder = ascensionData.getStringOr("godOrder", null);
+
+            parseSpellBindings(ascensionData.getStringOr("spell_bindings", ""));
+            parseUnlockedOrders(ascensionData.getStringOr("unlocked_orders", ""));
+        } else {
+            // LOAD FROM ROOT (Legacy Fallback)
             this.influence = input.getInt("influence").orElse(0);
             this.rank = input.getString("rank").orElse("demigod");
 
@@ -107,40 +158,8 @@ public class ServerPlayerMixin implements AscensionData {
             this.combat = input.getStringOr("combat", null);
             this.godOrder = input.getStringOr("godOrder", null);
 
-            this.spell_bindings.clear();
-            String encodedBindings = input.getStringOr("spell_bindings", "");
-            if (!encodedBindings.isEmpty()) {
-                String[] bindingsRaw = encodedBindings.split(";");
-                for (String raw : bindingsRaw) {
-                    String[] parts = raw.split(":");
-                    if (parts.length == 2) {
-                        try {
-                            this.spell_bindings.put(Integer.parseInt(parts[0]), parts[1]);
-                        } catch (NumberFormatException ignored) {
-                            // Ignore invalid slots
-                        }
-                    }
-                }
-            }
-
-            this.unlocked_orders.clear();
-            String encodedOrders = input.getStringOr("unlocked_orders", "");
-            if (!encodedOrders.isEmpty()) {
-                String[] ordersRaw = encodedOrders.split(";");
-                for (String e : ordersRaw) {
-                    String[] parts = e.split(":");
-                    if (parts.length == 2) {
-                        String name = parts[0];
-                        String[] flags = parts[1].split(",");
-                        if (flags.length == 3) {
-                            this.unlocked_orders.put(name, new OrderUnlock(
-                                    "1".equals(flags[0]),
-                                    "1".equals(flags[1]),
-                                    "1".equals(flags[2])));
-                        }
-                    }
-                }
-            }
+            parseSpellBindings(input.getStringOr("spell_bindings", ""));
+            parseUnlockedOrders(input.getStringOr("unlocked_orders", ""));
         }
     }
 

@@ -16,6 +16,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -60,21 +62,49 @@ public class OrderDetailMenu {
                 gui.setSlot(2, new GuiElementBuilder(makeSubIcon(Items.BOOK, "passive",
                                 data.getUnlockedOrder(order.getOrderName()).hasPassive(), data.getPassive() == order))
                                 .setCallback((index, type, action) -> {
-                                        // TODO: Add logic to unlock or equip Passive
+                                        if (deductInfluence(data, 1)) {
+                                                data.setPassive(order.getOrderName());
+                                                player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP,
+                                                                SoundSource.PLAYERS,
+                                                                1.0f, 1.0f);
+                                        } else {
+                                                player.playNotifySound(SoundEvents.ENDERMAN_TELEPORT,
+                                                                SoundSource.PLAYERS,
+                                                                1.0f, 1.0f);
+                                        }
+
                                         this.open(player); // Refresh menu
                                 }));
 
                 gui.setSlot(4, new GuiElementBuilder(makeSubIcon(Items.IRON_BOOTS, "utility",
                                 data.getUnlockedOrder(order.getOrderName()).hasUtility(), data.getUtility() == order))
                                 .setCallback((index, type, action) -> {
-                                        // TODO: Add logic to unlock or equip Utility
+                                        if (deductInfluence(data, 1)) {
+                                                data.setUtility(order.getOrderName());
+                                                player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP,
+                                                                SoundSource.PLAYERS,
+                                                                1.0f, 1.0f);
+                                        } else {
+                                                player.playNotifySound(SoundEvents.ENDERMAN_TELEPORT,
+                                                                SoundSource.PLAYERS,
+                                                                1.0f, 1.0f);
+                                        }
                                         this.open(player);
                                 }));
 
                 gui.setSlot(6, new GuiElementBuilder(makeSubIcon(Items.IRON_SWORD, "combat",
                                 data.getUnlockedOrder(order.getOrderName()).hasCombat(), data.getCombat() == order))
                                 .setCallback((index, type, action) -> {
-                                        // TODO: Add logic to unlock or equip Combat
+                                        if (deductInfluence(data, 1)) {
+                                                data.setCombat(order.getOrderName());
+                                                player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP,
+                                                                SoundSource.PLAYERS,
+                                                                1.0f, 1.0f);
+                                        } else {
+                                                player.playNotifySound(SoundEvents.ENDERMAN_TELEPORT,
+                                                                SoundSource.PLAYERS,
+                                                                1.0f, 1.0f);
+                                        }
                                         this.open(player);
                                 }));
 
@@ -82,6 +112,13 @@ public class OrderDetailMenu {
                                 .setCallback((index, type, action) -> {
                                         new AscensionMenu().open(player);
                                 }));
+        }
+
+        private boolean deductInfluence(AscensionData data, int amount) {
+                if (data.getInfluence() < amount)
+                        return false;
+                data.addInfluence(-amount);
+                return true;
         }
 
         public void updateGod(AscensionData data, SimpleGui gui, ServerPlayer player) {
@@ -96,7 +133,15 @@ public class OrderDetailMenu {
 
                 gui.setSlot(13, new GuiElementBuilder(makePromotionIcon(data.getGodOrder() == order.getOrderName()))
                                 .setCallback((index, type, action) -> {
-                                        // TODO: Add logic to claim God status
+                                        if (deductInfluence(data, 1)) {
+                                                data.setGodOrder(order.getOrderName());
+                                                player.playNotifySound(SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS,
+                                                                1.0f, 1.0f);
+                                        } else {
+                                                player.playNotifySound(SoundEvents.ENDERMAN_TELEPORT,
+                                                                SoundSource.PLAYERS,
+                                                                1.0f, 1.0f);
+                                        }
                                         this.open(player);
                                 }));
         }
@@ -132,8 +177,10 @@ public class OrderDetailMenu {
                 ItemStack icon = new ItemStack(item);
                 icon.set(DataComponents.ITEM_NAME, Component.literal(
                                 Utils.smallCaps(type))
-                                .withStyle(unlocked ? ChatFormatting.GREEN : ChatFormatting.RED)
-                                .withStyle(ChatFormatting.BOLD));
+                                .withStyle(style -> style
+                                                .withColor(unlocked ? ChatFormatting.GREEN : ChatFormatting.RED)
+                                                .withBold(equipped)
+                                                .withItalic(false)));
 
                 List<Component> lore = new ArrayList<>(Utils.wrapToComponents(order.getDescription(type)));
                 lore.add(Component
