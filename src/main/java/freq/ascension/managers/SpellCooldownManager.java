@@ -66,11 +66,16 @@ public final class SpellCooldownManager {
         return spell.getStats(player).getDescription();
     }
 
+    // State tracking for action bar updates
+    private static final Map<java.util.UUID, String> lastActionBarText = new HashMap<>();
+    private static final Map<java.util.UUID, Long> lastActionBarTime = new HashMap<>();
+    private static final Map<java.util.UUID, Integer> lastHeldSlot = new HashMap<>();
+
     // Called once at initialization
     public static void updateActiveSpells() {
+        // Combined Task: Decrement cooldowns AND Update Action Bar (1 tick)
         Ascension.scheduler.schedule(new ContinuousTask(1, () -> {
-            Map<ServerPlayer, List<ActiveSpell>> playerSpells = new HashMap<>();
-
+            // 1. Decrement Cooldowns
             synchronized (ACTIVE_SPELLS) {
                 Iterator<ActiveSpell> it = ACTIVE_SPELLS.iterator();
                 while (it.hasNext()) {
@@ -80,26 +85,126 @@ public final class SpellCooldownManager {
                     }
                     if (active.isCooldownFinished()) {
                         it.remove();
-                    } else {
-                        playerSpells.computeIfAbsent(active.getPlayer(), k -> new ArrayList<>()).add(active);
                     }
                 }
             }
 
-            for (Map.Entry<ServerPlayer, List<ActiveSpell>> entry : playerSpells.entrySet()) {
-                ServerPlayer player = entry.getKey();
-                if (player == null)
-                    continue;
+            // 2. Update Action Bar
+            long currentTick = Ascension.getServer().getTickCount();
+            for (ServerPlayer player : Ascension.getServer().getPlayerList().getPlayers()) {
+                try {
+                    AscensionData data = (AscensionData) player;
+                    Map<Integer, String> bindings = data.getSpellBindings();
 
-                StringBuilder msg = new StringBuilder();
-                for (ActiveSpell spell : entry.getValue()) {
-                    if (msg.length() > 0)
-                        msg.append(" | ");
-                    String name = getDisplayName(spell.getSpell().getId());
-                    float seconds = spell.getRemainingCooldown() / 20.0f;
-                    msg.append(name).append(": ").append(String.format("%.1fs", seconds));
+                    int slot = player.getInventory().getSelectedSlot();
+                    java.util.UUID uuid = player.getUUID();
+
+                    // Detect slot change
+                    boolean slotChanged = false;
+                    if (!lastHeldSlot.containsKey(uuid) || lastHeldSlot.get(uuid) != slot) {
+                        lastHeldSlot.put(uuid, slot);
+                        slotChanged = true;
+                    }
+
+                    String spellId = (bindings != null) ? bindings.get(slot) : null;
+
+                    String textToSend = ""; // Default empty
+
+                    if (spellId != null) {
+                        Spell spell = get(spellId);
+                        if (spell != null && !"shapeshift".equalsIgnoreCase(spellId)) {
+                            ActiveSpell active = getActiveSpell(player, spell);
+                            if (active == null) {
+                                // Ready: Green text
+                                textToSend = "READY:" + spellId;
+                            } else if (active.isInUse()) {
+                                textToSend = "INUSE:" + spellId;
+                            } else {
+                                // Cooldown
+                                int remaining = active.getRemainingCooldown();
+                                textToSend = "CD:" + spellId + ":" + remaining;
+                            }
+                        }
+                    }
+
+                    // Determine if we need to send update
+                    // 1. Text content changed (State change, spell switch)
+                    // 2. Slot changed (even if text is same, e.g. switching between two unbounded
+                    // slots? No, text would be empty)
+                    // 3. Time elapsed > 40 ticks (Keep alive)
+
+                    String lastText = lastActionBarText.getOrDefault(uuid, "");
+                    long lastTime = lastActionBarTime.getOrDefault(uuid, 0L);
+
+                    boolean textChanged = !textToSend.equals(lastText);
+                    boolean shouldResend = (currentTick - lastTime) > 40; // 2 seconds
+
+                    if (slotChanged || textChanged || shouldResend || textToSend.startsWith("CD:")) {
+                        // We send if slot changed, text changed, keepalive needed, OR it's a cooldown
+                        // (animation needs 1-tick updates)
+
+                        if (spellId == null) {
+                            // If we switched to empty slot and had text before, clear it
+                            if (!lastText.isEmpty()) {
+                                player.displayClientMessage(Component.empty(), true);
+                            }
+                        } else {
+                            // Construct actual component
+                            Spell spell = get(spellId);
+                            if (spell != null) {
+                                ActiveSpell active = getActiveSpell(player, spell);
+                                String display = getDisplayName(spellId);
+                                SpellStats stats = spell.getStats(player);
+                                int maxCooldown = (stats != null) ? Math.max(1, stats.getCooldownTicks()) : 1;
+                                String spacer = "                                        ";
+                                
+                                // Dynamic spacer based on text width
+                                int textWidth = 0;
+                                for (char c : display.toCharArray()) {
+                                    if (c == ' ' || c == '.' || c == ',' || c == 'i' || c == ':' || c == ';') textWidth += 2;
+                                    else if (c == 'l' || c == 't' || c == 'I' || c == '[' || c == ']') textWidth += 3;
+                                    else if (c == 'f' || c == 'k') textWidth += 4;
+                                    else textWidth += 5;
+                                }
+                                int extraSpaces = (int) Math.ceil(textWidth / 4.0);
+                                spacer += " ".repeat(extraSpaces);
+
+                                String backwards = "\uF801\uF801\uF801\uF801";
+
+                                Component comp;
+                                if (active == null) {
+                                  comp = Component.literal(spacer + " \uE17F" + backwards)
+                                          .withStyle(style -> style.withShadowColor(0))
+                                          .append(Component.literal(display)
+                                                  .withStyle(style -> style.withColor(0x00ff00)));
+                                } else if (active.isInUse()) {
+                                  comp = Component.literal(spacer + " \uE180" + backwards)
+                                          .withStyle(style -> style.withShadowColor(0))
+                                          .append(Component.literal(display)
+                                                  .withStyle(style -> style.withColor(0xf5ea1b)));
+                                } else {
+                                  int remaining = active.getRemainingCooldown();
+                                  float progress = 1.0f - ((float) remaining / (float) maxCooldown);
+                                  progress = Math.max(0.0f, Math.min(1.0f, progress));
+                                  
+                                  int index = (int) (progress * 127.0f);
+                                  char icon = (char) (0xE100 + index);
+
+                                  comp = Component.literal(spacer + " " + icon + backwards)
+                                          .withStyle(style -> style.withShadowColor(0))
+                                          .append(Component.literal(display)
+                                                  .withStyle(style -> style.withColor(0xff0000)));
+                                }
+                                player.displayClientMessage(comp, true);
+                            }
+                        }
+
+                        lastActionBarText.put(uuid, textToSend);
+                        lastActionBarTime.put(uuid, currentTick);
+                    }
+                } catch (Exception e) {
+                    // Ignore
                 }
-                player.displayClientMessage(Component.literal(msg.toString()), true);
             }
         }));
     }

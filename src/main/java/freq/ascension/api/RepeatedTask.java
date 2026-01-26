@@ -24,4 +24,9 @@ public class RepeatedTask implements Task {
         action.run();
         lastExecutionTick = currentTickInternal;
     }
+
+    @Override
+    public boolean isFinished() {
+        return false;
+    }
 }

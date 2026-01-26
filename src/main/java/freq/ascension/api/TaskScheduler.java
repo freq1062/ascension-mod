@@ -20,7 +20,9 @@ public class TaskScheduler {
                 } catch (Throwable t) {
                     t.printStackTrace();
                 }
-                toRemove.add(task);
+                if (task.isFinished()) {
+                    toRemove.add(task);
+                }
             }
         }
         tasks.removeAll(toRemove);

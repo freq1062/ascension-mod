@@ -28,4 +28,9 @@ public class ContinuousTask implements Task {
     public void stop() {
         this.stopped = true;
     }
+
+    @Override
+    public boolean isFinished() {
+        return stopped;
+    }
 }
