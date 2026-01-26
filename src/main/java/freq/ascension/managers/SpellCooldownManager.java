@@ -9,6 +9,7 @@ import java.util.Map;
 import freq.ascension.Ascension;
 import freq.ascension.api.ContinuousTask;
 import freq.ascension.registry.SpellRegistry;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
 public final class SpellCooldownManager {
@@ -68,6 +69,8 @@ public final class SpellCooldownManager {
     // Called once at initialization
     public static void updateActiveSpells() {
         Ascension.scheduler.schedule(new ContinuousTask(1, () -> {
+            Map<ServerPlayer, List<ActiveSpell>> playerSpells = new HashMap<>();
+
             synchronized (ACTIVE_SPELLS) {
                 Iterator<ActiveSpell> it = ACTIVE_SPELLS.iterator();
                 while (it.hasNext()) {
@@ -77,8 +80,26 @@ public final class SpellCooldownManager {
                     }
                     if (active.isCooldownFinished()) {
                         it.remove();
+                    } else {
+                        playerSpells.computeIfAbsent(active.getPlayer(), k -> new ArrayList<>()).add(active);
                     }
                 }
+            }
+
+            for (Map.Entry<ServerPlayer, List<ActiveSpell>> entry : playerSpells.entrySet()) {
+                ServerPlayer player = entry.getKey();
+                if (player == null)
+                    continue;
+
+                StringBuilder msg = new StringBuilder();
+                for (ActiveSpell spell : entry.getValue()) {
+                    if (msg.length() > 0)
+                        msg.append(" | ");
+                    String name = getDisplayName(spell.getSpell().getId());
+                    float seconds = spell.getRemainingCooldown() / 20.0f;
+                    msg.append(name).append(": ").append(String.format("%.1fs", seconds));
+                }
+                player.displayClientMessage(Component.literal(msg.toString()), true);
             }
         }));
     }

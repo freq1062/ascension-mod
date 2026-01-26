@@ -55,7 +55,7 @@ public class InfluenceItem {
         }
 
         public static ItemStack getInfluenceDisplayItem(AscensionData data) {
-                ItemStack item = new ItemStack(Items.AMETHYST_SHARD);
+                ItemStack item = createItem();
                 int amount = data.getInfluence();
                 if (amount > 0)
                         item.setCount(amount);
