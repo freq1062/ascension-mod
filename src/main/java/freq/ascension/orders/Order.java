@@ -3,6 +3,8 @@ package freq.ascension.orders;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
 import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -50,11 +52,21 @@ public interface Order {
 
     }
 
-    default void onEntityDamageByEntity(ServerPlayer attacker, ServerPlayer victim, DamageSource source, float amount) {
+    default boolean preventAnvilDamage() {
+        return false;
+    }
+
+    default boolean ignoreAnvilCostLimit() {
+        return false;
+    }
+
+    default void onEntityDamageByEntity(ServerPlayer attacker, ServerPlayer victim, DamageSource source, float amount,
+            CallbackInfoReturnable<Boolean> cir) {
 
     }
 
-    default void onEntityDamage(ServerPlayer victim, DamageSource source, float amount) {
+    default void onEntityDamage(ServerPlayer victim, DamageSource source, float amount,
+            CallbackInfoReturnable<Boolean> cir) {
 
     }
 
@@ -69,11 +81,11 @@ public interface Order {
         AscensionData data = (AscensionData) player;
         switch (type) {
             case "passive":
-                return data.getPassive() != null && data.getPassive().equals(this.getOrderName());
+                return data.getPassive() != null && data.getPassive().equals(this);
             case "utility":
-                return data.getUtility() != null && data.getUtility().equals(this.getOrderName());
+                return data.getUtility() != null && data.getUtility().equals(this);
             case "combat":
-                return data.getUtility() != null && data.getCombat().equals(this.getOrderName());
+                return data.getUtility() != null && data.getCombat().equals(this);
             default:
                 return false;
         }

@@ -19,11 +19,11 @@ public abstract class DamageMixin {
             CallbackInfoReturnable<Boolean> cir) {
         ServerPlayer victim = (ServerPlayer) (Object) this;
 
-        AbilityManager.broadcast(victim, (order) -> order.onEntityDamage(victim, source, amount));
+        AbilityManager.broadcast(victim, (order) -> order.onEntityDamage(victim, source, amount, cir));
 
         if (source.getEntity() instanceof ServerPlayer attacker) {
             AbilityManager.broadcast(attacker,
-                    (order) -> order.onEntityDamageByEntity(attacker, victim, source, amount));
+                    (order) -> order.onEntityDamageByEntity(attacker, victim, source, amount, cir));
         }
     }
 }

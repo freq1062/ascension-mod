@@ -79,10 +79,10 @@ public class Earth implements Order {
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
             case "supermine" -> new SpellStats(60,
-                    "Activate to toggle 2x2 mining.",
+                    "Activate to toggle 2x2 mining. Durability loss applies for half of the blocks mined.",
                     2, 4); // diameter, max durability loss
             case "magma_bubble" -> new SpellStats(600,
-                    "Scorches enemy with magma spikes in a 4x4 centered area, dealing 3 hearts. Must be activated on land or in lava.",
+                    "Scorches enemy with magma spikes in a 4x4 centered area, dealing 30% hp.. Must be activated on land or in lava.",
                     4, 30, false);
             default -> null;
         };
@@ -91,7 +91,6 @@ public class Earth implements Order {
     // For Ores
     private static final TagKey<Block> ORE_TAG = TagKey.create(Registries.BLOCK,
             ResourceLocation.fromNamespaceAndPath("c", "ores"));
-
     // For Tools (Pickaxes/Shovels)
     private static final TagKey<Item> PICKAXES = TagKey.create(Registries.ITEM,
             ResourceLocation.fromNamespaceAndPath("minecraft", "pickaxes"));
@@ -103,13 +102,8 @@ public class Earth implements Order {
     }
 
     private ItemStack getSmeltedResult(ServerLevel level, BlockState state) {
-        // 1. Get the item representation of the block
         ItemStack input = new ItemStack(state.getBlock().asItem());
-
-        // 2. Create a "wrapper" for the recipe search
         SingleRecipeInput recipeInput = new SingleRecipeInput(input);
-
-        // 3. Search for a Smelting Recipe
         return level.recipeAccess()
                 .getRecipeFor(RecipeType.SMELTING, recipeInput, level)
                 .map(recipe -> recipe.value().assemble(recipeInput, level.registryAccess()))
@@ -312,5 +306,15 @@ public class Earth implements Order {
         ItemStack head = new ItemStack(net.minecraft.world.item.Items.PLAYER_HEAD);
         Utils.applyTexture(head, HEAD_TEXTURE);
         return head;
+    }
+
+    @Override
+    public boolean preventAnvilDamage() {
+        return true;
+    }
+
+    @Override
+    public boolean ignoreAnvilCostLimit() {
+        return true;
     }
 }
