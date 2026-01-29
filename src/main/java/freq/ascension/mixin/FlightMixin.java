@@ -11,20 +11,23 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.network.protocol.game.ServerboundPlayerAbilitiesPacket;
 
 import freq.ascension.managers.AbilityManager;
+import freq.ascension.orders.Order;
 
-// Changed target from ServerPlayer to ServerGamePacketListenerImpl
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class FlightMixin {
 
     @Shadow
     public ServerPlayer player;
 
-    // Inject into the packet handler instead of a non-existent setter
-    @Inject(method = "handlePlayerAbilities", at = @At("TAIL"))
+    @Inject(method = "handlePlayerAbilities", at = @At("HEAD"), cancellable = true)
     private void onToggleFlight(ServerboundPlayerAbilitiesPacket packet, CallbackInfo ci) {
-        // Triggers whenever the client sends an ability update (e.g. double tap space)
-        // We run at TAIL so the server player's abilities are likely already updated
-        boolean flying = packet.isFlying();
-        AbilityManager.broadcast(this.player, (order) -> order.onToggleFlight(this.player, flying));
+        boolean isNowFlying = packet.isFlying();
+        boolean wasFlying = player.getAbilities().flying;
+        if (isNowFlying && !wasFlying) {
+            if (AbilityManager.anyMatch(player, Order::isDoubleJumpEnabled)) {
+                AbilityManager.broadcast(player, (order) -> order.onToggleFlight(player));
+                ci.cancel();
+            }
+        }
     }
 }

@@ -1,18 +1,22 @@
 package freq.ascension.api;
 
+import java.util.function.Consumer;
+
 public class RepeatedTask implements Task {
 
     private long executeInTicks;
     private final long period;
-    private final Runnable action;
+    private final Consumer<RepeatedTask> action;
     private long lastExecutionTick;
     private long currentTickInternal;
+    private boolean cancelled;
 
-    public RepeatedTask(long delay, long period, Runnable action) {
+    public RepeatedTask(long delay, long period, Consumer<RepeatedTask> action) {
         this.executeInTicks = delay;
         this.period = period;
         this.action = action;
         this.lastExecutionTick = -period;
+        this.cancelled = false;
     }
 
     public boolean shouldRun(long currentTick) {
@@ -21,12 +25,16 @@ public class RepeatedTask implements Task {
     }
 
     public void run() {
-        action.run();
+        action.accept(this);
         lastExecutionTick = currentTickInternal;
+    }
+
+    public void cancel() {
+        this.cancelled = true;
     }
 
     @Override
     public boolean isFinished() {
-        return false;
+        return this.cancelled;
     }
 }

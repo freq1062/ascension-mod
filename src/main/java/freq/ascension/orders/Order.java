@@ -3,17 +3,15 @@ package freq.ascension.orders;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
 import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
+import freq.ascension.mixin.DamageMixin.DamageContext;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -49,28 +47,28 @@ public interface Order {
     }
 
     default void onAnvilPrepare(AnvilMenu menu) {
-
-    }
-
-    default boolean preventAnvilDamage() {
-        return false;
     }
 
     default boolean ignoreAnvilCostLimit() {
         return false;
     }
 
-    default void onEntityDamageByEntity(ServerPlayer attacker, ServerPlayer victim, DamageSource source, float amount,
-            CallbackInfoReturnable<Boolean> cir) {
+    default boolean preventAnvilDamage() {
+        return false;
+    }
+
+    default boolean isDoubleJumpEnabled() {
+        return false;
+    }
+
+    default void onEntityDamageByEntity(ServerPlayer attacker, ServerPlayer victim, DamageContext context) {
 
     }
 
-    default void onEntityDamage(ServerPlayer victim, DamageSource source, float amount,
-            CallbackInfoReturnable<Boolean> cir) {
-
+    default void onEntityDamage(ServerPlayer victim, DamageContext context) {
     }
 
-    default void onToggleFlight(ServerPlayer player, boolean flying) {
+    default void onToggleFlight(ServerPlayer player) {
     }
 
     // Ability methods

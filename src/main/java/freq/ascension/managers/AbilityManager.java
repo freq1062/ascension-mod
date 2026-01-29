@@ -2,6 +2,7 @@ package freq.ascension.managers;
 
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -21,6 +22,16 @@ public class AbilityManager {
         for (Order order : data.getEquippedOrders()) {
             action.accept(order);
         }
+    }
+
+    public static boolean anyMatch(ServerPlayer player, Predicate<Order> predicate) {
+        AscensionData data = (AscensionData) player;
+        for (Order order : data.getEquippedOrders()) {
+            if (predicate.test(order)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // EVENTS THAT DO NOT REQUIRE MIXINS

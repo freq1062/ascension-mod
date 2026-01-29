@@ -5,7 +5,7 @@ import org.joml.Vector3f;
 
 import com.mojang.math.Transformation;
 
-import freq.ascension.managers.TickingEffect;
+import freq.ascension.api.*;
 import net.minecraft.util.Brightness;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -14,17 +14,21 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
-public class SmokeShard implements TickingEffect {
+public class SmokeShard implements Task {
     private final BlockDisplay entity;
-    private final int lifetime;
-    private int age = 0;
+    private int ticksLeft;
+    private boolean finished = false;
 
     public SmokeShard(Level level, Vec3 start, Vec3 velocity, int lifetime, BlockState block, Vector3f baseScale,
             Quaternionf rotation) {
-        this.lifetime = lifetime;
+
+        this.ticksLeft = lifetime;
         this.entity = EntityType.BLOCK_DISPLAY.create(level, EntitySpawnReason.TRIGGERED);
-        if (entity == null)
+
+        if (entity == null) {
+            this.finished = true;
             return;
+        }
 
         entity.setBlockState(block);
         entity.setPos(start);
@@ -61,17 +65,22 @@ public class SmokeShard implements TickingEffect {
     }
 
     @Override
-    public void tick() {
-        age++;
+    public boolean shouldRun(long currentTick) {
+        return !finished;
     }
 
     @Override
-    public boolean isExpired() {
-        return age >= lifetime;
+    public void run() {
+        // We decrement every time the scheduler calls run()
+        ticksLeft--;
+        if (ticksLeft <= 0) {
+            entity.discard();
+            finished = true;
+        }
     }
 
     @Override
-    public void discard() {
-        entity.discard();
+    public boolean isFinished() {
+        return finished;
     }
 }

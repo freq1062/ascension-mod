@@ -4,27 +4,35 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TaskScheduler {
-    private final List<Task> tasks = new ArrayList<>();
+    private final List<Task> activeTasks = new ArrayList<>();
+    private final List<Task> pendingAdd = new ArrayList<>();
 
     public void schedule(Task task) {
-        tasks.add(task);
+        synchronized (pendingAdd) {
+            pendingAdd.add(task);
+        }
     }
 
     public void tick(long currentTick) {
-        List<Task> toRemove = new ArrayList<>();
-        List<Task> tasksCopy = new ArrayList<>(tasks);
-        for (Task task : tasksCopy) {
-            if (task.shouldRun(currentTick)) {
-                try {
-                    task.run();
-                } catch (Throwable t) {
-                    t.printStackTrace();
-                }
-                if (task.isFinished()) {
-                    toRemove.add(task);
-                }
+        synchronized (pendingAdd) {
+            if (!pendingAdd.isEmpty()) {
+                activeTasks.addAll(pendingAdd);
+                pendingAdd.clear();
             }
         }
-        tasks.removeAll(toRemove);
+        for (int i = activeTasks.size() - 1; i >= 0; i--) {
+            Task task = activeTasks.get(i);
+            try {
+                if (task.shouldRun(currentTick)) {
+                    task.run();
+                    if (task.isFinished()) {
+                        activeTasks.remove(i);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                activeTasks.remove(i);
+            }
+        }
     }
 }
