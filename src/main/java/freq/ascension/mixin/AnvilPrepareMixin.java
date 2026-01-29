@@ -1,8 +1,6 @@
 package freq.ascension.mixin;
 
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
@@ -23,23 +21,29 @@ import net.minecraft.core.BlockPos;
 @Mixin(AnvilMenu.class)
 public abstract class AnvilPrepareMixin {
 
-    // We shadow the 'player' field which exists in the parent ItemCombinerMenu.
-    // Since AnvilMenu is a child, it has access to this field.
-    @Shadow
-    @Final
-    protected Player player;
+    // We capture the player from the constructor because shadowing the inherited
+    // field
+    // from ItemCombinerMenu can fail if the mapping context is incomplete.
+    @org.spongepowered.asm.mixin.Unique
+    private Player ascension$player;
+
+    @Inject(method = "<init>(ILnet/minecraft/world/entity/player/Inventory;Lnet/minecraft/world/inventory/ContainerLevelAccess;)V", at = @At("HEAD"))
+    private void ascension$capturePlayer(int syncId, net.minecraft.world.entity.player.Inventory inventory,
+            ContainerLevelAccess access, CallbackInfo ci) {
+        this.ascension$player = inventory.player;
+    }
 
     @Inject(method = "createResult", at = @At("TAIL"))
     private void onAnvilUpdate(CallbackInfo ci) {
         // Since we are on the server, we cast to ServerPlayer
-        if (this.player instanceof ServerPlayer serverPlayer) {
+        if (this.ascension$player instanceof ServerPlayer serverPlayer) {
             AbilityManager.broadcast(serverPlayer, (order) -> order.onAnvilPrepare((AnvilMenu) (Object) this));
         }
     }
 
     @ModifyConstant(method = "createResult", constant = @Constant(intValue = 40))
     private int modifyAnvilLimit(int constant) {
-        if (this.player instanceof ServerPlayer serverPlayer) {
+        if (this.ascension$player instanceof ServerPlayer serverPlayer) {
             if (AbilityManager.anyMatch(serverPlayer, Order::ignoreAnvilCostLimit)) {
                 return Integer.MAX_VALUE;
             }
@@ -49,7 +53,7 @@ public abstract class AnvilPrepareMixin {
 
     @Redirect(method = "onTake", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/ContainerLevelAccess;execute(Ljava/util/function/BiConsumer;)V"))
     private void redirectAnvilDamage(ContainerLevelAccess access, BiConsumer<Level, BlockPos> action) {
-        if (this.player instanceof ServerPlayer serverPlayer) {
+        if (this.ascension$player instanceof ServerPlayer serverPlayer) {
             if (AbilityManager.anyMatch(serverPlayer, Order::preventAnvilDamage)) {
                 return;
             }

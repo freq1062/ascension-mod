@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.Vector;
 import java.util.function.DoubleUnaryOperator;
 
 import freq.ascension.Utils;
@@ -16,7 +15,6 @@ import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.orders.*;
 import freq.ascension.Ascension;
 import freq.ascension.api.*;
-import net.minecraft.client.resources.sounds.Sound;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;

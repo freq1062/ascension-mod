@@ -4,19 +4,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
 import freq.ascension.Utils;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
 import freq.ascension.registry.SpellRegistry;
 import freq.ascension.mixin.DamageMixin.DamageContext;
-import net.minecraft.client.resources.model.Material;
-import net.minecraft.client.telemetry.TelemetryProperty.GameMode;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
