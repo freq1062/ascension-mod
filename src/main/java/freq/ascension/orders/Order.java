@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -106,6 +107,10 @@ public interface Order {
 
     default boolean isIgnoredBy(ServerPlayer player, Mob mob) {
         return false;
+    }
+
+    default void applyProjectileShield(ServerPlayer player, Projectile projectile) {
+
     }
 
     // Ability methods

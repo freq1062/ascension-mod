@@ -18,6 +18,7 @@ import freq.ascension.api.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -193,6 +194,7 @@ public class SpellRegistry {
 
         player.setDeltaMovement(current.x, verticalBoost, current.z);
         player.hasImpulse = true;
+        player.connection.send(new ClientboundSetEntityMotionPacket(player));
         player.setIgnoreFallDamageFromCurrentImpulse(true);
 
         if (slam) {

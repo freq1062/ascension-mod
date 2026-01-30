@@ -16,8 +16,10 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.breeze.Breeze;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.phys.Vec3;
 
 public class Sky implements Order {
 
@@ -117,6 +119,21 @@ public class Sky implements Order {
     @Override
     public boolean isDoubleJumpEnabled() {
         return true;
+    }
+
+    @Override
+    public void applyProjectileShield(ServerPlayer player, Projectile projectile) {
+        Vec3 velocity = projectile.getDeltaMovement();
+        // 1. Threshold Check: If it's already barely moving, don't touch it.
+        // 0.01 is a good "near zero" point for horizontal movement.
+        if (Math.abs(velocity.x) < 0.01 && Math.abs(velocity.z) < 0.01) {
+            return;
+        }
+        projectile.setDeltaMovement(velocity.scale(0.1));
+        // if (!projectile.getTags().contains("sky_slowed")) {
+        // projectile.addTag("sky_slowed");
+        // projectile.setDeltaMovement(velocity.scale(0.5));
+        // }
     }
 
     @Override

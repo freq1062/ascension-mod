@@ -10,7 +10,8 @@
 		"FlightMixin",
 		"ServerPlayerMixin",
 		"MobTargetMixin",
-		"BreezeTargetMixin"
+		"BreezeTargetMixin",
+		"ProjectileShieldMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
