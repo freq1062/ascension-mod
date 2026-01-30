@@ -12,39 +12,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 
 import freq.ascension.managers.AbilityManager;
+import freq.ascension.orders.Order.DamageContext;
 
 @Mixin(ServerPlayer.class)
 public abstract class DamageMixin {
-    public class DamageContext {
-        private final DamageSource source;
-        private float amount;
-        private boolean cancelled = false;
-
-        public DamageContext(DamageSource source, float amount) {
-            this.source = source;
-            this.amount = amount;
-        }
-
-        public DamageSource getSource() {
-            return source;
-        }
-
-        public float getAmount() {
-            return amount;
-        }
-
-        public void setAmount(float amount) {
-            this.amount = amount;
-        }
-
-        public boolean isCancelled() {
-            return cancelled;
-        }
-
-        public void setCancelled(boolean cancelled) {
-            this.cancelled = cancelled;
-        }
-    }
 
     // Unique to each player instance during the tick
     @Unique

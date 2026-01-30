@@ -27,7 +27,7 @@ public abstract class AnvilPrepareMixin {
     @org.spongepowered.asm.mixin.Unique
     private Player ascension$player;
 
-    @Inject(method = "<init>(ILnet/minecraft/world/entity/player/Inventory;Lnet/minecraft/world/inventory/ContainerLevelAccess;)V", at = @At("HEAD"))
+    @Inject(method = "<init>(ILnet/minecraft/world/entity/player/Inventory;Lnet/minecraft/world/inventory/ContainerLevelAccess;)V", at = @At("RETURN"))
     private void ascension$capturePlayer(int syncId, net.minecraft.world.entity.player.Inventory inventory,
             ContainerLevelAccess access, CallbackInfo ci) {
         this.ascension$player = inventory.player;

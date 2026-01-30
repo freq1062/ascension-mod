@@ -1,6 +1,10 @@
 package freq.ascension.orders;
 
 import freq.ascension.managers.SpellStats;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 
 public class SkyGod extends Sky {
     public static final SkyGod INSTANCE = new SkyGod();
@@ -18,5 +22,13 @@ public class SkyGod extends Sky {
                     true);
             default -> null;
         };
+    }
+
+    @Override
+    public void onEntityDamage(ServerPlayer victim, DamageContext context) {
+        DamageSource source = context.getSource();
+        if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypes.STALAGMITE)) {
+            context.setCancelled(true);
+        }
     }
 }

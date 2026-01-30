@@ -15,6 +15,7 @@ import freq.ascension.commands.GetInfluenceCommand;
 import freq.ascension.commands.GiveInfluenceCommand;
 import freq.ascension.commands.UnbindCommand;
 import freq.ascension.commands.WithdrawCommand;
+import freq.ascension.commands.SetOrderCommand;
 import freq.ascension.managers.AbilityManager;
 import freq.ascension.managers.InfluenceManager;
 import freq.ascension.managers.SpellCooldownManager;
@@ -57,6 +58,7 @@ public class Ascension implements ModInitializer {
 			GiveInfluenceCommand.register(dispatcher);
 			UnbindCommand.register(dispatcher);
 			WithdrawCommand.register(dispatcher);
+			SetOrderCommand.register(dispatcher);
 		});
 
 		LOGGER.info("Ascension SMP Mod Loaded!");

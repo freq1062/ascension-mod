@@ -9,10 +9,13 @@ import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
 import freq.ascension.registry.SpellRegistry;
-import freq.ascension.mixin.DamageMixin.DamageContext;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.breeze.Breeze;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 
@@ -85,13 +88,30 @@ public class Sky implements Order {
 
     @Override
     public void onEntityDamage(ServerPlayer victim, DamageContext context) {
-        if (context.getSource().equals(DamageTypes.STALAGMITE)) {
-            if (Utils.isGod(victim)) {
-                context.setCancelled(true);
-            } else {
-                context.setAmount((float) (context.getAmount() * 0.5));
+        DamageSource source = context.getSource();
+        if (source.is(DamageTypeTags.IS_FALL)) {
+            context.setCancelled(true);
+        } else if (source.is(DamageTypes.STALAGMITE)) {
+            context.setAmount((float) (context.getAmount() * 0.5));
+        }
+    }
+
+    @Override
+    public void applyEffect(ServerPlayer player) {
+        if (hasCapability(player, "passive")) {
+            if (player.gameMode() == GameType.SURVIVAL || player.gameMode() == GameType.ADVENTURE) {
+                player.getAbilities().mayfly = true;
+                player.onUpdateAbilities();
             }
         }
+    }
+
+    @Override
+    public boolean isIgnoredBy(ServerPlayer player, Mob mob) {
+        if (mob instanceof Breeze) {
+            return true;
+        }
+        return false;
     }
 
     @Override

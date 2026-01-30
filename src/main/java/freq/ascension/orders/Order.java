@@ -7,17 +7,50 @@ import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
-import freq.ascension.mixin.DamageMixin.DamageContext;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 public interface Order {
+
+    class DamageContext {
+        private final DamageSource source;
+        private float amount;
+        private boolean cancelled = false;
+
+        public DamageContext(DamageSource source, float amount) {
+            this.source = source;
+            this.amount = amount;
+        }
+
+        public DamageSource getSource() {
+            return source;
+        }
+
+        public float getAmount() {
+            return amount;
+        }
+
+        public void setAmount(float amount) {
+            this.amount = amount;
+        }
+
+        public boolean isCancelled() {
+            return cancelled;
+        }
+
+        public void setCancelled(boolean cancelled) {
+            this.cancelled = cancelled;
+        }
+    }
+
     String getOrderName();
 
     ItemStack getOrderItem();
@@ -69,6 +102,10 @@ public interface Order {
     }
 
     default void onToggleFlight(ServerPlayer player) {
+    }
+
+    default boolean isIgnoredBy(ServerPlayer player, Mob mob) {
+        return false;
     }
 
     // Ability methods

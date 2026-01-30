@@ -3,7 +3,7 @@ package freq.ascension.registry;
 import java.util.HashMap;
 import java.util.Map;
 
-import freq.ascension.orders.Earth;
+import freq.ascension.orders.*;
 import freq.ascension.orders.Order;
 
 public class OrderRegistry {
@@ -12,7 +12,7 @@ public class OrderRegistry {
     static {
         // register(Ocean.INSTANCE);
         register(Earth.INSTANCE);
-        // register(Sky.INSTANCE);
+        register(Sky.INSTANCE);
     }
 
     private static void register(Order order) {
