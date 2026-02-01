@@ -12,6 +12,7 @@ import freq.ascension.registry.SpellRegistry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
@@ -21,6 +22,7 @@ import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.monster.breeze.Breeze;
 import net.minecraft.world.entity.projectile.AbstractThrownPotion;
 import net.minecraft.world.entity.projectile.Projectile;
@@ -98,11 +100,16 @@ public class Sky implements Order {
 
     @Override
     public void onEntityDamage(ServerPlayer victim, DamageContext context) {
+        // DamageSource source = context.getSource();
+        // if (source.is(DamageTypeTags.IS_FALL)) {
+        // context.setCancelled(true);
+        // } else if (source.is(DamageTypes.STALAGMITE)) {
+        // context.setAmount((float) (context.getAmount() * 0.5));
+        // }
         DamageSource source = context.getSource();
-        if (source.is(DamageTypeTags.IS_FALL)) {
+        if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypes.STALAGMITE)
+                || source.is(DamageTypeTags.IS_PROJECTILE)) {
             context.setCancelled(true);
-        } else if (source.is(DamageTypes.STALAGMITE)) {
-            context.setAmount((float) (context.getAmount() * 0.5));
         }
     }
 

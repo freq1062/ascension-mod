@@ -39,17 +39,20 @@ public class SkyGod extends Sky {
 
     @Override
     public void applyProjectileShield(ServerPlayer player, Projectile projectile) {
+        if (nonHarmfulProjectiles(projectile)) {
+            return;
+        }
         if (projectile.level() instanceof ServerLevel serverLevel) {
-            Vec3 velocity = projectile.getDeltaMovement();
-            if (Math.abs(velocity.x) > 0.01 && Math.abs(velocity.z) > 0.01) {
-                projectile.setDeltaMovement(velocity.scale(0.5));
-            }
             serverLevel.getChunkSource().sendToTrackingPlayers(projectile,
                     new ClientboundSetEntityMotionPacket(projectile));
+            Vec3 velocity = projectile.getDeltaMovement();
+            if (Math.abs(velocity.x) > 0.01 && Math.abs(velocity.z) > 0.01) {
+                projectile.setDeltaMovement(velocity.scale(0.3));
+            }
             serverLevel.sendParticles(
                     net.minecraft.core.particles.ParticleTypes.GLOW,
                     projectile.getX(), projectile.getY(), projectile.getZ(),
-                    10, // count
+                    2, // count
                     0.1, 0.1, 0.1, // offset
                     0.01 // speed
             );
