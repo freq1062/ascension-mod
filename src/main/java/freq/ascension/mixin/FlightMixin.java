@@ -28,20 +28,18 @@ public abstract class FlightMixin {
                 && data.getPassive().getOrderName().equals(Sky.INSTANCE.getOrderName());
         boolean isNowFlying = packet.isFlying();
         boolean wasFlying = player.getAbilities().flying;
-        if (isSkyPassive && isNowFlying && !wasFlying) {
-            Ascension.LOGGER.info("Flight enabled");
-            AbilityManager.broadcast(player, (order) -> order.onToggleFlight(player));
-            // Instantly cancel actual flight for non-creative/spectator
-            if (!player.isCreative() && !player.isSpectator()) {
+        if (!player.isCreative() && !player.isSpectator()) {
+            if (isSkyPassive && isNowFlying && !wasFlying) {
+                Ascension.LOGGER.info("Flight enabled");
+                AbilityManager.broadcast(player, (order) -> order.onToggleFlight(player));
+                player.getAbilities().flying = false;
+                player.onUpdateAbilities();
+                ci.cancel();
+            } else if (!isSkyPassive) {
+                ci.cancel();
                 player.getAbilities().flying = false;
                 player.onUpdateAbilities();
             }
-            ci.cancel();
-        } else if (!isSkyPassive) {
-            // Block flight for non-Sky passive
-            ci.cancel();
-            player.getAbilities().flying = false;
-            player.onUpdateAbilities();
         }
 
     }
