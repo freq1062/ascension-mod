@@ -24,6 +24,10 @@ public class RepeatedTask implements Task {
         return currentTick >= executeInTicks && (currentTick - lastExecutionTick) >= period;
     }
 
+    public long getTick() {
+        return this.currentTickInternal;
+    }
+
     public void run() {
         action.accept(this);
         lastExecutionTick = currentTickInternal;

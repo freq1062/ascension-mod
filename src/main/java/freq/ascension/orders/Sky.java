@@ -81,9 +81,9 @@ public class Sky implements Order {
             case "double_jump" -> new SpellStats(160, "Jump twice mid-air to double jump", 6, false);
             // Jump height, slam
             case "dash" -> new SpellStats(225, "Dash forward 9 blocks", 9);
-            case "star_strike" -> new SpellStats(675,
+            case "star_strike" -> new SpellStats(10,
                     "Summon a 2x2 beam of light that damages and launches entities",
-                    false);
+                    false); // 675
             default -> null;
         };
     }

@@ -1,0 +1,502 @@
+[10:57:59] [main/INFO]: Loading Minecraft 1.21.10 with Fabric Loader 0.18.4
+[10:58:00] [main/WARN]: Warnings were found!
+ - Mod 'Forge Config API Port' (forgeconfigapiport) 21.10.1 recommends any version of modmenu, which is missing!
+	 - You should install any version of modmenu for the optimal experience.
+[10:58:00] [main/INFO]: Loading 99 mods:
+	- carpet 1.4.188+v251016
+	- carpet-tis-addition 1.75.1
+	   \-- conditional-mixin 0.6.4
+	- clickvillagers 1.6.2+1.21.10-fabric
+	   |-- configured-fabric-command-adapter 0.3.1
+	   |-- de_clickism_configured-core 0.3.1
+	   |-- de_clickism_configured-json 0.3.1
+	   |-- de_clickism_configured-yaml 0.3.1
+	   |-- de_clickism_modrinth-update-checker 1.0
+	   |-- fgui 1.0+1.21.10
+	   \-- org_yaml_snakeyaml 2.0
+	- combat-tag 1.4.1+1.21.10
+	- dcintegration-fabric 3.1.0.1
+	   |-- de_erdbeerbaerlp_dcintegration_common 3.1.0
+	   |-- fabric-permissions-api-v0 0.5.0
+	   \-- placeholder-api 2.8.0+1.21.9
+	- essential-addons 2.2.3+1.21.9
+	   |-- arcade-commands 0.7.1-beta.7
+	   |-- arcade-event-registry 0.7.1-beta.7
+	   |-- arcade-events-server 0.7.1-beta.7
+	   |-- arcade-extensions 0.7.1-beta.7
+	   |-- arcade-utils 0.7.1-beta.7
+	   \-- fabric-permissions-api-v0 0.5.0
+	- fabric-api 0.138.4+1.21.10
+	   |-- fabric-api-base 1.0.0+14b92d896f
+	   |-- fabric-api-lookup-api-v1 1.6.106+d17682156f
+	   |-- fabric-biome-api-v1 16.1.0+c2417d4f6f
+	   |-- fabric-block-api-v1 1.1.5+d17682156f
+	   |-- fabric-block-view-api-v2 1.0.34+e4fd1b926f
+	   |-- fabric-command-api-v2 2.4.0+c0ab2d5d6f
+	   |-- fabric-content-registries-v0 10.2.6+b6a242646f
+	   |-- fabric-convention-tags-v1 2.1.49+7f945d5b6f
+	   |-- fabric-convention-tags-v2 2.17.0+ff7bc77d6f
+	   |-- fabric-crash-report-info-v1 0.3.18+33df5e6e6f
+	   |-- fabric-data-attachment-api-v1 1.8.33+cd3b9e596f
+	   |-- fabric-data-generation-api-v1 23.2.27+d8b85ef16f
+	   |-- fabric-dimensions-v1 4.0.22+38b9cc196f
+	   |-- fabric-entity-events-v1 2.1.13+fde3702c6f
+	   |-- fabric-events-interaction-v0 4.0.36+5ba217126f
+	   |-- fabric-game-rule-api-v1 1.1.1+e47eaae56f
+	   |-- fabric-item-api-v1 11.5.11+9bce411b6f
+	   |-- fabric-item-group-api-v1 4.2.27+86b3ae576f
+	   |-- fabric-key-binding-api-v1 1.1.1+b3ba9c486f
+	   |-- fabric-lifecycle-events-v1 2.6.9+33df5e6e6f
+	   |-- fabric-loot-api-v2 3.0.67+3f89f5a56f
+	   |-- fabric-loot-api-v3 2.0.14+d17682156f
+	   |-- fabric-message-api-v1 6.1.7+3154c1c86f
+	   |-- fabric-model-loading-api-v1 6.0.5+3ffd6ef06f
+	   |-- fabric-networking-api-v1 5.1.0+b095d8db6f
+	   |-- fabric-object-builder-api-v1 21.1.28+9bce411b6f
+	   |-- fabric-particles-v1 4.2.3+a0ee59a46f
+	   |-- fabric-recipe-api-v1 8.2.0+39709ef06f
+	   |-- fabric-registry-sync-v0 6.1.42+679c8c5c6f
+	   |-- fabric-renderer-api-v1 7.2.3+9be2a36e6f
+	   |-- fabric-renderer-indigo 4.1.4+9be2a36e6f
+	   |-- fabric-rendering-fluids-v1 3.1.38+86b3ae576f
+	   |-- fabric-rendering-v1 16.2.0+bee81f016f
+	   |-- fabric-resource-conditions-api-v1 5.0.28+33df5e6e6f
+	   |-- fabric-resource-loader-v0 3.3.1+d4d4122a6f
+	   |-- fabric-resource-loader-v1 1.0.4+14959b836f
+	   |-- fabric-screen-api-v1 3.1.0+9c82a7986f
+	   |-- fabric-screen-handler-api-v1 1.3.151+d17682156f
+	   |-- fabric-serialization-api-v1 1.0.0+d857c9766f
+	   |-- fabric-sound-api-v1 1.0.45+328a75ba6f
+	   |-- fabric-tag-api-v1 1.2.13+2fa446b26f
+	   |-- fabric-transfer-api-v1 6.0.15+79ec2c126f
+	   \-- fabric-transitive-access-wideners-v1 6.5.3+41eb43436f
+	- fabric-language-kotlin 1.13.8+kotlin.2.3.0
+	   |-- org_jetbrains_kotlin_kotlin-reflect 2.3.0
+	   |-- org_jetbrains_kotlin_kotlin-stdlib 2.3.0
+	   |-- org_jetbrains_kotlin_kotlin-stdlib-jdk7 2.3.0
+	   |-- org_jetbrains_kotlin_kotlin-stdlib-jdk8 2.3.0
+	   |-- org_jetbrains_kotlinx_atomicfu-jvm 0.29.0
+	   |-- org_jetbrains_kotlinx_kotlinx-coroutines-core-jvm 1.10.2
+	   |-- org_jetbrains_kotlinx_kotlinx-coroutines-jdk8 1.10.2
+	   |-- org_jetbrains_kotlinx_kotlinx-datetime-jvm 0.7.1
+	   |-- org_jetbrains_kotlinx_kotlinx-io-bytestring-jvm 0.8.2
+	   |-- org_jetbrains_kotlinx_kotlinx-io-core-jvm 0.8.2
+	   |-- org_jetbrains_kotlinx_kotlinx-serialization-cbor-jvm 1.9.0
+	   |-- org_jetbrains_kotlinx_kotlinx-serialization-core-jvm 1.9.0
+	   \-- org_jetbrains_kotlinx_kotlinx-serialization-json-jvm 1.9.0
+	- fabricloader 0.18.4
+	   \-- mixinextras 0.5.0
+	- ferritecore 8.0.2
+	- forgeconfigapiport 21.10.1
+	   |-- com_electronwill_night-config_core 3.8.3
+	   \-- com_electronwill_night-config_toml 3.8.3
+	- icommon-bundle 107
+	   \-- icommon 107+1.21.9
+	        \-- icommon-api-configuration 1.0
+	- invview 1.4.18-1.21.9+
+	   \-- sgui 1.11.0+1.21.9
+	- java 21
+	- lithium 0.20.1+mc1.21.10
+	- minecraft 1.21.10
+	- mr_sit_datapack 1.1
+	- nochatreports 1.21.10-v2.16.0
+	- openpartiesandclaims 0.25.8
+	- spark 1.10.152
+	   \-- fabric-permissions-api-v0 0.5.0
+	- viabackwards 5.7.1
+	- viafabric 0.4.20+126-main
+	   |-- cotton-client-commands 1.1.0+1.15.2
+	   |-- viafabric-mc12110 0.4.20+126-main
+	   \-- viaversion 5.5.2-SNAPSHOT
+	- voicechat 1.21.10-2.6.11
+	   |-- fabric-key-binding-api-v1 1.1.1+b3ba9c4868
+	   |-- fabric-rendering-v1 16.0.1+328a75ba68
+	   \-- voicechat_api 2.6.0
+	- xaeroworldmap 1.40.6
+	   \-- xaerolib 1.0.45
+[10:58:00] [main/INFO]: SpongePowered MIXIN Subsystem Version=0.8.7 Source=file:/home/minalex/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.17.0+mixin.0.8.7/cf31463202f72d03b0ef1e1e38e8ee71b7faaab6/sponge-mixin-0.17.0+mixin.0.8.7.jar Service=Knot/Fabric Env=SERVER
+[10:58:00] [main/INFO]: Compatibility level set to JAVA_17
+[10:58:00] [main/INFO]: Compatibility level set to JAVA_21
+[10:58:00] [main/WARN]: Reference map 'forgeconfigapiport.common.refmap.json' for forgeconfigapiport.common.mixins.json could not be read. If this is a development environment you can ignore this message
+[10:58:00] [main/WARN]: Reference map 'forgeconfigapiport.fabric.refmap.json' for forgeconfigapiport.fabric.mixins.json could not be read. If this is a development environment you can ignore this message
+[10:58:00] [main/INFO]: Loaded configuration file for Lithium: 165 options available, 0 override(s) found.
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2641$class_7232 (java.lang.ClassNotFoundException: net/minecraft/class_2641$class_7232)
+[10:58:01] [main/WARN]: @Mixin target net/minecraft/class_2641$class_7232 was not found arcade-commands.mixins.json:ArgumentNodeStubMixin from mod arcade-commands
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2316 (java.lang.ClassNotFoundException: net/minecraft/class_2316)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2316 was not found arcade-commands.mixins.json:ArgumentTypeInfosAccessor from mod arcade-commands
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2170 (java.lang.ClassNotFoundException: net/minecraft/class_2170)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2170 was not found arcade-commands.mixins.json:CommandsMixin from mod arcade-commands
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3324 (java.lang.ClassNotFoundException: net/minecraft/class_3324)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3324 was not found arcade-commands.mixins.json:PlayerListMixin from mod arcade-commands
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1918 (java.lang.ClassNotFoundException: net/minecraft/class_1918)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1918 was not found arcade-events-server.mixins.json:BaseCommandBlockMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_4970 (java.lang.ClassNotFoundException: net/minecraft/class_4970)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_4970 was not found arcade-events-server.mixins.json:BlockBehaviourMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1747 (java.lang.ClassNotFoundException: net/minecraft/class_1747)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1747 was not found arcade-events-server.mixins.json:BlockItemMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2248 (java.lang.ClassNotFoundException: net/minecraft/class_2248)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2248 was not found arcade-events-server.mixins.json:BlockMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2589 (java.lang.ClassNotFoundException: net/minecraft/class_2589)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2589 was not found arcade-events-server.mixins.json:BrewingStandBlockEntityAccessor from mod arcade-events-server
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2589 was not found arcade-events-server.mixins.json:BrewingStandBlockEntityMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2170 was not found arcade-events-server.mixins.json:CommandsMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2535 (java.lang.ClassNotFoundException: net/minecraft/class_2535)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2535 was not found arcade-events-server.mixins.json:ConnectionMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3218$class_5526 (java.lang.ClassNotFoundException: net/minecraft/class_3218$class_5526)
+[10:58:01] [main/WARN]: @Mixin target net/minecraft/class_3218$class_5526 was not found arcade-events-server.mixins.json:EntityCallbacksMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1297 (java.lang.ClassNotFoundException: net/minecraft/class_1297)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1297 was not found arcade-events-server.mixins.json:EntityMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3609 (java.lang.ClassNotFoundException: net/minecraft/class_3609)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3609 was not found arcade-events-server.mixins.json:FlowingFluidMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3244$1 (java.lang.ClassNotFoundException: net/minecraft/class_3244$1)
+[10:58:01] [main/WARN]: @Mixin target net/minecraft/class_3244$1 was not found arcade-events-server.mixins.json:InteractionHandlerMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1799 (java.lang.ClassNotFoundException: net/minecraft/class_1799)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1799 was not found arcade-events-server.mixins.json:ItemStackMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1309 (java.lang.ClassNotFoundException: net/minecraft/class_1309)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1309 was not found arcade-events-server.mixins.json:LivingEntityMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1948 (java.lang.ClassNotFoundException: net/minecraft/class_1948)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1948 was not found arcade-events-server.mixins.json:NaturalSpawnerMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2671 (java.lang.ClassNotFoundException: net/minecraft/class_2671)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2671 was not found arcade-events-server.mixins.json:PistonHeadBlockMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2985 (java.lang.ClassNotFoundException: net/minecraft/class_2985)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2985 was not found arcade-events-server.mixins.json:PlayerAdvancementsMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3324 was not found arcade-events-server.mixins.json:PlayerListMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1657 (java.lang.ClassNotFoundException: net/minecraft/class_1657)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1657 was not found arcade-events-server.mixins.json:PlayerMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_8934 (java.lang.ClassNotFoundException: net/minecraft/class_8934)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_8934 was not found arcade-events-server.mixins.json:RandomizableContainerMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_7655 (java.lang.ClassNotFoundException: net/minecraft/class_7655)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_7655 was not found arcade-events-server.mixins.json:RegistryDataLoaderMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2995 (java.lang.ClassNotFoundException: net/minecraft/class_2995)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2995 was not found arcade-events-server.mixins.json:ScoreboardMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2884 (java.lang.ClassNotFoundException: net/minecraft/class_2884)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2884 was not found arcade-events-server.mixins.json:ServerboundTeleportToEntityPacketAccessor from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_8609 (java.lang.ClassNotFoundException: net/minecraft/class_8609)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_8609 was not found arcade-events-server.mixins.json:ServerCommonPacketListenerImplMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3244 (java.lang.ClassNotFoundException: net/minecraft/class_3244)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3244 was not found arcade-events-server.mixins.json:ServerGamePacketListenerImplMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3218 (java.lang.ClassNotFoundException: net/minecraft/class_3218)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3218 was not found arcade-events-server.mixins.json:ServerLevelMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3248 (java.lang.ClassNotFoundException: net/minecraft/class_3248)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3248 was not found arcade-events-server.mixins.json:ServerLoginPacketListenerImplMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3225 (java.lang.ClassNotFoundException: net/minecraft/class_3225)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3225 was not found arcade-events-server.mixins.json:ServerPlayerGameModeMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3222 (java.lang.ClassNotFoundException: net/minecraft/class_3222)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3222 was not found arcade-events-server.mixins.json:ServerPlayerMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3945 (java.lang.ClassNotFoundException: net/minecraft/class_3945)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3945 was not found arcade-events-server.mixins.json:TeamMsgCommandMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2530 (java.lang.ClassNotFoundException: net/minecraft/class_2530)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2530 was not found arcade-events-server.mixins.json:TntBlockMixin from mod arcade-events-server
+[10:58:01] [main/WARN]: Error loading class: eu/pb4/polymer/common/impl/entity/InternalEntityHelpers (java.lang.ClassNotFoundException: eu/pb4/polymer/common/impl/entity/InternalEntityHelpers)
+[10:58:01] [main/WARN]: @Mixin target eu.pb4.polymer.common.impl.entity.InternalEntityHelpers was not found arcade-extensions.mixins.json:compat.InternalEntityHelpersMixin from mod arcade-extensions
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1297 was not found arcade-extensions.mixins.json:entity.EntityMixin from mod arcade-extensions
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3218 was not found arcade-extensions.mixins.json:level.ServerLevelMixin from mod arcade-extensions
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3324 was not found arcade-extensions.mixins.json:player.PlayerListMixin from mod arcade-extensions
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3244 was not found arcade-extensions.mixins.json:player.ServerGamePacketListenerImplMixin from mod arcade-extensions
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3222 was not found arcade-extensions.mixins.json:player.ServerPlayerMixin from mod arcade-extensions
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_268 (java.lang.ClassNotFoundException: net/minecraft/class_268)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_268 was not found arcade-extensions.mixins.json:team.PlayerTeamMixin from mod arcade-extensions
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_268$class_10743 (java.lang.ClassNotFoundException: net/minecraft/class_268$class_10743)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_268$class_10743 was not found arcade-extensions.mixins.json:team.PlayerTeamPackedMixin from mod arcade-extensions
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_269 (java.lang.ClassNotFoundException: net/minecraft/class_269)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_269 was not found arcade-extensions.mixins.json:team.ScoreboardMixin from mod arcade-extensions
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3898 (java.lang.ClassNotFoundException: net/minecraft/class_3898)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3898 was not found arcade-utils.mixins.json:ChunkMapAccessor from mod arcade-utils
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2703 (java.lang.ClassNotFoundException: net/minecraft/class_2703)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2703 was not found arcade-utils.mixins.json:ClientboundPlayerInfoUpdatePacketAccessor from mod arcade-utils
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2535 was not found arcade-utils.mixins.json:ConnectionMixin from mod arcade-utils
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2985 was not found arcade-utils.mixins.json:PlayerAdvancementsAccessor from mod arcade-utils
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_8609 was not found arcade-utils.mixins.json:ServerCommonPacketListenerImplMixin from mod arcade-utils
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3231 (java.lang.ClassNotFoundException: net/minecraft/class_3231)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3231 was not found arcade-utils.mixins.json:ServerEntityMixin from mod arcade-utils
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3222 was not found arcade-utils.mixins.json:ServerPlayerMixin from mod arcade-utils
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3898$class_3208 (java.lang.ClassNotFoundException: net/minecraft/class_3898$class_3208)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3898$class_3208 was not found arcade-utils.mixins.json:TrackedEntityAccessor from mod arcade-utils
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_5574 (java.lang.ClassNotFoundException: net/minecraft/class_5574)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_5574 was not found arcade-utils.mixins.json:bugfixes.EntityTickListMixin from mod arcade-utils
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2535 was not found arcade-utils.mixins.json:network.ConnectionMixin from mod arcade-utils
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_8609 was not found arcade-utils.mixins.json:network.ServerCommonPacketListenerAccessor from mod arcade-utils
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_8609 was not found arcade-utils.mixins.json:network.ServerCommonPacketListenerImplMixin from mod arcade-utils
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3246 (java.lang.ClassNotFoundException: net/minecraft/class_3246)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3246 was not found arcade-utils.mixins.json:network.ServerHandshakePacketListenerImplMixin from mod arcade-utils
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_9296 (java.lang.ClassNotFoundException: net/minecraft/class_9296)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_9296 was not found arcade-utils.mixins.json:profile.ResolvableProfileInvoker from mod arcade-utils
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_9296$class_11757 (java.lang.ClassNotFoundException: net/minecraft/class_9296$class_11757)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_9296$class_11757 was not found arcade-utils.mixins.json:profile.ResolvableProfilePartialInvoker from mod arcade-utils
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_9296$class_11758 (java.lang.ClassNotFoundException: net/minecraft/class_9296$class_11758)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_9296$class_11758 was not found arcade-utils.mixins.json:profile.ResolvableProfileStaticInvoker from mod arcade-utils
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_268 was not found arcade-utils.mixins.json:teams.PlayerTeamMixin from mod arcade-utils
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_268$class_10743 was not found arcade-utils.mixins.json:teams.PlayerTeamPackedMixin from mod arcade-utils
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_269 was not found arcade-utils.mixins.json:teams.ScoreboardMixin from mod arcade-utils
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2213 (java.lang.ClassNotFoundException: net/minecraft/class_2213)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2213 was not found carpet.mixins.json:BarrierBlock_updateSuppressionBlockMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1948$class_5262 (java.lang.ClassNotFoundException: net/minecraft/class_1948$class_5262)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1948$class_5262 was not found carpet.mixins.json:SpawnState_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1311 (java.lang.ClassNotFoundException: net/minecraft/class_1311)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1311 was not found carpet.mixins.json:MobCategory_spawnMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2170 was not found carpet.mixins.json:Commands_customCommandsMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3244 was not found carpet.mixins.json:ServerGamePacketListenerImplMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_6413 (java.lang.ClassNotFoundException: net/minecraft/class_6413)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_6413 was not found carpet.mixins.json:PerfCommand_permissionMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3057 (java.lang.ClassNotFoundException: net/minecraft/class_3057)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3057 was not found carpet.mixins.json:FillCommandMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3023 (java.lang.ClassNotFoundException: net/minecraft/class_3023)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3023 was not found carpet.mixins.json:CloneCommands_fillUpdatesMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3119 (java.lang.ClassNotFoundException: net/minecraft/class_3119)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3119 was not found carpet.mixins.json:SetBlockCommand_fillUpdatesMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3060 (java.lang.ClassNotFoundException: net/minecraft/class_3060)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3060 was not found carpet.mixins.json:ForceLoadCommand_forceLoadLimitMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2247 (java.lang.ClassNotFoundException: net/minecraft/class_2247)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2247 was not found carpet.mixins.json:BlockInput_fillUpdatesMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1937 (java.lang.ClassNotFoundException: net/minecraft/class_1937)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1937 was not found carpet.mixins.json:Level_fillUpdatesMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2818 (java.lang.ClassNotFoundException: net/minecraft/class_2818)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2818 was not found carpet.mixins.json:LevelChunk_fillUpdatesMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2633 (java.lang.ClassNotFoundException: net/minecraft/class_2633)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2633 was not found carpet.mixins.json:StructureBlockEntity_fillUpdatesMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2633 was not found carpet.mixins.json:StructureBlockEntity_limitsMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2875 (java.lang.ClassNotFoundException: net/minecraft/class_2875)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2875 was not found carpet.mixins.json:ServerboundSetStructureBlockPacketMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3499 (java.lang.ClassNotFoundException: net/minecraft/class_3499)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3499 was not found carpet.mixins.json:StructureTemplate_fillUpdatesMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3244 was not found carpet.mixins.json:ServerGamePacketListenerImpl_interactionUpdatesMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3609 was not found carpet.mixins.json:FlowingFluid_liquidDamageDisabledMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2926 (java.lang.ClassNotFoundException: net/minecraft/class_2926)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2926 was not found carpet.mixins.json:ServerStatus_motdMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_4781 (java.lang.ClassNotFoundException: net/minecraft/class_4781)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_4781 was not found carpet.mixins.json:HugeFungusFeatureMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1317 (java.lang.ClassNotFoundException: net/minecraft/class_1317)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1317 was not found carpet.mixins.json:PiglinBrute_getPlacementTypeMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1937 was not found carpet.mixins.json:Level_tickMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3218 was not found carpet.mixins.json:ServerLevel_tickMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2818$class_5563 (java.lang.ClassNotFoundException: net/minecraft/class_2818$class_5563)
+[10:58:01] [main/WARN]: @Mixin target net/minecraft/class_2818$class_5563 was not found carpet.mixins.json:BoundTickingBlockEntity_profilerMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3215 (java.lang.ClassNotFoundException: net/minecraft/class_3215)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3215 was not found carpet.mixins.json:ServerChunkCache_profilerMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3898 was not found carpet.mixins.json:ChunkMap_profilerMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2991 (java.lang.ClassNotFoundException: net/minecraft/class_2991)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2991 was not found carpet.mixins.json:ServerFunctionManager_profilerMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2784 (java.lang.ClassNotFoundException: net/minecraft/class_2784)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2784 was not found carpet.mixins.json:WorldBorder_syncedWorldBorderMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3898 was not found carpet.mixins.json:ChunkMap_scarpetChunkCreationMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_5578 (java.lang.ClassNotFoundException: net/minecraft/class_5578)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_5578 was not found carpet.mixins.json:LevelEntityGetterAdapter_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3193 (java.lang.ClassNotFoundException: net/minecraft/class_3193)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3193 was not found carpet.mixins.json:ChunkHolder_scarpetChunkCreationMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3227 (java.lang.ClassNotFoundException: net/minecraft/class_3227)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3227 was not found carpet.mixins.json:ThreadedLevelLightEngine_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3554 (java.lang.ClassNotFoundException: net/minecraft/class_3554)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3554 was not found carpet.mixins.json:DynamicGraphMinFixedPoint_resetChunkInterface from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3568 (java.lang.ClassNotFoundException: net/minecraft/class_3568)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3568 was not found carpet.mixins.json:LevelLightEngine_scarpetChunkCreationMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3558 (java.lang.ClassNotFoundException: net/minecraft/class_3558)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3558 was not found carpet.mixins.json:LayerLightEngine_scarpetChunkCreationMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3560 (java.lang.ClassNotFoundException: net/minecraft/class_3560)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3560 was not found carpet.mixins.json:LayerLightSectionStorage_scarpetChunkCreationMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3227 was not found carpet.mixins.json:ThreadedLevelLightEngine_scarpetChunkCreationMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1309 was not found carpet.mixins.json:LivingEntity_cleanLogsMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1308 (java.lang.ClassNotFoundException: net/minecraft/class_1308)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1308 was not found carpet.mixins.json:MobMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1646 (java.lang.ClassNotFoundException: net/minecraft/class_1646)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1646 was not found carpet.mixins.json:Villager_aiMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1657 was not found carpet.mixins.json:Player_fakePlayersMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3244 was not found carpet.mixins.json:ServerGamePacketListenerImpl_coreMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1303 (java.lang.ClassNotFoundException: net/minecraft/class_1303)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1303 was not found carpet.mixins.json:ExperienceOrb_xpNoCooldownMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1657 was not found carpet.mixins.json:Player_xpNoCooldownMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3222 was not found carpet.mixins.json:ServerPlayer_actionPackMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3324 was not found carpet.mixins.json:PlayerList_coreMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3324 was not found carpet.mixins.json:PlayerList_fakePlayersMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2457 (java.lang.ClassNotFoundException: net/minecraft/class_2457)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2457 was not found carpet.mixins.json:RedstoneWireBlock_fastMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_5815 (java.lang.ClassNotFoundException: net/minecraft/class_5815)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_5815 was not found carpet.mixins.json:WoolCarpetBlock_placeMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3138 (java.lang.ClassNotFoundException: net/minecraft/class_3138)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3138 was not found carpet.mixins.json:SummonCommand_lightningMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2674 (java.lang.ClassNotFoundException: net/minecraft/class_2674)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2674 was not found carpet.mixins.json:PistonStructureResolver_pushLimitMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2442 (java.lang.ClassNotFoundException: net/minecraft/class_2442)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2442 was not found carpet.mixins.json:PoweredRailBlock_powerLimitMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1309 was not found carpet.mixins.json:LivingEntity_maxCollisionsMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1937 was not found carpet.mixins.json:Level_getOtherEntitiesLimited from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2301 (java.lang.ClassNotFoundException: net/minecraft/class_2301)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2301 was not found carpet.mixins.json:CoralPlantBlock_renewableCoralMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2297 (java.lang.ClassNotFoundException: net/minecraft/class_2297)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2297 was not found carpet.mixins.json:CoralFanBlock_renewableCoralMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2978 (java.lang.ClassNotFoundException: net/minecraft/class_2978)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2978 was not found carpet.mixins.json:CoralFeature_renewableCoralMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_5543 (java.lang.ClassNotFoundException: net/minecraft/class_5543)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_5543 was not found carpet.mixins.json:BuddingAmethystBlock_movableAmethystMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2404 (java.lang.ClassNotFoundException: net/minecraft/class_2404)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2404 was not found carpet.mixins.json:LiquidBlock_renewableBlackstoneMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2404 was not found carpet.mixins.json:LiquidBlock_renewableDeepslateMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3616 (java.lang.ClassNotFoundException: net/minecraft/class_3616)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3616 was not found carpet.mixins.json:LavaFluid_renewableDeepslateMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1937 was not found carpet.mixins.json:Level_scarpetPlopMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3233 (java.lang.ClassNotFoundException: net/minecraft/class_3233)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3233 was not found carpet.mixins.json:WorldGenRegion_scarpetPlopMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3443 (java.lang.ClassNotFoundException: net/minecraft/class_3443)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3443 was not found carpet.mixins.json:StructurePiece_scarpetPlopMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_6834 (java.lang.ClassNotFoundException: net/minecraft/class_6834)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_6834 was not found carpet.mixins.json:PieceGeneratorSupplier_plopMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3244 was not found carpet.mixins.json:ServerGamePacketListenerImpl_scarpetEventsMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3225 was not found carpet.mixins.json:ServerPlayerGameMode_scarpetEventsMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1657 was not found carpet.mixins.json:Player_parrotMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3222 was not found carpet.mixins.json:ServerPlayer_parrotMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2473 (java.lang.ClassNotFoundException: net/minecraft/class_2473)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2473 was not found carpet.mixins.json:SaplingBlock_desertShrubsMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1297 was not found carpet.mixins.json:EntityMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1577 (java.lang.ClassNotFoundException: net/minecraft/class_1577)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1577 was not found carpet.mixins.json:Guardian_renewableSpongesMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1576 (java.lang.ClassNotFoundException: net/minecraft/class_1576)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1576 was not found carpet.mixins.json:Husk_templesMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2794 (java.lang.ClassNotFoundException: net/minecraft/class_2794)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2794 was not found carpet.mixins.json:ChunkGenerator_customMobSpawnsMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3215 was not found carpet.mixins.json:ServerChunkCacheMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1948 was not found carpet.mixins.json:NaturalSpawnerMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2350 (java.lang.ClassNotFoundException: net/minecraft/class_2350)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2350 was not found carpet.mixins.json:DirectionMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3225 was not found carpet.mixins.json:ServerPlayerGameMode_cactusMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2377 (java.lang.ClassNotFoundException: net/minecraft/class_2377)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2377 was not found carpet.mixins.json:HopperBlock_cactusMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1838 (java.lang.ClassNotFoundException: net/minecraft/class_1838)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1838 was not found carpet.mixins.json:UseOnContext_cactusMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2315 (java.lang.ClassNotFoundException: net/minecraft/class_2315)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2315 was not found carpet.mixins.json:DispenserBlock_cactusMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2665 (java.lang.ClassNotFoundException: net/minecraft/class_2665)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2665 was not found carpet.mixins.json:PistonBaseBlock_rotatorBlockMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3244 was not found carpet.mixins.json:ServerGamePacketListenerImpl_antiCheatDisabledMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1657 was not found carpet.mixins.json:Player_antiCheatDisabledMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1657 was not found carpet.mixins.json:ServerPlayerGameMode_antiCheatMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2614 (java.lang.ClassNotFoundException: net/minecraft/class_2614)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2614 was not found carpet.mixins.json:HopperBlockEntity_counterMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1703 (java.lang.ClassNotFoundException: net/minecraft/class_1703)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1703 was not found carpet.mixins.json:AbstractContainerMenu_ctrlQCraftingMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2535 was not found carpet.mixins.json:Connection_packetCounterMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1799 was not found carpet.mixins.json:ItemStack_stackableShulkerBoxesMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1542 (java.lang.ClassNotFoundException: net/minecraft/class_1542)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1542 was not found carpet.mixins.json:ItemEntityMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2530 was not found carpet.mixins.json:TntBlock_noUpdateMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_9892 (java.lang.ClassNotFoundException: net/minecraft/class_9892)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_9892 was not found carpet.mixins.json:Explosion_optimizedTntMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_9892 was not found carpet.mixins.json:ExplosionAccessor from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_9892 was not found carpet.mixins.json:Explosion_scarpetEventMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_4970 was not found carpet.mixins.json:Explosion_xpFromBlocksMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1541 (java.lang.ClassNotFoundException: net/minecraft/class_1541)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1541 was not found carpet.mixins.json:PrimedTntMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1665 (java.lang.ClassNotFoundException: net/minecraft/class_1665)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1665 was not found carpet.mixins.json:AbstractArrowMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1540 (java.lang.ClassNotFoundException: net/minecraft/class_1540)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1540 was not found carpet.mixins.json:FallingBlockEntityMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1682 (java.lang.ClassNotFoundException: net/minecraft/class_1682)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1682 was not found carpet.mixins.json:ThrowableProjectileMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1408 (java.lang.ClassNotFoundException: net/minecraft/class_1408)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1408 was not found carpet.mixins.json:PathNavigation_pathfindingMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2384 (java.lang.ClassNotFoundException: net/minecraft/class_2384)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2384 was not found carpet.mixins.json:InfestedBlock_gravelMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2665 was not found carpet.mixins.json:PistonBaseBlock_qcMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2315 was not found carpet.mixins.json:DispenserBlock_qcMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1792 (java.lang.ClassNotFoundException: net/minecraft/class_1792)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1792 was not found carpet.mixins.json:Item_missingToolsMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1528 (java.lang.ClassNotFoundException: net/minecraft/class_1528)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1528 was not found carpet.mixins.json:WitherBoss_moreBlueMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1531 (java.lang.ClassNotFoundException: net/minecraft/class_1531)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1531 was not found carpet.mixins.json:ArmorStand_scarpetMarkerMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1297 was not found carpet.mixins.json:Entity_scarpetEventsMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1309 was not found carpet.mixins.json:LivingEntity_scarpetEventsMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1657 was not found carpet.mixins.json:Player_scarpetEventsMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3222 was not found carpet.mixins.json:ServerPlayer_scarpetEventMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1688 (java.lang.ClassNotFoundException: net/minecraft/class_1688)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1688 was not found carpet.mixins.json:AbstractMinecart_scarpetEventsMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1511 (java.lang.ClassNotFoundException: net/minecraft/class_1511)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1511 was not found carpet.mixins.json:EndCrystal_scarpetEventsMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1540 was not found carpet.mixins.json:FallingBlockEntity_scarpetEventsMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_9691 (java.lang.ClassNotFoundException: net/minecraft/class_9691)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_9691 was not found carpet.mixins.json:HangingEntity_scarpetEventsMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1541 was not found carpet.mixins.json:PrimedTnt_scarpetEventsMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_8113 (java.lang.ClassNotFoundException: net/minecraft/class_8113)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_8113 was not found carpet.mixins.json:Display_scarpetEventMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1747 was not found carpet.mixins.json:BlockItem_scarpetEventMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3324 was not found carpet.mixins.json:PlayerList_scarpetEventsMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1661 (java.lang.ClassNotFoundException: net/minecraft/class_1661)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1661 was not found carpet.mixins.json:Inventory_scarpetEventMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_266 (java.lang.ClassNotFoundException: net/minecraft/class_266)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_266 was not found carpet.mixins.json:Objective_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_269 was not found carpet.mixins.json:Scoreboard_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1727 (java.lang.ClassNotFoundException: net/minecraft/class_1727)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1727 was not found carpet.mixins.json:MerchantResultSlot_scarpetEventMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1703 was not found carpet.mixins.json:AbstractContainerMenu_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1718 (java.lang.ClassNotFoundException: net/minecraft/class_1718)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1718 was not found carpet.mixins.json:AbstractContainerMenuSubclasses_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3916 (java.lang.ClassNotFoundException: net/minecraft/class_3916)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3916 was not found carpet.mixins.json:AbstractContainerMenuSubclasses_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1726 (java.lang.ClassNotFoundException: net/minecraft/class_1726)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1726 was not found carpet.mixins.json:AbstractContainerMenuSubclasses_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3971 (java.lang.ClassNotFoundException: net/minecraft/class_3971)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3971 was not found carpet.mixins.json:AbstractContainerMenuSubclasses_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_9884 (java.lang.ClassNotFoundException: net/minecraft/class_9884)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_9884 was not found carpet.mixins.json:AbstractCraftingMenu_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1720 (java.lang.ClassNotFoundException: net/minecraft/class_1720)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1720 was not found carpet.mixins.json:AbstractFurnaceMenu_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3204 (java.lang.ClassNotFoundException: net/minecraft/class_3204)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3204 was not found carpet.mixins.json:DistanceManager_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_10592 (java.lang.ClassNotFoundException: net/minecraft/class_10592)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_10592 was not found carpet.mixins.json:TicketStorage_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_4156 (java.lang.ClassNotFoundException: net/minecraft/class_4156)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_4156 was not found carpet.mixins.json:PoiRecord_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3218 was not found carpet.mixins.json:ServerLevel_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_5579 (java.lang.ClassNotFoundException: net/minecraft/class_5579)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_5579 was not found carpet.mixins.json:PersistentEntitySectionManager_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_3097 (java.lang.ClassNotFoundException: net/minecraft/class_3097)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3097 was not found carpet.mixins.json:ReloadCommand_reloadAppsMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_6396 (java.lang.ClassNotFoundException: net/minecraft/class_6396)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_6396 was not found carpet.mixins.json:SystemReport_addScarpetAppsMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1702 (java.lang.ClassNotFoundException: net/minecraft/class_1702)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1702 was not found carpet.mixins.json:FoodData_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2247 was not found carpet.mixins.json:BlockInput_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2252$class_2253 (java.lang.ClassNotFoundException: net/minecraft/class_2252$class_2253)
+[10:58:01] [main/WARN]: @Mixin target net/minecraft/class_2252$class_2253 was not found carpet.mixins.json:BlockPredicate_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2252$class_2255 (java.lang.ClassNotFoundException: net/minecraft/class_2252$class_2255)
+[10:58:01] [main/WARN]: @Mixin target net/minecraft/class_2252$class_2255 was not found carpet.mixins.json:TagPredicate_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1496 (java.lang.ClassNotFoundException: net/minecraft/class_1496)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1496 was not found carpet.mixins.json:HorseBaseEntity_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_7138 (java.lang.ClassNotFoundException: net/minecraft/class_7138)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_7138 was not found carpet.mixins.json:RandomState_ScarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1959 (java.lang.ClassNotFoundException: net/minecraft/class_1959)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1959 was not found carpet.mixins.json:Biome_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_9787 (java.lang.ClassNotFoundException: net/minecraft/class_9787)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_9787 was not found carpet.mixins.json:PortalProcessor_scarpetMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2586 (java.lang.ClassNotFoundException: net/minecraft/class_2586)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2586 was not found carpet.mixins.json:BlockEntity_movableBEMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2665 was not found carpet.mixins.json:PistonBaseBlock_movableBEMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2669 (java.lang.ClassNotFoundException: net/minecraft/class_2669)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2669 was not found carpet.mixins.json:PistonMovingBlockEntity_movableBEMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1937 was not found carpet.mixins.json:Level_movableBEMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2818 was not found carpet.mixins.json:LevelChunk_movableBEMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1657 was not found carpet.mixins.json:Player_creativeNoClipMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2669 was not found carpet.mixins.json:PistonMovingBlockEntity_playerHandlingMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1747 was not found carpet.mixins.json:BlockItem_creativeNoClipMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_1827 (java.lang.ClassNotFoundException: net/minecraft/class_1827)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1827 was not found carpet.mixins.json:StandingAndWallBlockItem_creativeNoClipMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2627 (java.lang.ClassNotFoundException: net/minecraft/class_2627)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2627 was not found carpet.mixins.json:ShulkerBoxBlockEntity_creativeNoClipMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2643 (java.lang.ClassNotFoundException: net/minecraft/class_2643)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2643 was not found carpet.mixins.json:TheEndGatewayBlockEntity_creativeNoClipMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_1309 was not found carpet.mixins.json:LivingEntity_creativeFlyMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3898 was not found carpet.mixins.json:ChunkMap_creativePlayersLoadChunksMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_5704$class_8241 (java.lang.ClassNotFoundException: net/minecraft/class_5704$class_8241)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_5704$class_8241 was not found carpet.mixins.json:SculkSensorBlockEntityVibrationConfig_sculkSensorRangeMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_7159 (java.lang.ClassNotFoundException: net/minecraft/class_7159)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_7159 was not found carpet.mixins.json:CollectingNeighborUpdaterAccessor from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_4970$class_4971 (java.lang.ClassNotFoundException: net/minecraft/class_4970$class_4971)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_4970$class_4971 was not found carpet.mixins.json:BlockBehaviourBlockStateBase_mixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_5172 (java.lang.ClassNotFoundException: net/minecraft/class_5172)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_5172 was not found carpet.mixins.json:ChainBlock_customStickyMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_2281 (java.lang.ClassNotFoundException: net/minecraft/class_2281)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2281 was not found carpet.mixins.json:ChestBlock_customStickyMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_2674 was not found carpet.mixins.json:PistonStructureResolver_customStickyMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_9901 (java.lang.ClassNotFoundException: net/minecraft/class_9901)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_9901 was not found carpet.mixins.json:DefaultRedstoneWireEvaluator_redstoneMixin from mod carpet
+[10:58:01] [main/WARN]: Error loading class: net/minecraft/class_8710 (java.lang.ClassNotFoundException: net/minecraft/class_8710)
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_8710 was not found carpet.mixins.json:CustomPacketPayload_networkStuffMixin from mod carpet
+[10:58:01] [main/WARN]: @Mixin target net.minecraft.class_3244 was not found carpet.mixins.json:ServerGamePacketListenerimpl_connectionMixin from mod carpet

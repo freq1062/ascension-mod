@@ -5,6 +5,7 @@ import org.joml.Vector3f;
 
 import com.mojang.math.Transformation;
 
+import freq.ascension.Ascension;
 import freq.ascension.api.*;
 import net.minecraft.util.Brightness;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -62,6 +63,8 @@ public class SmokeShard implements Task {
 
         entity.setTransformation(endTransform);
         entity.teleportTo(endPos.x, endPos.y, endPos.z);
+
+        Ascension.scheduler.schedule(this);
     }
 
     @Override

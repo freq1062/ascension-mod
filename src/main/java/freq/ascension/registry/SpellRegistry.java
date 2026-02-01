@@ -7,7 +7,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.DoubleUnaryOperator;
 
+import org.joml.Vector3f;
+
 import freq.ascension.Utils;
+import freq.ascension.animation.dash.DashCone;
+import freq.ascension.animation.star_strike.GammaRay;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.Spell;
@@ -23,9 +27,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
 public class SpellRegistry {
@@ -197,6 +203,8 @@ public class SpellRegistry {
         player.connection.send(new ClientboundSetEntityMotionPacket(player));
         player.setIgnoreFallDamageFromCurrentImpulse(true);
 
+        DashCone.spawnDoubleJumpBurst(player, slam);
+
         if (slam) {
             Ascension.scheduler.schedule(new RepeatedTask(1, 60, (task) -> {
                 BlockPos center = player.getOnPos();
@@ -259,6 +267,8 @@ public class SpellRegistry {
         player.setIgnoreFallDamageFromCurrentImpulse(true);
         player.connection.send(new ClientboundSetEntityMotionPacket(player));
 
+        DashCone.emitDashCone(player, newVel, dashDamage ? 20 : 12, dashDamage ? 1.4 : 1.0);
+
         level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WITHER_SHOOT,
                 SoundSource.PLAYERS, 0.5f,
                 dashDamage ? 1.0f : 1.35f);
@@ -295,10 +305,10 @@ public class SpellRegistry {
         Vec3 eyePos = player.getEyePosition();
         Vec3 viewVec = player.getLookAngle();
         Vec3 endVec = eyePos.add(viewVec.scale(range));
-        net.minecraft.world.phys.BlockHitResult hitResult = level.clip(new net.minecraft.world.level.ClipContext(
+        BlockHitResult hitResult = level.clip(new ClipContext(
                 eyePos, endVec,
-                net.minecraft.world.level.ClipContext.Block.COLLIDER,
-                net.minecraft.world.level.ClipContext.Fluid.NONE,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
                 player));
 
         Vec3 strikePoint = hitResult.getType() == net.minecraft.world.phys.HitResult.Type.MISS
@@ -310,24 +320,26 @@ public class SpellRegistry {
 
         final int growTicks = 10;
         final int holdTicks = 10;
-        final int totalDuration = 40;
+        final int fadeTicks = 12;
 
         // Pre-impact rumble sound
         level.playSound(null, strikePoint.x, strikePoint.y, strikePoint.z,
                 SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.PLAYERS, 0.9f, 0.55f);
 
-        // (Optional) Call to external GammaRay visual helper would go here
-        // GammaRay.strike(strikePoint, 1.5, growTicks, holdTicks, 12, augmented ?
-        // 0x000000 : 0xFFFFFF);
+        {
+            int hex = augmented ? 0x000000 : 0xFFFFFF;
+            float r = ((hex >> 16) & 0xFF) / 255.0f;
+            float g = ((hex >> 8) & 0xFF) / 255.0f;
+            float b = (hex & 0xFF) / 255.0f;
+            Vector3f colorVec = new Vector3f(r, g, b);
+            GammaRay.strike(level, strikePoint, 1.5, growTicks, holdTicks, fadeTicks, colorVec);
+        }
 
-        // Schedule the tick-based effect
-        // Using a 1-element array to maintain the tick counter state within the lambda
-        final int[] tickCounter = { 0 };
+        Ascension.scheduler.schedule(new RepeatedTask(1, growTicks + holdTicks, (task) -> {
+            long ticks = task.getTick();
+            Ascension.LOGGER.info(String.valueOf(ticks));
 
-        Ascension.scheduler.schedule(new RepeatedTask(1, totalDuration, (task) -> {
-            int ticks = tickCounter[0]++;
-
-            if (ticks >= totalDuration) {
+            if (ticks >= growTicks + holdTicks) {
                 as.setInUse(false);
                 task.cancel();
                 return;
@@ -347,7 +359,7 @@ public class SpellRegistry {
             }
 
             // Only deal damage after the growth phase
-            if (ticks < growTicks + holdTicks) {
+            if (ticks < growTicks) {
                 return;
             }
 
