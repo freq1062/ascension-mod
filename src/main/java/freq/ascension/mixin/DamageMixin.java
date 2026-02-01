@@ -50,23 +50,3 @@ public abstract class DamageMixin {
         }
     }
 }
-
-// @Mixin(ServerPlayer.class)
-// public abstract class DamageMixin {
-
-// @Inject(method = "hurtServer", at = @At("HEAD"), cancellable = true)
-// private void onPlayerTakeDamage(ServerLevel level, DamageSource source, float
-// amount,
-// CallbackInfoReturnable<Boolean> cir) {
-// ServerPlayer victim = (ServerPlayer) (Object) this;
-
-// AbilityManager.broadcast(victim, (order) -> order.onEntityDamage(victim,
-// source, amount, cir));
-
-// if (source.getEntity() instanceof ServerPlayer attacker) {
-// AbilityManager.broadcast(attacker,
-// (order) -> order.onEntityDamageByEntity(attacker, victim, source, amount,
-// cir));
-// }
-// }
-// }

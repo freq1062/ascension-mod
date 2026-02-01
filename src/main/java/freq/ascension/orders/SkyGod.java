@@ -1,10 +1,14 @@
 package freq.ascension.orders;
 
 import freq.ascension.managers.SpellStats;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.phys.Vec3;
 
 public class SkyGod extends Sky {
     public static final SkyGod INSTANCE = new SkyGod();
@@ -27,8 +31,28 @@ public class SkyGod extends Sky {
     @Override
     public void onEntityDamage(ServerPlayer victim, DamageContext context) {
         DamageSource source = context.getSource();
-        if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypes.STALAGMITE)) {
+        if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypes.STALAGMITE)
+                || source.is(DamageTypeTags.IS_PROJECTILE)) {
             context.setCancelled(true);
+        }
+    }
+
+    @Override
+    public void applyProjectileShield(ServerPlayer player, Projectile projectile) {
+        if (projectile.level() instanceof ServerLevel serverLevel) {
+            Vec3 velocity = projectile.getDeltaMovement();
+            if (Math.abs(velocity.x) > 0.01 && Math.abs(velocity.z) > 0.01) {
+                projectile.setDeltaMovement(velocity.scale(0.5));
+            }
+            serverLevel.getChunkSource().sendToTrackingPlayers(projectile,
+                    new ClientboundSetEntityMotionPacket(projectile));
+            serverLevel.sendParticles(
+                    net.minecraft.core.particles.ParticleTypes.GLOW,
+                    projectile.getX(), projectile.getY(), projectile.getZ(),
+                    10, // count
+                    0.1, 0.1, 0.1, // offset
+                    0.01 // speed
+            );
         }
     }
 }

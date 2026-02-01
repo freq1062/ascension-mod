@@ -9,15 +9,23 @@ import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
 import freq.ascension.registry.SpellRegistry;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.effect.MobEffectCategory;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.breeze.Breeze;
+import net.minecraft.world.entity.projectile.AbstractThrownPotion;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 
@@ -121,19 +129,63 @@ public class Sky implements Order {
         return true;
     }
 
+    protected boolean nonHarmfulProjectiles(Projectile proj) {
+        EntityType<?> type = proj.getType();
+        if (type == EntityType.ENDER_PEARL
+                || type == EntityType.EYE_OF_ENDER
+                || type == EntityType.EXPERIENCE_BOTTLE) {
+            return true;
+        }
+
+        if (type == EntityType.SPLASH_POTION || type == EntityType.LINGERING_POTION) {
+            if (proj instanceof AbstractThrownPotion thrown) {
+                ItemStack stack = thrown.getItem();
+                PotionContents contents = stack.get(DataComponents.POTION_CONTENTS);
+
+                if (contents == null || contents.equals(PotionContents.EMPTY)) {
+                    return true;
+                }
+                for (MobEffectInstance inst : contents.getAllEffects()) {
+                    MobEffectCategory category = inst.getEffect().value().getCategory();
+
+                    if (category == MobEffectCategory.HARMFUL || category == MobEffectCategory.NEUTRAL) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+
+        return false;
+    }
+
     @Override
     public void applyProjectileShield(ServerPlayer player, Projectile projectile) {
-        Vec3 velocity = projectile.getDeltaMovement();
-        // 1. Threshold Check: If it's already barely moving, don't touch it.
-        // 0.01 is a good "near zero" point for horizontal movement.
-        if (Math.abs(velocity.x) < 0.01 && Math.abs(velocity.z) < 0.01) {
+        if (projectile.getTags().contains("sky_slowed") || projectile.getOwner() == player) {
             return;
         }
-        projectile.setDeltaMovement(velocity.scale(0.1));
-        // if (!projectile.getTags().contains("sky_slowed")) {
-        // projectile.addTag("sky_slowed");
-        // projectile.setDeltaMovement(velocity.scale(0.5));
-        // }
+
+        if (nonHarmfulProjectiles(projectile)) {
+            return;
+        }
+
+        if (projectile.level() instanceof ServerLevel serverLevel) {
+            Vec3 velocity = projectile.getDeltaMovement();
+            if (Math.abs(velocity.x) > 0.01 && Math.abs(velocity.z) > 0.01) {
+                projectile.setDeltaMovement(velocity.scale(0.3));
+            }
+            serverLevel.getChunkSource().sendToTrackingPlayers(projectile,
+                    new ClientboundSetEntityMotionPacket(projectile));
+            serverLevel.sendParticles(
+                    net.minecraft.core.particles.ParticleTypes.GLOW,
+                    projectile.getX(), projectile.getY(), projectile.getZ(),
+                    10, // count
+                    0.1, 0.1, 0.1, // offset
+                    0.01 // speed
+            );
+            projectile.addTag("sky_slowed");
+        }
     }
 
     @Override

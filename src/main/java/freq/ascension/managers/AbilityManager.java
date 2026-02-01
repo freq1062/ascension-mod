@@ -19,7 +19,15 @@ import net.minecraft.world.InteractionResult;
 public class AbilityManager {
     public static void broadcast(ServerPlayer player, Consumer<Order> action) {
         AscensionData data = (AscensionData) player;
+        // Ensure the same order isn't invoked multiple times if equipped in
+        // multiple slots (passive/utility/combat). Deduplicate by order name.
+        java.util.Set<String> seen = new java.util.HashSet<>();
         for (Order order : data.getEquippedOrders()) {
+            if (order == null)
+                continue;
+            String name = order.getOrderName();
+            if (!seen.add(name))
+                continue; // already invoked this order
             action.accept(order);
         }
     }

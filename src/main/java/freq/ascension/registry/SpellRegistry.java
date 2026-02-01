@@ -223,33 +223,42 @@ public class SpellRegistry {
 
     public static void dash(ServerPlayer player, boolean dashDamage, int distance) {
         Level level = player.level();
-        // Create an ActiveSpell entry for cooldown tracking
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(player,
                 SpellCooldownManager.get("dash"));
 
-        Vec3 dir = player.getLookAngle().normalize();
-        // Convert desired travel distance (blocks) into an initial horizontal speed.
-        // Approximation: player horizontal velocity decays by ~0.91 each tick while
-        // airborne.
-        // Distance over N ticks ~= v0 * (1 - drag^N) / (1 - drag)
+        // Current motion and look direction (flattened)
+        Vec3 current = player.getDeltaMovement();
+        Vec3 forward = player.getLookAngle();
+        forward = new Vec3(forward.x, 0.0, forward.z);
+
+        // Compute desired horizontal speed based on distance and drag (approximation)
         final double drag = 0.91;
-        final int dashTicks = 10; // how long the dash should "meaningfully" last
+        final int dashTicks = 12;
         double desiredHorizontalSpeed = (distance * (1.0 - drag)) / (1.0 - Math.pow(drag, dashTicks));
 
-        // Apply the computed speed to the horizontal components while keeping the
-        // capped Y.
-        Vec3 horiz = new Vec3(dir.x, 0.0, dir.z);
-        if (horiz.lengthSqr() > 1.0e-6) {
-            horiz = horiz.normalize().scale(desiredHorizontalSpeed);
-            dir = new Vec3(horiz.x, dir.y, horiz.z);
+        Vec3 horiz = new Vec3(current.x, 0.0, current.z);
+
+        if (forward.lengthSqr() > 0.2) {
+            Vec3 boost = forward.normalize().scale(desiredHorizontalSpeed);
+            horiz = horiz.add(boost);
+        } else {
+            // If no meaningful forward input, apply boost in player's facing direction
+            // anyway
+            Vec3 lookFlat = player.getLookAngle();
+            lookFlat = new Vec3(lookFlat.x, 0.0, lookFlat.z);
+            if (lookFlat.lengthSqr() > 1.0e-6) {
+                Vec3 boost = lookFlat.normalize().scale(desiredHorizontalSpeed);
+                horiz = horiz.add(boost);
+            }
         }
 
-        // Apply the velocity impulse
-        player.setDeltaMovement(dir);
+        // Preserve vertical velocity
+        Vec3 newVel = new Vec3(horiz.x, current.y, horiz.z);
+        player.setDeltaMovement(newVel);
         player.hasImpulse = true;
         player.setIgnoreFallDamageFromCurrentImpulse(true);
-        // Dash.emitDashCone(player, player.getDeltaMovement(), dashDamage ? 20 : 12,
-        // dashDamage ? 1.4 : 1.0);
+        player.connection.send(new ClientboundSetEntityMotionPacket(player));
+
         level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WITHER_SHOOT,
                 SoundSource.PLAYERS, 0.5f,
                 dashDamage ? 1.0f : 1.35f);
@@ -270,8 +279,9 @@ public class SpellRegistry {
                             Utils.spellDmg(entity, player, 20);
                         });
             }));
-        } else
+        } else {
             as.setInUse(false);
+        }
     }
 
     public static void starStrike(ServerPlayer player, boolean augmented) {
