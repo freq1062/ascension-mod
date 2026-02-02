@@ -5,16 +5,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+
 import freq.ascension.Utils;
-import freq.ascension.managers.*;
-import freq.ascension.registry.*;
+import freq.ascension.managers.Spell;
+import freq.ascension.managers.SpellCooldownManager;
+import freq.ascension.managers.SpellStats;
+import freq.ascension.registry.SpellRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -26,6 +27,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -33,8 +36,6 @@ import net.minecraft.world.level.block.state.BlockState;
 public class Earth implements Order {
 
     public static final Earth INSTANCE = new Earth();
-    private static final String HEAD_TEXTURE = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTlhNWExZTY5YjRmODEwNTYyNTc1MmJjZWUyNTM0MDY2NGIwODlmYTFiMmY1MjdmYTkxNDNkOTA2NmE3YWFkMiJ9fX0=";
-
     // Keep track of supermine state per player
     private static final Map<UUID, Boolean> SUPERMINE_ENABLED = new ConcurrentHashMap<>();
     private static final Set<UUID> IS_MINING_INTERNALLY = new HashSet<>();
@@ -302,10 +303,8 @@ public class Earth implements Order {
     }
 
     @Override
-    public ItemStack getOrderItem() {
-        ItemStack head = new ItemStack(net.minecraft.world.item.Items.PLAYER_HEAD);
-        Utils.applyTexture(head, HEAD_TEXTURE);
-        return head;
+    public String getOrderIcon() {
+        return "\uE183";
     }
 
     @Override

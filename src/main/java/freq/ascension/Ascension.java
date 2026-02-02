@@ -59,6 +59,8 @@ public class Ascension implements ModInitializer {
 			UnbindCommand.register(dispatcher);
 			WithdrawCommand.register(dispatcher);
 			SetOrderCommand.register(dispatcher);
+				// Register click-action command for book UI
+				freq.ascension.commands.AscensionActionCommand.register(dispatcher);
 		});
 
 		LOGGER.info("Ascension SMP Mod Loaded!");

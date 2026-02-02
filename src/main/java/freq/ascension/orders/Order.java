@@ -54,7 +54,7 @@ public interface Order {
 
     String getOrderName();
 
-    ItemStack getOrderItem();
+    String getOrderIcon();
 
     TextColor getOrderColor();
 
