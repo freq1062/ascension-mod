@@ -1,9 +1,12 @@
 package freq.ascension.menus;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import eu.pb4.sgui.api.gui.BookGui;
+import freq.ascension.Config;
 import freq.ascension.Utils;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.orders.Order;
@@ -22,7 +25,14 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.WrittenBookContent;
 
 public class AscensionMenu {
+        private static record Section(String type, boolean unlocked, boolean equipped) {
+        }
+
         public void open(ServerPlayer player) {
+                open(player, 1);
+        }
+
+        public void open(ServerPlayer player, int openPage) {
                 AscensionData data = (AscensionData) player;
                 Order passive = data.getPassive();
                 Order utility = data.getUtility();
@@ -32,23 +42,8 @@ public class AscensionMenu {
                 // \uE183\uF802\uF802 \uF805\uE187\n\uF806\n\n \uE182\uF802\uF802 \uF804 \uE186
                 // \n\n\n\uF806 \uE184\uF802\uF802\uF804 \uE185\n\uF806\uF802\uF802H
 
-                MutableComponent menuIcons = Component.empty()
-                                .append(Component.literal(
-                                                "\uF806\uE181\uF801\uF801\uF801\uF801  \uF804\uF804"))
-                                .append(makeIcon("\uE188", "End", 2))// end
-                                .append(Component.literal("\n\uF806\uF804 "))
-                                .append(makeIcon("\uE183", "Earth", 3))
-                                .append(Component.literal("\uF802\uF802 \uF805"))
-                                .append(makeIcon("\uE187", "Nether", 4))
-                                .append(Component.literal("\n\uF806\n\n   "))
-                                .append(makeIcon("\uE182", "Sky", 5))
-                                .append(Component.literal("\uF802\uF802  \uF804 "))
-                                .append(makeIcon("\uE186", "Flora", 6))
-                                .append(Component.literal("\n\n\n\uF806 "))
-                                .append(makeIcon("\uE184", "Ocean", 7))
-                                .append(Component.literal("\uF802\uF802\uF804 "))
-                                .append(makeIcon("\uE185", "Magic", 8))
-                                .withStyle(Style.EMPTY.withColor(0xFFFFFF));
+                // menuIcons will be constructed after we know page indices for each order
+                MutableComponent menuIcons = Component.empty();
 
                 MutableComponent pageContent = Component.empty()
                                 .append(Component.literal("   " + Utils.smallCaps("Ascension SMP"))
@@ -74,17 +69,18 @@ public class AscensionMenu {
                                                 : Component.literal("None").withStyle(ChatFormatting.GRAY))
                                 .append(Component.literal("\uF802"))
                                 .append(makeInfluenceIcon(data)).withStyle(Style.EMPTY.withColor(0xFFFFFF))
-                                .append(Component.literal("\n\n"))
-                                .append(menuIcons);
-
-                ItemStack book = new ItemStack(Items.WRITTEN_BOOK);
+                                .append(Component.literal("\n"));
 
                 List<Filterable<Component>> pages = new ArrayList<>();
+                // Add the main menu as page 1
                 pages.add(Filterable.passThrough(pageContent));
 
-                int currentPageTracker = 1; // We are starting order pages at index 1 (Page 2)
+                int currentPageTracker = 2; // Next page index (page numbers are 1-based)
+
+                Map<String, Integer> firstPageMap = new HashMap<>();
 
                 for (Order order : OrderRegistry.iterable()) {
+                        firstPageMap.put(order.getOrderName().toLowerCase(), currentPageTracker);
                         List<Component> orderPages = createOrderPages(order, data, currentPageTracker);
                         for (Component p : orderPages) {
                                 pages.add(Filterable.passThrough(p));
@@ -92,12 +88,35 @@ public class AscensionMenu {
                         }
                 }
 
+                // Now construct the menu icons with the correct page links. If an order isn't
+                // present in the registry, or mapping is missing, clicking will go home (page
+                // 1).
+                menuIcons = Component.empty()
+                                .append(Component.literal("\uF806\uE181\uF801\uF801\uF801\uF801\uF804\uF804\n"))
+                                .append(Component.literal("\uF802\uF802\uF804   "))
+                                .append(makeIcon("\uE188", "End", firstPageMap.getOrDefault("end", 1)))
+                                .append(Component.literal("\n\uF806\uF804 "))
+                                .append(makeIcon("\uE183", "Earth", firstPageMap.getOrDefault("earth", 1)))
+                                .append(Component.literal("\uF802\uF802 \uF805"))
+                                .append(makeIcon("\uE187", "Nether", firstPageMap.getOrDefault("nether", 1)))
+                                .append(Component.literal("\n\uF806\n\n   "))
+                                .append(makeIcon("\uE182", "Sky", firstPageMap.getOrDefault("sky", 1)))
+                                .append(Component.literal("\uF802\uF802  \uF804 "))
+                                .append(makeIcon("\uE186", "Flora", firstPageMap.getOrDefault("flora", 1)))
+                                .append(Component.literal("\n\n\n\uF806 "))
+                                .append(makeIcon("\uE184", "Ocean", firstPageMap.getOrDefault("ocean", 1)))
+                                .append(Component.literal("\uF802\uF802\uF804 "))
+                                .append(makeIcon("\uE185", "Magic", firstPageMap.getOrDefault("magic", 1)));
+
+                pageContent.append(menuIcons);
+
+                ItemStack book = new ItemStack(Items.WRITTEN_BOOK);
                 book.set(DataComponents.WRITTEN_BOOK_CONTENT, new WrittenBookContent(
                                 Filterable.passThrough("AscensionMenu"),
-                                "freq1062", 3, pages,
-                                true));
+                                player.getName().getString(), 0, pages, true));
 
                 BookGui gui = new BookGui(player, book);
+                // BookGui currently only supports open(); don't reopen to a specific page here.
                 gui.open();
         }
 
@@ -130,113 +149,164 @@ public class AscensionMenu {
 
         public List<Component> createOrderPages(Order order, AscensionData data, int startPageIndex) {
                 List<Component> finalPages = new ArrayList<>();
-
-                // 1. Prepare the content sections
-
-                List<Component> contentLines = new ArrayList<>();
-                contentLines.add(formatSection("Passive", order,
-                                data.getUnlockedOrder(order.getOrderName()).hasPassive(),
-                                data.getPassive() == order));
-                contentLines.add(Component.literal(""));
-                contentLines.add(formatSection("Utility", order,
-                                data.getUnlockedOrder(order.getOrderName()).hasUtility(),
-                                data.getUtility() == order));
-                contentLines.add(Component.literal(""));
-                contentLines.add(formatSection("Combat", order, data.getUnlockedOrder(order.getOrderName()).hasCombat(),
-                                data.getCombat() == order));
-
-                // 2. Split content across pages
-                // Lines per page: 14 total.
-                // -1 for Header, -1 for Spacer, -1 for Home Button = 11 lines available for
-                // content.
-                int linesPerPage = 11;
-                int currentLineInPage = 0;
+                int maxLines = 11; // Header (1) + Spacer (1) + Home (1) + 11 content lines = 14
+                int currentLineCount = 0;
                 MutableComponent currentPage = Component.empty();
                 int localPageCount = 0;
 
-                for (Component section : contentLines) {
-                        // Simple approximation: check if section is long.
-                        // In a real scenario, you'd split strings by width, but here we assume sections
-                        // fit.
-                        currentPage.append(section).append(Component.literal("\n"));
-                        currentLineInPage += 2; // Rough estimate for Section Name + Description
+                List<Section> sections = new ArrayList<>();
+                sections.add(new Section("Passive", data.getUnlockedOrder(order.getOrderName()).hasPassive(),
+                                data.getPassive() == order));
+                sections.add(new Section("Utility", data.getUnlockedOrder(order.getOrderName()).hasUtility(),
+                                data.getUtility() == order));
+                sections.add(new Section("Combat", data.getUnlockedOrder(order.getOrderName()).hasCombat(),
+                                data.getCombat() == order));
 
-                        if (currentLineInPage >= linesPerPage) {
-                                finalPages.add(finishPage(currentPage, order, startPageIndex + localPageCount));
+                // ... (Section setup code same as before)
+
+                for (Section s : sections) {
+                        // 1. Add Section Title
+                        if (currentLineCount + 1 > maxLines) {
+                                finalPages.add(finishPage(currentPage, order, startPageIndex + localPageCount++));
                                 currentPage = Component.empty();
-                                currentLineInPage = 0;
-                                localPageCount++;
+                                currentLineCount = 0;
+                        }
+                        currentPage.append(buildSectionTitle(s, order, startPageIndex + localPageCount))
+                                        .append(Component.literal("\n"));
+                        currentLineCount++;
+
+                        // 2. Add Wrapped Description
+                        List<String> wrapped = wrapTextPixels(order.getDescription(s.type), 140); // 110-114 is safe
+                        for (String line : wrapped) {
+                                if (currentLineCount >= maxLines) {
+                                        finalPages.add(finishPage(currentPage, order,
+                                                        startPageIndex + localPageCount++));
+                                        currentPage = Component.empty();
+                                        currentLineCount = 0;
+                                }
+                                currentPage.append(Component.literal(line).withStyle(ChatFormatting.DARK_GRAY))
+                                                .append(Component.literal("\n"));
+                                currentLineCount++;
+                        }
+
+                        // 3. Add separator
+                        if (currentLineCount < maxLines) {
+                                currentPage.append(Component.literal("\n"));
+                                currentLineCount++;
                         }
                 }
-
-                // Add the last page if it has content
-                if (currentLineInPage > 0 || finalPages.isEmpty()) {
+                // Final check
+                if (!currentPage.getString().isEmpty()) {
                         finalPages.add(finishPage(currentPage, order, startPageIndex + localPageCount));
                 }
-
                 return finalPages;
         }
 
-        private Component finishPage(MutableComponent content, Order order, int globalPageNumber) {
-                MutableComponent icon = Component.literal(order.getOrderIcon())
-                                .withStyle(Style.EMPTY.withColor(0xFFFFFF));
-                MutableComponent name = Component.literal(Utils.smallCaps(order.getOrderName()))
-                                .withStyle(Style.EMPTY.withColor(order.getOrderColor().getValue()).withBold(true));
-
-                MutableComponent header = Component.empty();
-                // GlobalPageNumber: assuming Menu is Page 1 (index 0).
-                // If index 1 (Page 2) is even, icon comes first.
-                if ((globalPageNumber + 1) % 2 == 0) {
-                        header.append(icon).append(Component.literal(" ")).append(name);
-                } else {
-                        header.append(name).append(Component.literal(" ")).append(icon);
+        // Helper to get pixel width of a string (Default MC Font)
+        private int getStringWidth(String text) {
+                int width = 0;
+                for (char c : text.toCharArray()) {
+                        // Very rough approximation of vanilla font widths
+                        if ("i.,!l'".indexOf(c) != -1)
+                                width += 2;
+                        else if ("I[] ".indexOf(c) != -1)
+                                width += 4;
+                        else if ("tfk\"()".indexOf(c) != -1)
+                                width += 5;
+                        else if ("ABCDEFGHJKLMNOPQRSTUVWXYZabcdefghjmnoprstuvwxyz0123456789".indexOf(c) != -1)
+                                width += 6;
+                        else if (c == 'W' || c == 'w' || c == '@')
+                                width += 8;
+                        else
+                                width += 6; // default
+                        width += 1; // kerning
                 }
-
-                // Pin Home button to line 14
-                // We count existing newlines in content to see how much padding we need
-                int contentLines = content.getString().split("\n").length;
-                int paddingNeeded = 12 - contentLines;
-
-                return Component.empty()
-                                .append(header).append(Component.literal("\n\n"))
-                                .append(content)
-                                .append(Component.literal("\n".repeat(Math.max(0, paddingNeeded))))
-                                .append(Component.literal("                    ") // Manual right-align pad
-                                                .append(Component.literal("<< Home")
-                                                                .withStyle(s -> s.withColor(ChatFormatting.BLUE)
-                                                                                .withUnderlined(true)
-                                                                                .withClickEvent(new ClickEvent.ChangePage(
-                                                                                                1)))));
+                return width;
         }
 
-        private Component formatSection(String type, Order order, boolean unlocked,
-                        boolean equipped) {
+        private List<String> wrapTextPixels(String text, int maxWidth) {
+                List<String> lines = new ArrayList<>();
+                String[] words = text.split(" ");
+                StringBuilder currentLine = new StringBuilder();
+                int currentWidth = 0;
 
+                for (String word : words) {
+                        int wordWidth = getStringWidth(word + " ");
+                        if (currentWidth + wordWidth > maxWidth) {
+                                lines.add(currentLine.toString().trim());
+                                currentLine = new StringBuilder(word + " ");
+                                currentWidth = wordWidth;
+                        } else {
+                                currentLine.append(word).append(" ");
+                                currentWidth += wordWidth;
+                        }
+                }
+                lines.add(currentLine.toString().trim());
+                return lines;
+        }
+
+        private MutableComponent buildSectionTitle(Section s, Order order, int globalPageForTitle) {
                 HoverEvent hover = new HoverEvent.ShowText(
-                                Component.literal(equipped ? "Equipped!"
-                                                : (unlocked ? "Click to equip!"
+                                Component.literal(s.equipped ? "Equipped!"
+                                                : (s.unlocked ? "Click to equip!"
                                                                 : "Click to unlock (costs 1 influence)")));
 
-                String typeArg = type.toLowerCase();
-                // Command: runs on the server to unlock or equip the order, then reopen menu
-                String cmd = "/ascension_action " + order.getOrderName() + " " + typeArg;
-                ClickEvent click = new ClickEvent.RunCommand(cmd);
+                String cmd = "/ascension_action " + order.getOrderName() + " " + s.type.toLowerCase() + " "
+                                + globalPageForTitle;
+                ClickEvent click = (switch (order.getOrderName().toLowerCase()) {
+                        case "earth" -> Config.earthEnabled;
+                        case "sky" -> Config.skyEnabled;
+                        case "ocean" -> Config.oceanEnabled;
+                        case "flora" -> Config.floraEnabled;
+                        case "magic" -> Config.magicEnabled;
+                        case "nether" -> Config.netherEnabled;
+                        case "end" -> Config.endEnabled;
+                        default -> true;
+                }) ? new ClickEvent.RunCommand(cmd) : null;
 
-                MutableComponent title = Component.literal(type)
+                MutableComponent title = Component.literal(s.type)
                                 .withStyle(style -> style.withBold(true)
-                                                .withColor(equipped ? ChatFormatting.GREEN : ChatFormatting.BLACK)
-                                                .withShadowColor(ChatFormatting.GOLD.getColor())
-                                                .withHoverEvent(hover)
+                                                .withColor(s.equipped ? ChatFormatting.GREEN : ChatFormatting.BLACK)
+                                                .withShadowColor(ChatFormatting.GOLD.getColor()).withHoverEvent(hover)
                                                 .withClickEvent(click));
 
-                MutableComponent icon = Component.literal((unlocked || equipped) ? " \uE18B" : " \uE18A")
+                MutableComponent icon = Component.literal((s.unlocked || s.equipped) ? " \uE18B" : " \uE18A")
                                 .withStyle(Style.EMPTY.withColor(0xFFFFFF).withHoverEvent(hover).withClickEvent(click));
 
-                return Component.empty()
-                                .append(title)
-                                .append(icon)
-                                .append(Component.literal("\n"))
-                                .append(Component.literal(order.getDescription(type))
-                                                .withStyle(ChatFormatting.DARK_GRAY));
+                return Component.empty().append(title).append(icon);
+        }
+
+        private Component finishPage(MutableComponent content, Order order, int globalPageNumber) {
+                // 1. Header (1 line)
+                MutableComponent header = (globalPageNumber % 2 == 0)
+                                ? Component.empty()
+                                                .append(Component.literal(order.getOrderIcon())
+                                                                .withStyle(Style.EMPTY.withColor(0xFFFFFF)))
+                                                .append(Component.literal(" "))
+                                                .append(Component.literal(Utils.smallCaps(order.getOrderName()))
+                                                                .withStyle(style -> style
+                                                                                .withColor(order.getOrderColor())
+                                                                                .withBold(true)))
+                                : Component.empty()
+                                                .append(Component.literal(Utils.smallCaps(order.getOrderName()))
+                                                                .withStyle(style -> style
+                                                                                .withColor(order.getOrderColor())
+                                                                                .withBold(true)))
+                                                .append(Component.literal(" "))
+                                                .append(Component.literal(order.getOrderIcon())
+                                                                .withStyle(Style.EMPTY.withColor(0xFFFFFF)));
+
+                // 2. Build the result
+                MutableComponent result = Component.empty().append(header).append("\n\n").append(content);
+
+                // 3. Precise Footer placement
+                int contentLines = content.getString().split("\n", -1).length;
+                int padding = 12 - contentLines; // 14 total - 1 (header) - 1 (spacer) - 1 (home) = 11
+
+                return result.append(Component.literal("\n".repeat(Math.max(0, padding))))
+                                .append(Component.literal("                  ")) // Nudge right
+                                .append(Component.literal("<< Home")
+                                                .withStyle(s -> s.withColor(ChatFormatting.BLUE).withUnderlined(true)))
+                                .withStyle(s -> s.withClickEvent(new ClickEvent.ChangePage(1)));
         }
 }

@@ -52,9 +52,13 @@ public class Earth implements Order {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Haste 1, Ore drops doubled, automatically smelted without silk touch, anvils cost 50% less";
-            case "utility" -> "Supermine spell, 2x2";
-            case "combat" -> "Magma bubble spell";
+                "Permanent Haste 1. Ore drops are doubled and automatically smelted without silk touch. Anvils cost 50% less, do not break, and have no limit.";
+            case "utility" -> "SUPERMINE: " + getSpellStats("supermine").getDescription();
+            case "combat" -> {
+                SpellStats s = getSpellStats("magma_bubble");
+                yield "MAGMA BUBBLE: " + s.getDescription()
+                        + " Cooldown " + String.valueOf(s.getCooldownSecs()) + "s.";
+            }
             default -> "";
         };
     }
@@ -80,10 +84,10 @@ public class Earth implements Order {
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
             case "supermine" -> new SpellStats(60,
-                    "Activate to toggle 2x2 mining. Durability loss applies for half of the blocks mined.",
+                    "Activate to toggle 2x2 mining. Durability loss applies for half of the blocks mined. Works with Earth passives.",
                     2, 4); // diameter, max durability loss
             case "magma_bubble" -> new SpellStats(600,
-                    "Scorches enemy with magma spikes in a 4x4 centered area, dealing 30% hp.. Must be activated on land or in lava.",
+                    "Scorches enemy with magma spikes in a 4x4 centered area, dealing 30% max hp. Must be activated on land or in lava.",
                     4, 30, false);
             default -> null;
         };

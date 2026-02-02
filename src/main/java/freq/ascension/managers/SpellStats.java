@@ -20,4 +20,8 @@ public record SpellStats(
     public String getDescription() {
         return description;
     }
+
+    public int getCooldownSecs() {
+        return (int) cooldown / 20;
+    }
 }
