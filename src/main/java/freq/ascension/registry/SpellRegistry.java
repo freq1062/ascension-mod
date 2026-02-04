@@ -10,7 +10,7 @@ import java.util.function.DoubleUnaryOperator;
 import org.joml.Vector3f;
 
 import freq.ascension.Utils;
-import freq.ascension.animation.dash.DashCone;
+import freq.ascension.animation.Dash;
 import freq.ascension.animation.star_strike.GammaRay;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.AscensionData;
@@ -203,7 +203,8 @@ public class SpellRegistry {
         player.connection.send(new ClientboundSetEntityMotionPacket(player));
         player.setIgnoreFallDamageFromCurrentImpulse(true);
 
-        DashCone.spawnDoubleJumpBurst(player, slam);
+        Dash.spawnDashCone(player, Utils.Vec3toVector3(player.getDeltaMovement()), 10, 0.5f, 1.5f,
+                1.0f);
 
         if (slam) {
             Ascension.scheduler.schedule(new RepeatedTask(1, 60, (task) -> {
@@ -267,7 +268,8 @@ public class SpellRegistry {
         player.setIgnoreFallDamageFromCurrentImpulse(true);
         player.connection.send(new ClientboundSetEntityMotionPacket(player));
 
-        DashCone.emitDashCone(player, newVel, dashDamage ? 20 : 12, dashDamage ? 1.4 : 1.0);
+        Dash.spawnDashCone(player, Utils.Vec3toVector3(newVel), 15, 1.5f, 2.5f,
+                2.0f);
 
         level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WITHER_SHOOT,
                 SoundSource.PLAYERS, 0.5f,
