@@ -10,7 +10,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
-
 import freq.ascension.managers.AbilityManager;
 import freq.ascension.orders.Order.DamageContext;
 

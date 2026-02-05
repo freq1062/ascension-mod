@@ -113,6 +113,10 @@ public interface Order {
 
     }
 
+    default boolean canWalkOnPowderSnow(ServerPlayer player) {
+        return false;
+    }
+
     // Ability methods
     default void applyEffect(ServerPlayer player) {
     }

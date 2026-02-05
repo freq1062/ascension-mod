@@ -11,7 +11,8 @@
 		"ServerPlayerMixin",
 		"MobTargetMixin",
 		"BreezeTargetMixin",
-		"ProjectileShieldMixin"
+		"ProjectileShieldMixin",
+		"PowderSnowMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

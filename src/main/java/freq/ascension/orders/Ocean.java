@@ -71,6 +71,13 @@ public class Ocean implements Order {
     }
 
     @Override
+    public boolean canWalkOnPowderSnow(ServerPlayer player) {
+        if (hasCapability(player, "passive"))
+            return true;
+        return false;
+    }
+
+    @Override
     public void onEntityDamageByEntity(ServerPlayer attacker, ServerPlayer victim, DamageContext context) {
         float damage = context.getAmount();
         // Ignore very low-damage (sweep) attacks
