@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import org.joml.Vector3f;
-
 import com.mojang.authlib.GameProfile;
 
 import freq.ascension.managers.AscensionData;
@@ -15,7 +13,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -271,9 +268,5 @@ public class Utils {
         } catch (NumberFormatException e) {
             return 24L * 60L * 60L * 1000L; // Parse error, use default
         }
-    }
-
-    public static Vector3f Vec3toVector3(Vec3 v) {
-        return new Vector3f((float) v.x, (float) v.y, (float) v.z);
     }
 }

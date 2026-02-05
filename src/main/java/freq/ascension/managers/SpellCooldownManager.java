@@ -157,14 +157,18 @@ public final class SpellCooldownManager {
                                 SpellStats stats = spell.getStats(player);
                                 int maxCooldown = (stats != null) ? Math.max(1, stats.getCooldownTicks()) : 1;
                                 String spacer = "                                        ";
-                                
+
                                 // Dynamic spacer based on text width
                                 int textWidth = 0;
                                 for (char c : display.toCharArray()) {
-                                    if (c == ' ' || c == '.' || c == ',' || c == 'i' || c == ':' || c == ';') textWidth += 2;
-                                    else if (c == 'l' || c == 't' || c == 'I' || c == '[' || c == ']') textWidth += 3;
-                                    else if (c == 'f' || c == 'k') textWidth += 4;
-                                    else textWidth += 5;
+                                    if (c == ' ' || c == '.' || c == ',' || c == 'i' || c == ':' || c == ';')
+                                        textWidth += 2;
+                                    else if (c == 'l' || c == 't' || c == 'I' || c == '[' || c == ']')
+                                        textWidth += 3;
+                                    else if (c == 'f' || c == 'k')
+                                        textWidth += 4;
+                                    else
+                                        textWidth += 5;
                                 }
                                 int extraSpaces = (int) Math.ceil(textWidth / 4.0);
                                 spacer += " ".repeat(extraSpaces);
@@ -173,27 +177,27 @@ public final class SpellCooldownManager {
 
                                 Component comp;
                                 if (active == null) {
-                                  comp = Component.literal(spacer + " \uE17F" + backwards)
-                                          .withStyle(style -> style.withShadowColor(0))
-                                          .append(Component.literal(display)
-                                                  .withStyle(style -> style.withColor(0x00ff00)));
+                                    comp = Component.literal(spacer + " \uE17F" + backwards)
+                                            .withStyle(style -> style.withShadowColor(0))
+                                            .append(Component.literal(display)
+                                                    .withStyle(style -> style.withColor(0x00ff00)));
                                 } else if (active.isInUse()) {
-                                  comp = Component.literal(spacer + " \uE180" + backwards)
-                                          .withStyle(style -> style.withShadowColor(0))
-                                          .append(Component.literal(display)
-                                                  .withStyle(style -> style.withColor(0xf5ea1b)));
+                                    comp = Component.literal(spacer + " \uE180" + backwards)
+                                            .withStyle(style -> style.withShadowColor(0))
+                                            .append(Component.literal(display)
+                                                    .withStyle(style -> style.withColor(0xf5ea1b)));
                                 } else {
-                                  int remaining = active.getRemainingCooldown();
-                                  float progress = 1.0f - ((float) remaining / (float) maxCooldown);
-                                  progress = Math.max(0.0f, Math.min(1.0f, progress));
-                                  
-                                  int index = (int) (progress * 127.0f);
-                                  char icon = (char) (0xE100 + index);
+                                    int remaining = active.getRemainingCooldown();
+                                    float progress = 1.0f - ((float) remaining / (float) maxCooldown);
+                                    progress = Math.max(0.0f, Math.min(1.0f, progress));
 
-                                  comp = Component.literal(spacer + " " + icon + backwards)
-                                          .withStyle(style -> style.withShadowColor(0))
-                                          .append(Component.literal(display)
-                                                  .withStyle(style -> style.withColor(0xff0000)));
+                                    int index = (int) (progress * 127.0f);
+                                    char icon = (char) (0xE100 + index);
+
+                                    comp = Component.literal(spacer + " " + icon + backwards)
+                                            .withStyle(style -> style.withShadowColor(0))
+                                            .append(Component.literal(display)
+                                                    .withStyle(style -> style.withColor(0xff0000)));
                                 }
                                 player.displayClientMessage(comp, true);
                             }

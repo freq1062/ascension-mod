@@ -1,0 +1,108 @@
+package freq.ascension.orders;
+
+import freq.ascension.managers.ActiveSpell;
+import freq.ascension.managers.Spell;
+import freq.ascension.managers.SpellCooldownManager;
+import freq.ascension.managers.SpellStats;
+import freq.ascension.registry.SpellRegistry;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+
+public class Ocean implements Order {
+    public static final Ocean INSTANCE = new Ocean();
+
+    @Override
+    public Order getVersion(String rank) {
+        if (rank == "god") {
+            return OceanGod.INSTANCE;
+        }
+        return this;
+    }
+
+    @Override
+    public void registerSpells() {
+        SpellCooldownManager.register(new Spell("dolphins_grace", this, "passive", (player, stats) -> {
+            SpellRegistry.dolphinsGrace(player);
+        }));
+
+        SpellCooldownManager.register(new Spell("molecular_flux", this, "utility", (player, stats) -> {
+            SpellRegistry.molecularFlux(player,
+                    stats.getInt(0), // range
+                    stats.getInt(1) // duration
+            );
+        }));
+
+        SpellCooldownManager.register(new Spell("drown", this, "combat", (player, stats) -> {
+            SpellRegistry.drown(player, stats.getInt(0), 8);
+            // duration, radius
+        }));
+    }
+
+    @Override
+    public SpellStats getSpellStats(String spellId) {
+        return switch (spellId.toLowerCase()) {
+            case "dolphins_grace" -> new SpellStats(60,
+                    "Toggle between normal swimming speed and Dolphin's Grace 1.",
+                    0);
+            case "molecular_flux" ->
+                new SpellStats(300, "Transforms water related blocks between states", 20, 5); // range(blocks),
+                                                                                              // duration(seconds)
+            case "drown" -> new SpellStats(600,
+                    "Drowns players within 8 blocks and activates passives on land for 7s",
+                    7); // duration
+            default -> null;
+        };
+    }
+
+    @Override
+    public String getDescription(String slotType) {
+        return switch (slotType.toLowerCase()) {
+            case "passive" -> "Permanent Conduit Power. Autocrit in water. DOLPHIN'S GRACE:"
+                    + getSpellStats("dolphins_grace").getDescription();
+            case "utility" -> "MOLECULAR FLUX: " + getSpellStats("molecular_flux").getDescription();
+            case "combat" -> "DROWN: " + getSpellStats("drown").getDescription();
+            default -> "";
+        };
+    }
+
+    @Override
+    public void onEntityDamageByEntity(ServerPlayer attacker, ServerPlayer victim, DamageContext context) {
+        float damage = context.getAmount();
+        // Ignore very low-damage (sweep) attacks
+        if (damage < 0.5)
+            return;
+        ActiveSpell as = SpellCooldownManager.getActiveSpell(attacker, SpellCooldownManager.get("drown"));
+        if (attacker.isInWaterOrRain() && hasCapability(attacker, "passive") || as.isInUse()) {
+            context.setAmount((float) (context.getAmount() * 1.5));
+            attacker.level().playSound(null, attacker.blockPosition(), SoundEvents.PLAYER_ATTACK_CRIT,
+                    SoundSource.PLAYERS, 1.0f, 1.0f);
+            attacker.level().addParticle(ParticleTypes.CRIT, victim.getX(), victim.getY(), victim.getZ(), 0.0, 0.0,
+                    0.0);
+        }
+    }
+
+    @Override
+    public void applyEffect(ServerPlayer player) {
+        if (hasCapability(player, "passive"))
+            player.addEffect(new MobEffectInstance(MobEffects.WATER_BREATHING, 60, 0));
+    }
+
+    public String getOrderName() {
+        return "ocean";
+    }
+
+    public TextColor getOrderColor() {
+        // Dark blue
+        return TextColor.fromRgb(0x001eff);
+    }
+
+    @Override
+    public String getOrderIcon() {
+        return "\uE184";
+    }
+}

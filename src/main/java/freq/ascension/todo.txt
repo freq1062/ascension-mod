@@ -8,3 +8,6 @@ luckperms
 
 
 serverPlayer.sendSystemMessage(Component.literal(msg));
+
+Actually make spellDmg work
+cooldown bars: Goes down while the spell is activated?

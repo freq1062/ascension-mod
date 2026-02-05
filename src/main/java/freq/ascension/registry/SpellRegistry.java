@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.DoubleUnaryOperator;
 
@@ -13,7 +14,6 @@ import freq.ascension.Utils;
 import freq.ascension.animation.Dash;
 import freq.ascension.animation.MagmaBubble;
 import freq.ascension.animation.StarStrike;
-import freq.ascension.animation.star_strike.GammaRay;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.Spell;
@@ -28,10 +28,12 @@ import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -204,7 +206,7 @@ public class SpellRegistry {
         player.connection.send(new ClientboundSetEntityMotionPacket(player));
         player.setIgnoreFallDamageFromCurrentImpulse(true);
 
-        Dash.spawnDashCone(player, Utils.Vec3toVector3(player.getDeltaMovement()), 10, 0.5f, 1.5f,
+        Dash.spawnDashCone(player, player.getDeltaMovement().toVector3f(), 10, 0.5f, 1.5f,
                 1.0f);
 
         if (slam) {
@@ -269,7 +271,7 @@ public class SpellRegistry {
         player.setIgnoreFallDamageFromCurrentImpulse(true);
         player.connection.send(new ClientboundSetEntityMotionPacket(player));
 
-        Dash.spawnDashCone(player, Utils.Vec3toVector3(newVel), 15, 1.5f, 2.5f,
+        Dash.spawnDashCone(player, newVel.toVector3f(), 15, 1.5f, 2.5f,
                 2.0f);
 
         level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WITHER_SHOOT,
@@ -308,18 +310,55 @@ public class SpellRegistry {
         Vec3 eyePos = player.getEyePosition();
         Vec3 viewVec = player.getLookAngle();
         Vec3 endVec = eyePos.add(viewVec.scale(range));
-        BlockHitResult hitResult = level.clip(new ClipContext(
+        BlockHitResult blockHit = level.clip(new ClipContext(
                 eyePos, endVec,
                 ClipContext.Block.COLLIDER,
                 ClipContext.Fluid.NONE,
                 player));
 
-        Vec3 strikePoint = hitResult.getType() == net.minecraft.world.phys.HitResult.Type.MISS
-                ? endVec
-                : hitResult.getLocation();
+        double blockDist = blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS
+                ? Double.MAX_VALUE
+                : blockHit.getLocation().distanceTo(eyePos);
 
-        // Adjust particle center to be slightly centered in the block visual area
-        Vec3 particleCenter = strikePoint.add(0.0, -0.5, 0.0);
+        // check for entity hits along the ray and pick closest hit (entity vs block)
+        AABB rayBox = new AABB(eyePos, endVec).inflate(1.0);
+        LivingEntity hitEntity = null;
+        Vec3 hitEntityVec = null;
+        double entityDist = Double.MAX_VALUE;
+
+        for (LivingEntity ent : level.getEntitiesOfClass(LivingEntity.class, rayBox,
+                e -> !e.isSpectator() && e != player)) {
+            AABB entBB = ent.getBoundingBox().inflate(0.3);
+            java.util.Optional<Vec3> opt = entBB.clip(eyePos, endVec);
+            if (opt.isPresent()) {
+                Vec3 v = opt.get();
+                double d = eyePos.distanceTo(v);
+                if (d < entityDist) {
+                    entityDist = d;
+                    hitEntity = ent;
+                    hitEntityVec = v;
+                }
+            }
+        }
+
+        net.minecraft.world.phys.HitResult hitResult;
+        if (hitEntity != null && entityDist < blockDist) {
+            hitResult = new net.minecraft.world.phys.EntityHitResult(hitEntity, hitEntityVec);
+        } else {
+            hitResult = blockHit;
+        }
+
+        Vec3 strikePoint;
+        if (hitResult.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY
+                && hitResult instanceof net.minecraft.world.phys.EntityHitResult) {
+            net.minecraft.world.entity.Entity ent = ((net.minecraft.world.phys.EntityHitResult) hitResult).getEntity();
+            AABB bb = ent.getBoundingBox();
+            strikePoint = new Vec3(ent.getX(), bb.minY, ent.getZ()); // bottom-center of entity
+        } else if (hitResult.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+            strikePoint = endVec;
+        } else {
+            strikePoint = hitResult.getLocation();
+        }
 
         // Pre-impact rumble sound
         level.playSound(null, strikePoint.x, strikePoint.y, strikePoint.z,
@@ -331,58 +370,224 @@ public class SpellRegistry {
             float g = ((hex >> 8) & 0xFF) / 255.0f;
             float b = (hex & 0xFF) / 255.0f;
             Vector3f colorVec = new Vector3f(r, g, b);
-            StarStrike.spawnGammaRay(player, Utils.Vec3toVector3(strikePoint), 1.5f, colorVec);
+            StarStrike.spawnGammaRay(player, strikePoint.toVector3f(), 1.5f, colorVec);
         }
-        as.setInUse(false);
 
-        // Ascension.scheduler.schedule(new RepeatedTask(1, growTicks + holdTicks,
-        // (task) -> {
-        // long ticks = task.getTick();
-        // Ascension.LOGGER.info(String.valueOf(ticks));
+        int growTicks = 5;
+        int holdTicks = 20;
 
-        // if (ticks >= growTicks + holdTicks) {
-        // as.setInUse(false);
-        // task.cancel();
-        // return;
-        // }
+        Ascension.scheduler.schedule(new RepeatedTask(1, growTicks + holdTicks,
+                (task) -> {
+                    long ticks = task.getTick();
+                    Ascension.LOGGER.info(String.valueOf(ticks));
 
-        // // Visual particles for the 2x2 area
-        // if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
-        // for (int dx = 0; dx <= 1; dx++) {
-        // for (int dz = 0; dz <= 1; dz++) {
-        // double px = particleCenter.x + dx - 0.5;
-        // double py = particleCenter.y + 0.5;
-        // double pz = particleCenter.z + dz - 0.5;
-        // serverLevel.sendParticles(ParticleTypes.END_ROD, px, py, pz, 10, 0.2, 0.5,
-        // 0.2, 0.01);
-        // serverLevel.sendParticles(ParticleTypes.EXPLOSION, px, py, pz, 1, 0.0, 0.0,
-        // 0.0, 0.0);
-        // }
-        // }
-        // }
+                    if (ticks >= growTicks + holdTicks) {
+                        as.setInUse(false);
+                        task.cancel();
+                        return;
+                    }
 
-        // // Only deal damage after the growth phase
-        // if (ticks < growTicks) {
-        // return;
-        // }
+                    // Only deal damage after the growth phase
+                    if (ticks < growTicks) {
+                        return;
+                    }
 
-        // AABB box = new AABB(player.getOnPos()).inflate(2.0, 3.0, 2.0);
-        // for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, box))
-        // {
-        // if (target == player)
-        // continue;
+                    BlockPos center = new BlockPos(
+                            (int) Math.floor(strikePoint.x),
+                            (int) Math.floor(strikePoint.y),
+                            (int) Math.floor(strikePoint.z));
+                    AABB box = new AABB(center).inflate(2.0, 3.0, 2.0);
+                    Ascension.LOGGER.info(center.toShortString());
+                    for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, box)) {
+                        if (target == player)
+                            continue;
 
-        // Utils.spellDmg(target, player, 25.0f);
+                        Utils.spellDmg(target, player, 25.0f);
 
-        // // Launch upwards
-        // Vec3 currentVel = target.getDeltaMovement();
-        // target.setDeltaMovement(currentVel.x, 0.7, currentVel.z);
-        // target.hasImpulse = true;
+                        // Launch upwards
+                        Vec3 currentVel = target.getDeltaMovement();
+                        target.setDeltaMovement(currentVel.x, 0.7, currentVel.z);
+                        target.hasImpulse = true;
 
-        // // Apply Darkness effect
-        // target.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-        // net.minecraft.world.effect.MobEffects.DARKNESS, 40, 0, true, true, true));
-        // }
-        // }));
+                        // Apply Darkness effect
+                        target.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                                net.minecraft.world.effect.MobEffects.DARKNESS, 40, 0, true, true, true));
+                    }
+                }));
+    }
+
+    /*
+     * OCEAN
+     */
+
+    public static void dolphinsGrace(ServerPlayer player) {
+        ActiveSpell currSpell = SpellCooldownManager.addToActiveSpells(player,
+                SpellCooldownManager.get("dolphins_grace"));
+        net.minecraft.world.effect.MobEffectInstance currentEffect = player
+                .getEffect(net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE);
+        if (currentEffect == null) {
+            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                    net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE, 200, 0, true, true, true));
+        } else if (currentEffect.getAmplifier() == 0) {
+            player.removeEffect(net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE);
+        }
+        currSpell.setInUse(false); // Allow cooldown to start
+    }
+
+    public static void drown(ServerPlayer player, int durationSecs, int radius) {
+        ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("drown"));
+        BlockPos center = player.getOnPos();
+
+        Ascension.scheduler.schedule(new RepeatedTask(0, durationSecs * 20, (task) -> {
+            long ticks = task.getTick();
+            if (ticks >= durationSecs * 20) {
+                as.setInUse(false);
+                task.cancel();
+                return;
+            }
+
+            // Set air meter to 0 every second
+            if (ticks % 20 == 0) {
+                AABB box = new AABB(center).inflate(radius, radius, radius);
+                for (LivingEntity target : player.level().getEntitiesOfClass(LivingEntity.class, box)) {
+                    if (target == player)
+                        continue;
+
+                    if (target instanceof ServerPlayer victim) {
+                        victim.setAirSupply(0);
+                    }
+                    // Ignore knockback resistance by resetting velocity
+                    Vec3 before = target.getDeltaMovement();
+                    Utils.spellDmg(target, player, 5);
+                    try {
+                        target.setDeltaMovement(before);
+                    } catch (Throwable ignored) {
+                    }
+
+                }
+            }
+        }));
+    }
+
+    public static void molecularFlux(ServerPlayer player, int range, int durationSecs) {
+        ActiveSpell as = SpellCooldownManager.addToActiveSpells(player,
+                SpellCooldownManager.get("molecular_flux"));
+        Level level = player.level();
+
+        final Set<BlockPos> transformedPositions = new java.util.HashSet<>();
+
+        RepeatedTask fluxTask = new RepeatedTask(0, durationSecs * 20, (task) -> {
+            Vec3 eye = player.getEyePosition();
+            Vec3 dir = player.getLookAngle().normalize();
+            Vec3 end = eye.add(dir.scale(range));
+
+            // Draw particle trail along ray and check blocks along it
+            double step = 0.5;
+            double total = eye.distanceTo(end);
+            int steps = Math.max(1, (int) Math.ceil(total / step));
+            boolean transformedThisTick = false;
+
+            for (int i = 0; i <= steps; i++) {
+                double t = (i * step);
+                if (t > total)
+                    t = total;
+                Vec3 sample = eye.add(dir.scale(t));
+                // trail particle
+                level.addParticle(ParticleTypes.SPLASH, sample.x, sample.y, sample.z, 0.0, 0.0, 0.0);
+
+                if (transformedThisTick)
+                    continue; // still draw trail but don't transform more than once per tick
+
+                BlockPos pos = new BlockPos((int) Math.floor(sample.x), (int) Math.floor(sample.y),
+                        (int) Math.floor(sample.z));
+
+                // skip if this position was already transformed during this activation
+                if (transformedPositions.contains(pos))
+                    continue;
+
+                Block block = level.getBlockState(pos).getBlock();
+
+                // skip air
+                if (block == null || block == Blocks.AIR)
+                    continue;
+
+                // WATER SOURCE -> FROSTED_ICE (but only if source does not intersect caster
+                // hitbox)
+                if (level.getFluidState(pos).is(FluidTags.WATER)
+                        && level.getFluidState(pos).isSource()) {
+                    AABB blockAABB = new AABB(pos);
+                    if (!player.getBoundingBox().intersects(blockAABB)) {
+                        level.setBlock(pos, Blocks.FROSTED_ICE.defaultBlockState(), 3);
+                        level.addParticle(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                                0.0, 0.05, 0.0);
+                        transformedPositions.add(pos);
+                        transformedThisTick = true;
+                        continue;
+                    } else {
+                        // don't transform water that intersects caster
+                        continue;
+                    }
+                }
+
+                // ICE variants -> WATER SOURCE (OVERWORLD and END only). Blue ice unaffected.
+                if (block == Blocks.ICE
+                        || block == Blocks.PACKED_ICE
+                        || block == Blocks.FROSTED_ICE) {
+                    if (block != Blocks.BLUE_ICE) {
+                        if (level.dimension() == Level.OVERWORLD || level.dimension() == Level.END) {
+                            level.setBlock(pos, Blocks.WATER.defaultBlockState(), 3);
+                            level.addParticle(ParticleTypes.BUBBLE_POP, pos.getX() + 0.5, pos.getY() + 0.5,
+                                    pos.getZ() + 0.5, 0.0, 0.05, 0.0);
+                            transformedPositions.add(pos);
+                            transformedThisTick = true;
+                            continue;
+                        }
+                    }
+                }
+
+                // Cobweb -> Air
+                if (block == Blocks.COBWEB) {
+                    level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+                    level.addParticle(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                            0.0, 0.05, 0.0);
+                    transformedPositions.add(pos);
+                    transformedThisTick = true;
+                    continue;
+                }
+
+                // Wet sponge -> Sponge
+                if (block == Blocks.WET_SPONGE) {
+                    level.setBlock(pos, Blocks.SPONGE.defaultBlockState(), 3);
+                    level.addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, pos.getX() + 0.5, pos.getY() + 0.5,
+                            pos.getZ() + 0.5, 0.0, 0.05, 0.0);
+                    transformedPositions.add(pos);
+                    transformedThisTick = true;
+                    continue;
+                }
+
+                // Water cauldron <-> Powdered snow cauldron
+                if (block == Blocks.WATER_CAULDRON) {
+                    level.setBlock(pos, Blocks.POWDER_SNOW_CAULDRON.defaultBlockState(),
+                            3);
+                    level.addParticle(ParticleTypes.SNOWFLAKE, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                            0.0, 0.03, 0.0);
+                    transformedPositions.add(pos);
+                    transformedThisTick = true;
+                    continue;
+                }
+                if (block == Blocks.POWDER_SNOW_CAULDRON) {
+                    level.setBlock(pos, Blocks.WATER_CAULDRON.defaultBlockState(), 3);
+                    level.addParticle(ParticleTypes.DRIPPING_WATER, pos.getX() + 0.5, pos.getY() + 0.5,
+                            pos.getZ() + 0.5, 0.0, 0.03, 0.0);
+                    transformedPositions.add(pos);
+                    transformedThisTick = true;
+                    continue;
+                }
+            }
+        });
+        fluxTask.setOnFinish(() -> {
+            as.setInUse(false);
+        });
+        Ascension.scheduler.schedule(fluxTask);
     }
 }

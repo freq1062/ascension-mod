@@ -13,6 +13,7 @@ public class OrderRegistry {
         // register(Ocean.INSTANCE);
         register(Earth.INSTANCE);
         register(Sky.INSTANCE);
+        register(Ocean.INSTANCE);
     }
 
     private static void register(Order order) {
