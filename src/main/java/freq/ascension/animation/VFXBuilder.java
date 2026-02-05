@@ -27,7 +27,7 @@ public class VFXBuilder implements Task {
     private Vector3f lastScale = new Vector3f(1);
     private Quaternionf lastRightRotation = new Quaternionf();
 
-    public record Keyframe(Transformation target, int durationTicks, int delayTicks) {
+    public record Keyframe(Transformation target, int duration, int delay, Runnable onStart) {
     }
 
     public VFXBuilder(Level level, Vector3f pos, BlockState block, Transformation initial) {
@@ -45,6 +45,7 @@ public class VFXBuilder implements Task {
         this.lastRightRotation = new Quaternionf(initial.getRightRotation());
         this.lastScale = new Vector3f(initial.getScale());
 
+        this.currentTicksRemaining = 1;
         // 3. NOW add to level - the spawn packet will contain the 'initial' transform
         level.addFreshEntity(entity);
 
@@ -56,7 +57,17 @@ public class VFXBuilder implements Task {
         return new Transformation(t, r, s, null);
     }
 
-    public VFXBuilder addKeyframe(Vector3f pos, Quaternionf rot, Vector3f scale, int duration) {
+    public VFXBuilder withAction(Runnable action) {
+        // This is a bit of a hack: we need to replace the last keyframe
+        // in the queue with one that has the action.
+        if (queue instanceof LinkedList<Keyframe> list && !list.isEmpty()) {
+            Keyframe last = list.removeLast();
+            list.add(new Keyframe(last.target(), last.duration(), last.delay(), action));
+        }
+        return this;
+    }
+
+    public VFXBuilder addKeyframe(Vector3f pos, Quaternionf rot, Vector3f scale, int duration, int delayTicks) {
         // If any component is null, fall back to the last set value to avoid NPEs
         Vector3f usePos = pos != null ? pos : lastTranslation;
         Quaternionf useRot = rot != null ? rot : lastLeftRotation;
@@ -67,12 +78,17 @@ public class VFXBuilder implements Task {
                 new Quaternionf(useRot),
                 new Vector3f(useScale),
                 new Quaternionf(lastRightRotation));
-        queue.add(new Keyframe(combined, duration, 0));
+        queue.add(new Keyframe(combined, duration, delayTicks, () -> {
+        }));
         return this;
     }
 
+    public VFXBuilder addKeyframe(Vector3f pos, Quaternionf rot, Vector3f scale, int duration) {
+        return addKeyframe(pos, rot, scale, duration, 0);
+    }
+
     // If null, uses last set values
-    public VFXBuilder addKeyframeS(Vector3f pos, Quaternionf rot, Vector3f scale, int duration) {
+    public VFXBuilder addKeyframeS(Vector3f pos, Quaternionf rot, Vector3f scale, int duration, int delayTicks) {
         // Only update the fields that aren't null
         if (pos != null)
             lastTranslation = pos;
@@ -87,8 +103,13 @@ public class VFXBuilder implements Task {
                 new Vector3f(lastScale),
                 new Quaternionf(lastRightRotation));
 
-        queue.add(new Keyframe(combined, duration, 0));
+        queue.add(new Keyframe(combined, duration, delayTicks, () -> {
+        }));
         return this;
+    }
+
+    public VFXBuilder addKeyframeS(Vector3f pos, Quaternionf rot, Vector3f scale, int duration) {
+        return addKeyframeS(pos, rot, scale, duration, 0);
     }
 
     @Override
@@ -104,14 +125,18 @@ public class VFXBuilder implements Task {
             return;
         }
 
-        // Pop next animation and send packet
         Keyframe next = queue.poll();
-        entity.setTransformationInterpolationDuration(next.durationTicks());
-        entity.setTransformationInterpolationDelay(next.delayTicks());
+
+        // TRIGGER THE CALLBACK HERE
+        if (next.onStart() != null) {
+            next.onStart().run();
+        }
+
+        entity.setTransformationInterpolationDuration(next.duration());
+        entity.setTransformationInterpolationDelay(next.delay());
         entity.setTransformation(next.target());
 
-        // Wait for this animation + delay to finish before popping the next
-        currentTicksRemaining = next.durationTicks() + next.delayTicks();
+        currentTicksRemaining = next.duration() + next.delay();
     }
 
     @Override

@@ -11,6 +11,7 @@ import org.joml.Vector3f;
 
 import freq.ascension.Utils;
 import freq.ascension.animation.Dash;
+import freq.ascension.animation.MagmaBubble;
 import freq.ascension.animation.star_strike.GammaRay;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.AscensionData;
@@ -95,8 +96,7 @@ public class SpellRegistry {
 
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(p, SpellCooldownManager.get("magma_bubble"));
 
-        // float heightScale = launch ? 1.0f : 0.6f;
-        // MagmaSpike.spawnMagmaSpikes(center, heightScale);
+        MagmaBubble.spawnMagmaSpikes(p, 12, radius, launch ? 2.0f : 1.5f);
 
         if (launch) {
             Vec3 velocity = p.getDeltaMovement();
@@ -136,7 +136,7 @@ public class SpellRegistry {
      * SKY
      */
 
-    // Not really a spell - uses simple cooldown tracking
+    // Not really a spell; uses simple cooldown tracking
     public static void double_jump(ServerPlayer player, int jumpHeight, boolean slam) {
         UUID playerId = player.getUUID();
         long currentTime = System.currentTimeMillis();

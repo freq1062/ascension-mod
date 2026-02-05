@@ -86,9 +86,9 @@ public class Earth implements Order {
             case "supermine" -> new SpellStats(60,
                     "Activate to toggle 2x2 mining. Durability loss applies for half of the blocks mined. Works with Earth passives.",
                     2, 4); // diameter, max durability loss
-            case "magma_bubble" -> new SpellStats(600,
+            case "magma_bubble" -> new SpellStats(10,
                     "Scorches enemy with magma spikes in a 4x4 centered area, dealing 30% max hp. Must be activated on land or in lava.",
-                    4, 30, false);
+                    4, 30, false); // 600
             default -> null;
         };
     }

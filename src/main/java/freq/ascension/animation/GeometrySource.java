@@ -44,12 +44,13 @@ public class GeometrySource {
 
     public static Quaternionf faceVector(Vector3f vec) {
         Vector3f v = new Vector3f(vec);
-        if (v.lengthSquared() < 1e-8f) {
-            return new Quaternionf(); // identity
-        }
+        if (v.lengthSquared() < 1e-8f)
+            return new Quaternionf();
         v.normalize();
-        Vector3f forward = new Vector3f(0, 0, 1);
-        return new Quaternionf().rotationTo(forward, v);
+
+        // Rotate 'Up' (0,1,0) to face our target direction
+        // This ensures that Scale.Y = Spike Length
+        return new Quaternionf().rotationTo(new Vector3f(0, 1, 0), v);
     }
 
     // Uniform random scale, still cube shaped
