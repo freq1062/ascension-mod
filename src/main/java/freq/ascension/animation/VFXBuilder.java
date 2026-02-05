@@ -52,6 +52,10 @@ public class VFXBuilder implements Task {
         Ascension.scheduler.schedule(this);
     }
 
+    public BlockDisplay getEntity() {
+        return this.entity;
+    }
+
     // Helper to make an instant state
     public static Transformation instant(Vector3f t, Quaternionf r, Vector3f s) {
         return new Transformation(t, r, s, null);

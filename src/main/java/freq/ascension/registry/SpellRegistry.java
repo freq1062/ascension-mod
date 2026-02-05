@@ -12,6 +12,7 @@ import org.joml.Vector3f;
 import freq.ascension.Utils;
 import freq.ascension.animation.Dash;
 import freq.ascension.animation.MagmaBubble;
+import freq.ascension.animation.StarStrike;
 import freq.ascension.animation.star_strike.GammaRay;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.AscensionData;
@@ -320,10 +321,6 @@ public class SpellRegistry {
         // Adjust particle center to be slightly centered in the block visual area
         Vec3 particleCenter = strikePoint.add(0.0, -0.5, 0.0);
 
-        final int growTicks = 10;
-        final int holdTicks = 10;
-        final int fadeTicks = 12;
-
         // Pre-impact rumble sound
         level.playSound(null, strikePoint.x, strikePoint.y, strikePoint.z,
                 SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.PLAYERS, 0.9f, 0.55f);
@@ -334,53 +331,58 @@ public class SpellRegistry {
             float g = ((hex >> 8) & 0xFF) / 255.0f;
             float b = (hex & 0xFF) / 255.0f;
             Vector3f colorVec = new Vector3f(r, g, b);
-            GammaRay.strike(level, strikePoint, 1.5, growTicks, holdTicks, fadeTicks, colorVec);
+            StarStrike.spawnGammaRay(player, Utils.Vec3toVector3(strikePoint), 1.5f, colorVec);
         }
+        as.setInUse(false);
 
-        Ascension.scheduler.schedule(new RepeatedTask(1, growTicks + holdTicks, (task) -> {
-            long ticks = task.getTick();
-            Ascension.LOGGER.info(String.valueOf(ticks));
+        // Ascension.scheduler.schedule(new RepeatedTask(1, growTicks + holdTicks,
+        // (task) -> {
+        // long ticks = task.getTick();
+        // Ascension.LOGGER.info(String.valueOf(ticks));
 
-            if (ticks >= growTicks + holdTicks) {
-                as.setInUse(false);
-                task.cancel();
-                return;
-            }
+        // if (ticks >= growTicks + holdTicks) {
+        // as.setInUse(false);
+        // task.cancel();
+        // return;
+        // }
 
-            // Visual particles for the 2x2 area
-            if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
-                for (int dx = 0; dx <= 1; dx++) {
-                    for (int dz = 0; dz <= 1; dz++) {
-                        double px = particleCenter.x + dx - 0.5;
-                        double py = particleCenter.y + 0.5;
-                        double pz = particleCenter.z + dz - 0.5;
-                        serverLevel.sendParticles(ParticleTypes.END_ROD, px, py, pz, 10, 0.2, 0.5, 0.2, 0.01);
-                        serverLevel.sendParticles(ParticleTypes.EXPLOSION, px, py, pz, 1, 0.0, 0.0, 0.0, 0.0);
-                    }
-                }
-            }
+        // // Visual particles for the 2x2 area
+        // if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+        // for (int dx = 0; dx <= 1; dx++) {
+        // for (int dz = 0; dz <= 1; dz++) {
+        // double px = particleCenter.x + dx - 0.5;
+        // double py = particleCenter.y + 0.5;
+        // double pz = particleCenter.z + dz - 0.5;
+        // serverLevel.sendParticles(ParticleTypes.END_ROD, px, py, pz, 10, 0.2, 0.5,
+        // 0.2, 0.01);
+        // serverLevel.sendParticles(ParticleTypes.EXPLOSION, px, py, pz, 1, 0.0, 0.0,
+        // 0.0, 0.0);
+        // }
+        // }
+        // }
 
-            // Only deal damage after the growth phase
-            if (ticks < growTicks) {
-                return;
-            }
+        // // Only deal damage after the growth phase
+        // if (ticks < growTicks) {
+        // return;
+        // }
 
-            AABB box = new AABB(player.getOnPos()).inflate(2.0, 3.0, 2.0);
-            for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, box)) {
-                if (target == player)
-                    continue;
+        // AABB box = new AABB(player.getOnPos()).inflate(2.0, 3.0, 2.0);
+        // for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, box))
+        // {
+        // if (target == player)
+        // continue;
 
-                Utils.spellDmg(target, player, 25.0f);
+        // Utils.spellDmg(target, player, 25.0f);
 
-                // Launch upwards
-                Vec3 currentVel = target.getDeltaMovement();
-                target.setDeltaMovement(currentVel.x, 0.7, currentVel.z);
-                target.hasImpulse = true;
+        // // Launch upwards
+        // Vec3 currentVel = target.getDeltaMovement();
+        // target.setDeltaMovement(currentVel.x, 0.7, currentVel.z);
+        // target.hasImpulse = true;
 
-                // Apply Darkness effect
-                target.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                        net.minecraft.world.effect.MobEffects.DARKNESS, 40, 0, true, true, true));
-            }
-        }));
+        // // Apply Darkness effect
+        // target.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+        // net.minecraft.world.effect.MobEffects.DARKNESS, 40, 0, true, true, true));
+        // }
+        // }));
     }
 }
