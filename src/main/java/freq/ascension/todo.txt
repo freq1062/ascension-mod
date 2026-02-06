@@ -9,5 +9,5 @@ luckperms
 
 serverPlayer.sendSystemMessage(Component.literal(msg));
 
-Actually make spellDmg work
 cooldown bars: Goes down while the spell is activated?
+update damagemixin so that it doesn't just only work on players

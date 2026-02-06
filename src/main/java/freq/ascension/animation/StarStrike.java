@@ -76,7 +76,8 @@ public class StarStrike {
                         glow.addKeyframeS(pulseCenter, null, new Vector3f(currentG, distance, currentG), 5)
                                         .withAction(() -> {
                                                 applyScreenShake(player.level(), targetPos, 0.15f, 10.0f);
-                                                if (player.level() instanceof ServerLevel sL) {
+                                                if (player.level() instanceof ServerLevel) {
+                                                        ServerLevel sL = (ServerLevel) player.level();
                                                         float half = currentG * 0.5f;
                                                         int samples = 20;
                                                         for (int j = 0; j < samples; j++) {
@@ -87,9 +88,11 @@ public class StarStrike {
                                                                 Vector3f world = rotation
                                                                                 .transform(local, new Vector3f())
                                                                                 .add(origin);
+                                                                // increase count and spread so particles are more
+                                                                // visible to clients
                                                                 sL.sendParticles(ParticleTypes.END_ROD, world.x,
-                                                                                world.y + 0.5, world.z, 2, 0.04, 0.2,
-                                                                                0.04, 0.01);
+                                                                                world.y + 0.5, world.z, 6, 0.12, 0.4,
+                                                                                0.12, 0.02);
                                                                 if (j % 5 == 0) {
                                                                         sL.sendParticles(ParticleTypes.EXPLOSION,
                                                                                         world.x, world.y + 0.5, world.z,

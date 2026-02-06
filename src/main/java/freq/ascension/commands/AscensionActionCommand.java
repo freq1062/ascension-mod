@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerPlayer;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.orders.Order;
 import freq.ascension.registry.OrderRegistry;
+import freq.ascension.menus.AscensionMenu;
 
 public class AscensionActionCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -105,6 +106,7 @@ public class AscensionActionCommand {
         // We'll extract order and type and perform logic here similar to run
         String orderName = StringArgumentType.getString(context, "order");
         String type = StringArgumentType.getString(context, "type").toLowerCase();
+        int page = IntegerArgumentType.getInteger(context, "page");
 
         Order order = OrderRegistry.get(orderName);
         if (order == null) {
@@ -149,8 +151,9 @@ public class AscensionActionCommand {
                         () -> Component.literal(orderName + " (" + type + ") is already equipped."), false);
             }
         }
+        // Reopen menu
+        new AscensionMenu().open(player, page);
 
-        // Do not reopen the menu here; keep book open so player stays on current page.
         return 1;
     }
 }

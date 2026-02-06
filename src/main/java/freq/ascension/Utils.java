@@ -10,7 +10,6 @@ import freq.ascension.managers.AscensionData;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.core.registries.Registries;
@@ -21,6 +20,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.level.Level;
@@ -176,17 +176,24 @@ public class Utils {
 
     // Custom damage type for spells, bypasses armor
     public static DamageSource spellDmgType(Level world, Entity attacker) {
-        Holder<DamageType> damageTypeHolder = world.registryAccess()
-                .getOrThrow(ResourceKey.create(
-                        Registries.DAMAGE_TYPE,
-                        ResourceLocation.fromNamespaceAndPath("ascension", "spell")));
-        return new DamageSource(damageTypeHolder, attacker);
+        // 1. Create the ResourceKey
+        ResourceKey<DamageType> key = ResourceKey.create(
+                Registries.DAMAGE_TYPE,
+                ResourceLocation.fromNamespaceAndPath("ascension", "spell"));
+
+        // 2. Look it up in the world's registry
+        // world.registryAccess() is the correct way to get dynamic data
+        return world.registryAccess()
+                .lookup(Registries.DAMAGE_TYPE)
+                .flatMap(registry -> registry.get(key))
+                .map(holder -> new DamageSource(holder, attacker))
+                .orElseGet(() -> world.damageSources().magic()); // Fallback to vanilla magic if registry fails
     }
 
     @SuppressWarnings("deprecation")
     public static void spellDmg(Entity target, Entity attacker, float percent) {
-        if (target instanceof net.minecraft.world.entity.LivingEntity livingTarget) {
-            float damageAmount = livingTarget.getMaxHealth() * percent;
+        if (target instanceof LivingEntity livingTarget) {
+            float damageAmount = livingTarget.getMaxHealth() * (percent / 100);
             DamageSource source = spellDmgType(target.level(), attacker);
             livingTarget.hurt(source, damageAmount);
         }

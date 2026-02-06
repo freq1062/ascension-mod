@@ -1,5 +1,6 @@
 package freq.ascension.orders;
 
+import freq.ascension.Ascension;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -79,13 +80,16 @@ public class Ocean implements Order {
 
     @Override
     public void onEntityDamageByEntity(ServerPlayer attacker, ServerPlayer victim, DamageContext context) {
+        Ascension.LOGGER.info(String.valueOf(attacker.isInWaterOrRain()));
         float damage = context.getAmount();
         // Ignore very low-damage (sweep) attacks
-        if (damage < 0.5)
+        if (damage < 0.1)
             return;
         ActiveSpell as = SpellCooldownManager.getActiveSpell(attacker, SpellCooldownManager.get("drown"));
-        if (attacker.isInWaterOrRain() && hasCapability(attacker, "passive") || as.isInUse()) {
+        if ((attacker.isInWaterOrRain() && hasCapability(attacker, "passive"))
+                || (as != null && as.isInUse())) {
             context.setAmount((float) (context.getAmount() * 1.5));
+            Ascension.LOGGER.info("Critting");
             attacker.level().playSound(null, attacker.blockPosition(), SoundEvents.PLAYER_ATTACK_CRIT,
                     SoundSource.PLAYERS, 1.0f, 1.0f);
             attacker.level().addParticle(ParticleTypes.CRIT, victim.getX(), victim.getY(), victim.getZ(), 0.0, 0.0,

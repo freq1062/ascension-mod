@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
+import freq.ascension.Ascension;
 import freq.ascension.managers.AbilityManager;
 import freq.ascension.orders.Order.DamageContext;
 
@@ -31,6 +32,7 @@ public abstract class DamageMixin {
         AbilityManager.broadcast(victim, (ability) -> ability.onEntityDamage(victim, currentDamageContext));
 
         if (source.getEntity() instanceof ServerPlayer attacker) {
+            Ascension.LOGGER.info(String.valueOf("FROM DAMAGEMIXIN " + attacker.isInWaterOrRain()));
             AbilityManager.broadcast(attacker,
                     (ability) -> ability.onEntityDamageByEntity(attacker, victim, currentDamageContext));
         }

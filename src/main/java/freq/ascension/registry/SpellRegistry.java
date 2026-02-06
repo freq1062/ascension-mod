@@ -379,7 +379,6 @@ public class SpellRegistry {
         Ascension.scheduler.schedule(new RepeatedTask(1, growTicks + holdTicks,
                 (task) -> {
                     long ticks = task.getTick();
-                    Ascension.LOGGER.info(String.valueOf(ticks));
 
                     if (ticks >= growTicks + holdTicks) {
                         as.setInUse(false);
@@ -397,7 +396,6 @@ public class SpellRegistry {
                             (int) Math.floor(strikePoint.y),
                             (int) Math.floor(strikePoint.z));
                     AABB box = new AABB(center).inflate(2.0, 3.0, 2.0);
-                    Ascension.LOGGER.info(center.toShortString());
                     for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, box)) {
                         if (target == player)
                             continue;

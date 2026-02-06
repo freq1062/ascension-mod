@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.pb4.sgui.api.gui.BookGui;
+import freq.ascension.Ascension;
 import freq.ascension.Config;
 import freq.ascension.Utils;
 import freq.ascension.managers.AscensionData;
@@ -67,7 +68,7 @@ public class AscensionMenu {
                                                 ? Component.literal(Utils.smallCaps(combat.getOrderName()))
                                                                 .withColor(combat.getOrderColor().getValue())
                                                 : Component.literal("None").withStyle(ChatFormatting.GRAY))
-                                .append(Component.literal("\uF802"))
+                                .append(Component.literal("  "))
                                 .append(makeInfluenceIcon(data)).withStyle(Style.EMPTY.withColor(0xFFFFFF))
                                 .append(Component.literal("\n"));
 
@@ -110,14 +111,26 @@ public class AscensionMenu {
 
                 pageContent.append(menuIcons);
 
+                // Determine selected page (WrittenBookContent expects zero-based index).
+                int selectedPageIndex = 0;
+                if (openPage > 1) {
+                        selectedPageIndex = Math.max(0, Math.min(openPage - 1, pages.size() - 1));
+                }
+
                 ItemStack book = new ItemStack(Items.WRITTEN_BOOK);
                 book.set(DataComponents.WRITTEN_BOOK_CONTENT, new WrittenBookContent(
                                 Filterable.passThrough("AscensionMenu"),
-                                player.getName().getString(), 0, pages, true));
+                                "freq1062", 3, pages, true));
 
                 BookGui gui = new BookGui(player, book);
-                // BookGui currently only supports open(); don't reopen to a specific page here.
-                gui.open();
+                // gui.open();
+                if (gui.open()) {
+                        // Ascension.LOGGER.info(String.valueOf(gui.getPage()));
+                        gui.setPage(selectedPageIndex);
+                } else {
+                        Ascension.LOGGER.warn("[Menu Open] failed to open BookGui");
+                }
+
         }
 
         private Component makeInfluenceIcon(AscensionData data) {
@@ -135,7 +148,7 @@ public class AscensionMenu {
                 return Component.empty()
                                 .append(Component.literal("\uE189")) // The Icon (Cursor is now at +32)
                                 .append(Component.literal(shift)) // Move back to center
-                                .append(Component.literal(text).withStyle(ChatFormatting.WHITE));
+                                .append(Component.literal(text).withStyle(ChatFormatting.BLACK));
         }
 
         private Component makeIcon(String character, String orderName, int page) {
@@ -306,7 +319,8 @@ public class AscensionMenu {
                 return result.append(Component.literal("\n".repeat(Math.max(0, padding))))
                                 .append(Component.literal("                  ")) // Nudge right
                                 .append(Component.literal("<< Home")
-                                                .withStyle(s -> s.withColor(ChatFormatting.BLUE).withUnderlined(true)))
-                                .withStyle(s -> s.withClickEvent(new ClickEvent.ChangePage(1)));
+                                                .withStyle(s -> s
+                                                                .withColor(ChatFormatting.BLUE).withUnderlined(true)
+                                                                .withClickEvent(new ClickEvent.ChangePage(1))));
         }
 }

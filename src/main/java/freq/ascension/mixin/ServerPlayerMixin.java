@@ -1,11 +1,15 @@
 package freq.ascension.mixin;
 
+import freq.ascension.Ascension;
 import freq.ascension.managers.AscensionData;
+import freq.ascension.managers.Spell;
+import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.orders.Order;
 import freq.ascension.registry.OrderRegistry;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.network.chat.Component;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -195,6 +199,10 @@ public class ServerPlayerMixin implements AscensionData {
 
     @Override
     public void setPassive(String order) {
+        // If changing away from a previously equipped order, unbind spells tied to it
+        if (this.passive != null && !this.passive.equals(order)) {
+            unbindSpellsFromOrderAndType(this.passive, "passive");
+        }
         this.passive = order;
     }
 
@@ -205,6 +213,9 @@ public class ServerPlayerMixin implements AscensionData {
 
     @Override
     public void setUtility(String order) {
+        if (this.utility != null && !this.utility.equals(order)) {
+            unbindSpellsFromOrderAndType(this.utility, "utility");
+        }
         this.utility = order;
     }
 
@@ -215,7 +226,41 @@ public class ServerPlayerMixin implements AscensionData {
 
     @Override
     public void setCombat(String order) {
+        if (this.combat != null && !this.combat.equals(order)) {
+            unbindSpellsFromOrderAndType(this.combat, "combat");
+        }
         this.combat = order;
+    }
+
+    @Unique
+    private void unbindSpellsFromOrderAndType(String previousOrder, String type) {
+        if (previousOrder == null || previousOrder.isEmpty())
+            return;
+
+        var remove = new java.util.ArrayList<String>();
+
+        for (var e : this.spell_bindings.entrySet()) {
+            String spellId = e.getValue();
+            Spell spell = SpellCooldownManager.get(spellId);
+            if (spell == null)
+                continue;
+            String orderName = spell.getOrder() == null ? "" : spell.getOrder().getOrderName();
+            if (orderName.equalsIgnoreCase(previousOrder) && type.equalsIgnoreCase(spell.getType())) {
+                Ascension.LOGGER.info("Removing " + spellId);
+                remove.add(spellId);
+            }
+        }
+
+        for (String s : remove) {
+            this.unbind(s);
+        }
+
+        if (!remove.isEmpty()) {
+            ServerPlayer player = (ServerPlayer) (Object) this;
+            String msg = "Unbound spell" + (remove.size() == 1 ? " " : "s ") + "from " + previousOrder + ": "
+                    + String.join(", ", remove);
+            player.sendSystemMessage(Component.literal(msg));
+        }
     }
 
     @Override
@@ -225,12 +270,35 @@ public class ServerPlayerMixin implements AscensionData {
 
     @Override
     public void bind(int slot, String spellId) {
+        if (spellId == null) {
+            this.spell_bindings.remove(slot);
+            return;
+        }
+
+        var it = this.spell_bindings.entrySet().iterator();
+        while (it.hasNext()) {
+            var e = it.next();
+            if (spellId.equals(e.getValue()) && e.getKey() != slot) {
+                it.remove();
+                break;
+            }
+        }
+
         this.spell_bindings.put(slot, spellId);
     }
 
     @Override
     public void unbind(String spellId) {
-        this.spell_bindings.values().remove(spellId);
+        var it = this.spell_bindings.entrySet().iterator();
+        while (it.hasNext()) {
+            var e = it.next();
+            if (spellId == null) {
+                if (e.getValue() == null)
+                    it.remove();
+            } else if (spellId.equals(e.getValue())) {
+                it.remove();
+            }
+        }
     }
 
     @Override
