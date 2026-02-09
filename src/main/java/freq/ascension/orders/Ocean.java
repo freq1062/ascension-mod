@@ -53,9 +53,9 @@ public class Ocean implements Order {
             case "molecular_flux" ->
                 new SpellStats(300, "Transforms water related blocks between states", 20, 5); // range(blocks),
                                                                                               // duration(seconds)
-            case "drown" -> new SpellStats(600,
+            case "drown" -> new SpellStats(10,
                     "Drowns players within 8 blocks and activates passives on land for 7s",
-                    7); // duration
+                    7); // duration 600
             default -> null;
         };
     }

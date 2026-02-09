@@ -12,6 +12,7 @@ import org.joml.Vector3f;
 
 import freq.ascension.Utils;
 import freq.ascension.animation.Dash;
+import freq.ascension.animation.Drown;
 import freq.ascension.animation.MagmaBubble;
 import freq.ascension.animation.StarStrike;
 import freq.ascension.managers.ActiveSpell;
@@ -25,6 +26,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -436,6 +438,8 @@ public class SpellRegistry {
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("drown"));
         BlockPos center = player.getOnPos();
 
+        Drown.drownSphere(player, radius, durationSecs * 20);
+
         Ascension.scheduler.schedule(new RepeatedTask(0, durationSecs * 20, (task) -> {
             long ticks = task.getTick();
             if (ticks >= durationSecs * 20) {
@@ -490,8 +494,6 @@ public class SpellRegistry {
                 if (t > total)
                     t = total;
                 Vec3 sample = eye.add(dir.scale(t));
-                // trail particle
-                level.addParticle(ParticleTypes.SPLASH, sample.x, sample.y, sample.z, 0.0, 0.0, 0.0);
 
                 if (transformedThisTick)
                     continue; // still draw trail but don't transform more than once per tick
@@ -516,8 +518,9 @@ public class SpellRegistry {
                     AABB blockAABB = new AABB(pos);
                     if (!player.getBoundingBox().intersects(blockAABB)) {
                         level.setBlock(pos, Blocks.FROSTED_ICE.defaultBlockState(), 3);
-                        level.addParticle(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                                0.0, 0.05, 0.0);
+                        ((ServerLevel) level).sendParticles(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5,
+                                pos.getZ() + 0.5,
+                                3, 0.0, 0.05, 0.0, 0.0);
                         transformedPositions.add(pos);
                         transformedThisTick = true;
                         continue;
@@ -534,8 +537,9 @@ public class SpellRegistry {
                     if (block != Blocks.BLUE_ICE) {
                         if (level.dimension() == Level.OVERWORLD || level.dimension() == Level.END) {
                             level.setBlock(pos, Blocks.WATER.defaultBlockState(), 3);
-                            level.addParticle(ParticleTypes.BUBBLE_POP, pos.getX() + 0.5, pos.getY() + 0.5,
-                                    pos.getZ() + 0.5, 0.0, 0.05, 0.0);
+                            ((ServerLevel) level).sendParticles(ParticleTypes.BUBBLE_POP, pos.getX() + 0.5,
+                                    pos.getY() + 0.5,
+                                    pos.getZ() + 0.5, 3, 0.0, 0.05, 0.0, 0.0);
                             transformedPositions.add(pos);
                             transformedThisTick = true;
                             continue;
@@ -546,8 +550,9 @@ public class SpellRegistry {
                 // Cobweb -> Air
                 if (block == Blocks.COBWEB) {
                     level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
-                    level.addParticle(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                            0.0, 0.05, 0.0);
+                    ((ServerLevel) level).sendParticles(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5,
+                            pos.getZ() + 0.5,
+                            3, 0.0, 0.05, 0.0, 0.0);
                     transformedPositions.add(pos);
                     transformedThisTick = true;
                     continue;
@@ -556,8 +561,9 @@ public class SpellRegistry {
                 // Wet sponge -> Sponge
                 if (block == Blocks.WET_SPONGE) {
                     level.setBlock(pos, Blocks.SPONGE.defaultBlockState(), 3);
-                    level.addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, pos.getX() + 0.5, pos.getY() + 0.5,
-                            pos.getZ() + 0.5, 0.0, 0.05, 0.0);
+                    ((ServerLevel) level).sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, pos.getX() + 0.5,
+                            pos.getY() + 0.5,
+                            pos.getZ() + 0.5, 3, 0.0, 0.05, 0.0, 0.0);
                     transformedPositions.add(pos);
                     transformedThisTick = true;
                     continue;
@@ -567,16 +573,18 @@ public class SpellRegistry {
                 if (block == Blocks.WATER_CAULDRON) {
                     level.setBlock(pos, Blocks.POWDER_SNOW_CAULDRON.defaultBlockState(),
                             3);
-                    level.addParticle(ParticleTypes.SNOWFLAKE, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                            0.0, 0.03, 0.0);
+                    ((ServerLevel) level).sendParticles(ParticleTypes.SNOWFLAKE, pos.getX() + 0.5, pos.getY() + 0.5,
+                            pos.getZ() + 0.5,
+                            3, 0.0, 0.03, 0.0, 0.0);
                     transformedPositions.add(pos);
                     transformedThisTick = true;
                     continue;
                 }
                 if (block == Blocks.POWDER_SNOW_CAULDRON) {
                     level.setBlock(pos, Blocks.WATER_CAULDRON.defaultBlockState(), 3);
-                    level.addParticle(ParticleTypes.DRIPPING_WATER, pos.getX() + 0.5, pos.getY() + 0.5,
-                            pos.getZ() + 0.5, 0.0, 0.03, 0.0);
+                    ((ServerLevel) level).sendParticles(ParticleTypes.DRIPPING_WATER, pos.getX() + 0.5,
+                            pos.getY() + 0.5,
+                            pos.getZ() + 0.5, 3, 0.0, 0.03, 0.0, 0.0);
                     transformedPositions.add(pos);
                     transformedThisTick = true;
                     continue;

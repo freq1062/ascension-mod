@@ -4,7 +4,23 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 public class GeometrySource {
-    // Returns a point on a circle in 3D space
+
+    // Returns a random point on a sphere in 3D space
+    public static Vector3f sphere(Vector3f center, float radius, boolean edgeOnly) {
+        // Generate random direction using spherical coordinates
+        float theta = (float) (Math.random() * 2 * Math.PI);
+        float phi = (float) (Math.acos(2 * Math.random() - 1));
+
+        float r = edgeOnly ? radius : (float) (radius * Math.cbrt(Math.random()));
+
+        float x = r * (float) (Math.sin(phi) * Math.cos(theta));
+        float y = r * (float) (Math.sin(phi) * Math.sin(theta));
+        float z = r * (float) Math.cos(phi);
+
+        return new Vector3f(center).add(x, y, z);
+    }
+
+    // Returns a random point on a circle in 3D space
     public static Vector3f circle(Vector3f center, Vector3f normal, float radius, boolean hollow) {
         // Robustly build an orthonormal basis around `normal`.
         Vector3f n = new Vector3f(normal);
