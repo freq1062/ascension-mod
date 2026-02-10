@@ -10,44 +10,46 @@ import org.spongepowered.asm.mixin.injection.At;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
-import freq.ascension.Ascension;
+import net.minecraft.world.entity.LivingEntity;
 import freq.ascension.managers.AbilityManager;
 import freq.ascension.orders.Order.DamageContext;
 
-@Mixin(ServerPlayer.class)
+@Mixin(LivingEntity.class)
 public abstract class DamageMixin {
 
-    // Unique to each player instance during the tick
     @Unique
-    private DamageContext currentDamageContext;
+    private DamageContext ascension$currentDamageContext;
 
-    @ModifyVariable(method = "hurtServer", at = @At("HEAD"), argsOnly = true)
-    private float hookDamageAmount(float amount, ServerLevel level, DamageSource source) {
-        ServerPlayer victim = (ServerPlayer) (Object) this;
+    @Inject(method = "hurtServer", at = @At("HEAD"))
+    private void ascension$initDamageContext(ServerLevel level, DamageSource source, float amount,
+            CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity victim = (LivingEntity) (Object) this;
 
-        // 1. Create the mutable context
-        currentDamageContext = new DamageContext(source, amount);
-
-        // 2. Broadcast to all listeners (Bukkit style)
-        AbilityManager.broadcast(victim, (ability) -> ability.onEntityDamage(victim, currentDamageContext));
+        ascension$currentDamageContext = new DamageContext(source, amount);
 
         if (source.getEntity() instanceof ServerPlayer attacker) {
-            Ascension.LOGGER.info(String.valueOf("FROM DAMAGEMIXIN " + attacker.isInWaterOrRain()));
             AbilityManager.broadcast(attacker,
-                    (ability) -> ability.onEntityDamageByEntity(attacker, victim, currentDamageContext));
+                    (ability) -> ability.onEntityDamageByEntity(attacker, victim, ascension$currentDamageContext));
         }
 
-        // 3. Return the potentially modified amount back to the method
-        return currentDamageContext.getAmount();
+        if (victim instanceof ServerPlayer victimPlayer) {
+            AbilityManager.broadcast(victimPlayer,
+                    (ability) -> ability.onEntityDamage(victimPlayer, ascension$currentDamageContext));
+        }
+
+        // Check if cancelled
+        if (ascension$currentDamageContext.isCancelled()) {
+            cir.setReturnValue(false);
+        }
     }
 
-    @Inject(method = "hurtServer", at = @At("HEAD"), cancellable = true)
-    private void checkCancellation(ServerLevel level, DamageSource source, float amount,
-            CallbackInfoReturnable<Boolean> cir) {
-        // 4. Check if a listener cancelled the event
-        if (currentDamageContext != null && currentDamageContext.isCancelled()) {
-            currentDamageContext = null; // Clean up
-            cir.setReturnValue(false); // Return false (damage failed)
+    @ModifyVariable(method = "hurtServer", at = @At("HEAD"), ordinal = 0, argsOnly = true)
+    private float ascension$modifyDamageAmount(float amount) {
+        if (ascension$currentDamageContext != null) {
+            float modifiedAmount = ascension$currentDamageContext.getAmount();
+            ascension$currentDamageContext = null; // Clean up
+            return modifiedAmount;
         }
+        return amount;
     }
 }

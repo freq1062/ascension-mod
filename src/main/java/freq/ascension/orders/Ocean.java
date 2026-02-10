@@ -13,6 +13,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.LivingEntity;
 
 public class Ocean implements Order {
     public static final Ocean INSTANCE = new Ocean();
@@ -79,7 +80,7 @@ public class Ocean implements Order {
     }
 
     @Override
-    public void onEntityDamageByEntity(ServerPlayer attacker, ServerPlayer victim, DamageContext context) {
+    public void onEntityDamageByEntity(ServerPlayer attacker, LivingEntity victim, DamageContext context) {
         Ascension.LOGGER.info(String.valueOf(attacker.isInWaterOrRain()));
         float damage = context.getAmount();
         // Ignore very low-damage (sweep) attacks
@@ -89,7 +90,6 @@ public class Ocean implements Order {
         if ((attacker.isInWaterOrRain() && hasCapability(attacker, "passive"))
                 || (as != null && as.isInUse())) {
             context.setAmount((float) (context.getAmount() * 1.5));
-            Ascension.LOGGER.info("Critting");
             attacker.level().playSound(null, attacker.blockPosition(), SoundEvents.PLAYER_ATTACK_CRIT,
                     SoundSource.PLAYERS, 1.0f, 1.0f);
             attacker.level().addParticle(ParticleTypes.CRIT, victim.getX(), victim.getY(), victim.getZ(), 0.0, 0.0,

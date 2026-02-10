@@ -14,6 +14,7 @@ public class OrderRegistry {
         register(Earth.INSTANCE);
         register(Sky.INSTANCE);
         register(Ocean.INSTANCE);
+        register(Magic.INSTANCE);
     }
 
     private static void register(Order order) {

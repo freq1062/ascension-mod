@@ -12,6 +12,8 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.inventory.AnvilMenu;
@@ -95,7 +97,7 @@ public interface Order {
         return false;
     }
 
-    default void onEntityDamageByEntity(ServerPlayer attacker, ServerPlayer victim, DamageContext context) {
+    default void onEntityDamageByEntity(ServerPlayer attacker, LivingEntity victim, DamageContext context) {
 
     }
 
@@ -115,6 +117,14 @@ public interface Order {
 
     default boolean canWalkOnPowderSnow(ServerPlayer player) {
         return false;
+    }
+
+    default int modifyEnchantmentCost(int originalCost) {
+        return originalCost;
+    }
+
+    default MobEffectInstance onPotionEffect(ServerPlayer player, MobEffectInstance effectInstance) {
+        return effectInstance;
     }
 
     // Ability methods

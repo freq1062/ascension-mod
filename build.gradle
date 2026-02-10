@@ -13,6 +13,7 @@ base {
 repositories {
 	mavenCentral()
 	maven { url = 'https://maven.nucleoid.xyz' }
+    maven { url 'https://jitpack.io' }
 	// Add repositories to retrieve artifacts from in here.
 	// You should only use this when depending on other mods because
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
@@ -49,6 +50,10 @@ dependencies {
 
 	// sgui
 	modImplementation "eu.pb4:sgui:1.11.0+1.21.9"
+
+	// PacketEvents
+	modImplementation "com.github.GrimAnticheat.packetevents:fabric:57aaaf588acb861a0731b4f6a940d5fe0202d408"
+    include "com.github.GrimAnticheat.packetevents:fabric:57aaaf588acb861a0731b4f6a940d5fe0202d408"
 }
 
 processResources {

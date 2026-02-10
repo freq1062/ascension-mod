@@ -12,7 +12,9 @@
 		"MobTargetMixin",
 		"BreezeTargetMixin",
 		"ProjectileShieldMixin",
-		"PowderSnowMixin"
+		"PowderSnowMixin",
+		"EnchantmentMixin",
+		"PotionMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

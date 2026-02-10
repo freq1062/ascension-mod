@@ -67,7 +67,6 @@ public class Drown {
 
                     droplets.add(new Droplet(dropletPos, tick, fallDistance));
                 }
-
             }
 
             // Update and render all active droplets

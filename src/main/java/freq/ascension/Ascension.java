@@ -2,11 +2,20 @@ package freq.ascension;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.MinecraftServer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.event.PacketListener;
+import com.github.retrooper.packetevents.event.PacketListenerPriority;
+import com.github.retrooper.packetevents.event.PacketSendEvent;
+import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
+import com.github.retrooper.packetevents.protocol.packettype.PacketType;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 
 import freq.ascension.api.TaskScheduler;
 import freq.ascension.commands.AscensionMenuOpenCommand;
@@ -45,6 +54,22 @@ public class Ascension implements ModInitializer {
 			scheduler.tick(s.getTickCount());
 		});
 
+		// Register PacketEvents listener after server starts to avoid initialization
+		// issues
+		ServerLifecycleEvents.SERVER_STARTED.register((MinecraftServer s) -> {
+			PacketEvents.getAPI().getEventManager().registerListener(new PacketListener() {
+				@Override
+				public void onPacketSend(PacketSendEvent event) {
+					if (event.getPacketType() == PacketType.Play.Server.SPAWN_ENTITY) {
+						WrapperPlayServerSpawnEntity wrapper = new WrapperPlayServerSpawnEntity(event);
+						if (wrapper.getEntityType() == EntityTypes.IRON_GOLEM) {
+							wrapper.setEntityType(EntityTypes.PIG);
+						}
+					}
+				}
+			}, PacketListenerPriority.HIGH);
+		});
+
 		AbilityManager.init();
 		SpellCooldownManager.updateActiveSpells();
 		InfluenceManager.init();
@@ -59,8 +84,8 @@ public class Ascension implements ModInitializer {
 			UnbindCommand.register(dispatcher);
 			WithdrawCommand.register(dispatcher);
 			SetOrderCommand.register(dispatcher);
-				// Register click-action command for book UI
-				freq.ascension.commands.AscensionActionCommand.register(dispatcher);
+			// Register click-action command for book UI
+			freq.ascension.commands.AscensionActionCommand.register(dispatcher);
 		});
 
 		LOGGER.info("Ascension SMP Mod Loaded!");

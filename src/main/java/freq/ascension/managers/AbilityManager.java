@@ -17,6 +17,21 @@ import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.world.InteractionResult;
 
 public class AbilityManager {
+
+    private static final ThreadLocal<Boolean> skipModification = ThreadLocal.withInitial(() -> false);
+
+    public static void skipNextModification() {
+        skipModification.set(true);
+    }
+
+    public static boolean shouldSkipModification() {
+        boolean skip = skipModification.get();
+        if (skip) {
+            skipModification.set(false);
+        }
+        return skip;
+    }
+
     public static void broadcast(ServerPlayer player, Consumer<Order> action) {
         AscensionData data = (AscensionData) player;
         // Ensure the same order isn't invoked multiple times if equipped in
