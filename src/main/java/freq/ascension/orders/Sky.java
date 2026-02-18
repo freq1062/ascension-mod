@@ -122,9 +122,8 @@ public class Sky implements Order {
 
     @Override
     public boolean isIgnoredBy(ServerPlayer player, Mob mob) {
-        if (mob instanceof Breeze) {
+        if (mob instanceof Breeze && hasCapability(player, "passive"))
             return true;
-        }
         return false;
     }
 

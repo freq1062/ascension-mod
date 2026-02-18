@@ -193,6 +193,9 @@ public class Utils {
     @SuppressWarnings("deprecation")
     public static void spellDmg(Entity target, Entity attacker, float percent) {
         if (target instanceof LivingEntity livingTarget) {
+            if (livingTarget.invulnerableTime > 0) {
+                return;
+            }
             float damageAmount = livingTarget.getMaxHealth() * (percent / 100);
             DamageSource source = spellDmgType(target.level(), attacker);
             livingTarget.hurt(source, damageAmount);

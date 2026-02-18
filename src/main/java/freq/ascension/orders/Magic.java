@@ -1,11 +1,21 @@
 package freq.ascension.orders;
 
+import java.util.UUID;
+
+import freq.ascension.Ascension;
 import freq.ascension.animation.PotionFlame;
 import freq.ascension.managers.AbilityManager;
+// import io.github.retrooper.packetevents.factory.fabric.FabricPacketEventsAPI; // Temporarily disabled
+import net.minecraft.client.User;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Mob;
+
+import xyz.nucleoid.disguiselib.api.EntityDisguise;
+import net.minecraft.world.entity.EntityType;
 
 public class Magic implements Order {
     public static final Magic INSTANCE = new Magic();
@@ -37,8 +47,20 @@ public class Magic implements Order {
         };
     }
 
+    public void makeMeACreeper(ServerPlayer player) {
+        // DisguiseLib 'magic' - every entity now has this interface
+        EntityDisguise disguise = (EntityDisguise) player;
+
+        // Morph the player into a Creeper
+        disguise.disguiseAs(EntityType.CREEPER);
+
+        // Optional: Make it so the player can see their own morph in 3rd person
+        disguise.setTrueSight(true);
+    }
+
     @Override
     public void applyEffect(ServerPlayer player) {
+        makeMeACreeper(player);
         AbilityManager.skipNextModification();
         if (hasCapability(player, "passive"))
             player.addEffect(new MobEffectInstance(MobEffects.SPEED, 60, 0));
@@ -84,5 +106,12 @@ public class Magic implements Order {
     @Override
     public String getOrderIcon() {
         return "\uE185";
+    }
+
+    @Override
+    public boolean isNeutralBy(ServerPlayer player, Mob mob) {
+        if (mob.getType().is(EntityTypeTags.ILLAGER) && hasCapability(player, "passive"))
+            return true;
+        return false;
     }
 }

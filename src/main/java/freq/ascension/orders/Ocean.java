@@ -1,6 +1,5 @@
 package freq.ascension.orders;
 
-import freq.ascension.Ascension;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -81,7 +80,6 @@ public class Ocean implements Order {
 
     @Override
     public void onEntityDamageByEntity(ServerPlayer attacker, LivingEntity victim, DamageContext context) {
-        Ascension.LOGGER.info(String.valueOf(attacker.isInWaterOrRain()));
         float damage = context.getAmount();
         // Ignore very low-damage (sweep) attacks
         if (damage < 0.1)

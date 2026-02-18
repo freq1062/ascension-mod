@@ -68,7 +68,7 @@ public class MagmaBubble {
     }
 
     // Sets the y coord of the input loc to the nearest solid block or lava
-    private static void resolveSurface(Level level, Vector3f loc, int searchDepth) {
+    public static void resolveSurface(Level level, Vector3f loc, int searchDepth) {
         // Start at the player's feet/loc height
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(loc.x, loc.y, loc.z);
 

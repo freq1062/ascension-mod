@@ -19,6 +19,10 @@ public abstract class MobTargetMixin {
             if (AbilityManager.anyMatch(player, (order) -> order.isIgnoredBy(player, mob))) {
                 ci.cancel();
             }
+
+            if (AbilityManager.anyMatch(player, (order) -> order.isNeutralBy(player, mob))) {
+                mob.setTarget(null);
+            }
         }
     }
 }

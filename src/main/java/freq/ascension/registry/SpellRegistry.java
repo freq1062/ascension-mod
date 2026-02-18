@@ -15,6 +15,7 @@ import freq.ascension.animation.Dash;
 import freq.ascension.animation.Drown;
 import freq.ascension.animation.MagmaBubble;
 import freq.ascension.animation.StarStrike;
+import freq.ascension.animation.Thorns;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.Spell;
@@ -31,7 +32,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.HappyGhast;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -595,5 +598,188 @@ public class SpellRegistry {
             as.setInUse(false);
         });
         Ascension.scheduler.schedule(fluxTask);
+    }
+
+    /*
+     * FLORA
+     */
+
+    private static final Map<UUID, Long> THORNS_ACTIVE = new HashMap<>();
+
+    public static void thorns(ServerPlayer player) {
+        ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("thorns"));
+
+        // Activate targeting mode for 5 seconds
+        THORNS_ACTIVE.put(player.getUUID(), System.currentTimeMillis());
+        player.sendSystemMessage(Component.literal("§aVines ready! Hit a target within 5 seconds..."));
+
+        // Schedule timeout after 5 seconds
+        Ascension.scheduler.schedule(new DelayedTask(100, () -> {
+            if (THORNS_ACTIVE.remove(player.getUUID()) != null) {
+                player.sendSystemMessage(Component.literal("§cThorns timed out!"));
+                as.setInUse(false);
+            }
+        }));
+    }
+
+    public static void executeThorns(ServerPlayer player, LivingEntity target) {
+        Long activationTime = THORNS_ACTIVE.remove(player.getUUID());
+        if (activationTime == null) {
+            return; // Not in targeting mode
+        }
+
+        // Check if within 5 second window
+        if (System.currentTimeMillis() - activationTime > 5000) {
+            return; // Timed out
+        }
+
+        Level level = player.level();
+
+        // Spawn thorns animation
+        Thorns.spawnThorns(player, target, 8, 60); // 8 vines, 3 second duration
+
+        // Freeze target by preventing AI (if it's a mob)
+        if (target instanceof net.minecraft.world.entity.Mob mob) {
+            mob.setNoAi(true);
+            Ascension.scheduler.schedule(new DelayedTask(60, () -> {
+                mob.setNoAi(false);
+            }));
+        }
+
+        // Apply poison
+        target.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                net.minecraft.world.effect.MobEffects.POISON, 200, 0, false, true));
+
+        Utils.spellDmg(target, player, 15);
+
+        // Play sound
+        level.playSound(null, target.getX(), target.getY(), target.getZ(),
+                SoundEvents.WOOD_BREAK, SoundSource.PLAYERS, 1.0f, 0.8f);
+
+        player.sendSystemMessage(Component.literal("§aVines ensnare your target!"));
+
+        // Mark spell as no longer in use
+        ActiveSpell as = SpellCooldownManager.getActiveSpell(player, SpellCooldownManager.get("thorns"));
+        if (as != null) {
+            as.setInUse(false);
+        }
+    }
+
+    public static boolean isThornsActive(ServerPlayer player) {
+        return THORNS_ACTIVE.containsKey(player.getUUID());
+    }
+
+    /*
+     * NETHER
+     */
+
+    private static final Map<UUID, HappyGhast> ACTIVE_GHASTS = new HashMap<>();
+
+    public static void ghast_carry(ServerPlayer player) {
+        // Check if player already has an active ghast
+        if (ACTIVE_GHASTS.containsKey(player.getUUID())) {
+            player.sendSystemMessage(Component.literal("§cYou already have a ghast summoned!"));
+            return;
+        }
+
+        ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("ghast_carry"));
+        Level level = player.level();
+
+        // Spawn ghast above the player
+        HappyGhast ghast = new HappyGhast(EntityType.HAPPY_GHAST, level);
+
+        Vec3 playerPos = player.position();
+        ghast.teleportTo(playerPos.x, playerPos.y + 3, playerPos.z);
+
+        // Make ghast non-aggressive and persistent
+        ghast.setPersistenceRequired();
+        ghast.setSilent(false); // Allow sounds
+
+        // Add ghast to world
+        level.addFreshEntity(ghast);
+
+        // Store the ghast reference
+        ACTIVE_GHASTS.put(player.getUUID(), ghast);
+
+        // Spawn soul particles around the ghast
+        if (level instanceof ServerLevel serverLevel) {
+            for (int i = 0; i < 30; i++) {
+                double offsetX = (Math.random() - 0.5) * 2.0;
+                double offsetY = (Math.random() - 0.5) * 2.0;
+                double offsetZ = (Math.random() - 0.5) * 2.0;
+                serverLevel.sendParticles(ParticleTypes.SOUL,
+                        ghast.getX() + offsetX, ghast.getY() + offsetY, ghast.getZ() + offsetZ,
+                        1, 0, 0, 0, 0.02);
+            }
+        }
+
+        // Make player ride the ghast
+        player.startRiding(ghast);
+
+        // Play summon sound
+        level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.GHAST_AMBIENT, SoundSource.PLAYERS, 1.0f, 0.8f);
+
+        // Monitor distance and control ghast
+        Ascension.scheduler.schedule(new RepeatedTask(1, 6000, (task) -> { // 5 minutes max
+            // Check if ghast is still valid
+            if (ghast.isRemoved() || !ghast.isAlive() || !player.isAlive()) {
+                cleanupGhast(player, ghast, as);
+                task.cancel();
+                return;
+            }
+
+            // Check distance between player and ghast
+            double distance = player.position().distanceTo(ghast.position());
+            if (distance > 5.0 && !player.isPassenger()) {
+                // Player is too far from ghast and not riding it
+                player.sendSystemMessage(Component.literal("§cYour ghast vanished as you strayed too far!"));
+                cleanupGhast(player, ghast, as);
+                task.cancel();
+                return;
+            }
+        }));
+    }
+
+    private static void cleanupGhast(ServerPlayer player, HappyGhast ghast,
+            ActiveSpell as) {
+        ACTIVE_GHASTS.remove(player.getUUID());
+
+        // Spawn soul particles on despawn
+        if (ghast.level() instanceof ServerLevel serverLevel) {
+            for (int i = 0; i < 30; i++) {
+                double offsetX = (Math.random() - 0.5) * 2.0;
+                double offsetY = (Math.random() - 0.5) * 2.0;
+                double offsetZ = (Math.random() - 0.5) * 2.0;
+                serverLevel.sendParticles(ParticleTypes.SOUL,
+                        ghast.getX() + offsetX, ghast.getY() + offsetY, ghast.getZ() + offsetZ,
+                        1, 0, 0, 0, 0.02);
+            }
+        }
+
+        // Remove ghast
+        if (!ghast.isRemoved()) {
+            ghast.discard();
+        }
+
+        // Start cooldown
+        if (as != null) {
+            as.setInUse(false);
+        }
+    }
+
+    public static void soul_drain(ServerPlayer player) {
+        ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("soul_drain"));
+
+        // Play activation sound
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.SOUL_ESCAPE, SoundSource.PLAYERS, 1.0f, 0.7f);
+
+        // The actual healing effect is handled in the Nether order's
+        // onEntityDamageByEntity method
+        // This spell just activates for 10 seconds (200 ticks)
+        Ascension.scheduler.schedule(new DelayedTask(200, () -> {
+            as.setInUse(false);
+        }));
     }
 }

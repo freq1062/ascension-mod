@@ -13,6 +13,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import freq.ascension.managers.AbilityManager;
 import freq.ascension.orders.Order.DamageContext;
+import freq.ascension.registry.SpellRegistry;
 
 @Mixin(LivingEntity.class)
 public abstract class DamageMixin {
@@ -30,6 +31,11 @@ public abstract class DamageMixin {
         if (source.getEntity() instanceof ServerPlayer attacker) {
             AbilityManager.broadcast(attacker,
                     (ability) -> ability.onEntityDamageByEntity(attacker, victim, ascension$currentDamageContext));
+
+            // Check if attacker has thorns active and trigger on victim
+            if (SpellRegistry.isThornsActive(attacker)) {
+                SpellRegistry.executeThorns(attacker, victim);
+            }
         }
 
         if (victim instanceof ServerPlayer victimPlayer) {

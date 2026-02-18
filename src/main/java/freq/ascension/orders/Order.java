@@ -111,6 +111,10 @@ public interface Order {
         return false;
     }
 
+    default boolean isNeutralBy(ServerPlayer player, Mob mob) {
+        return false;
+    }
+
     default void applyProjectileShield(ServerPlayer player, Projectile projectile) {
 
     }
@@ -119,12 +123,28 @@ public interface Order {
         return false;
     }
 
+    default boolean canTrampleCrops(ServerPlayer player) {
+        return true;
+    }
+
+    default float modifySaturation(ServerPlayer player, float saturation) {
+        return saturation;
+    }
+
     default int modifyEnchantmentCost(int originalCost) {
         return originalCost;
     }
 
     default MobEffectInstance onPotionEffect(ServerPlayer player, MobEffectInstance effectInstance) {
         return effectInstance;
+    }
+
+    default boolean hasPlantProximityEffect(ServerPlayer player) {
+        return false;
+    }
+
+    default boolean canSwimInlava(ServerPlayer player) {
+        return false;
     }
 
     // Ability methods
