@@ -1,0 +1,26 @@
+---
+description: Critical rules for the Ascension SMP Fabric Mod
+globs: src/main/java/**/*.java
+alwaysApply: true
+---
+
+# Ascension SMP Modding Standards
+
+## Non-Negotiable Constraints
+
+- **Zero Client Imports:** Never import from `net.minecraft.client.*`. The mod must be strictly server-side only.
+- **Ability Checks:** Always use `AbilityManager.broadcast` or `AbilityManager.anyMatch`. Never read `AscensionData` directly for logic.
+- **Spell Registration:** Every spell must extend `Spell` and be registered in `SpellRegistry`.
+
+## Visual Effects (VFX)
+
+- **Use VFXBuilder:** All animations MUST use the `VFXBuilder` framework. Do not use external libraries like GeckoLib.
+- **Pattern:** Follow the "Magma Spike" pattern from LibReferences.java (chaining Keyframes with Ascension.scheduler).
+
+## Persistence
+
+- **AscensionData:** Access player data by casting `ServerPlayer` to `AscensionData`.
+
+## Cleanup
+
+- **Lifecycle:** Every task must have a cleanup hook in `DISCONNECT` or `SERVER_STOPPING` to prevent memory leaks.

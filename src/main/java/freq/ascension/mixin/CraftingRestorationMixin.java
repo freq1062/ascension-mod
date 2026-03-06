@@ -15,21 +15,15 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
-import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.inventory.CraftingMenu;
 import net.minecraft.world.item.ItemStack;
-import org.spongepowered.asm.mixin.gen.Accessor;
 import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Unique;
 
+import java.util.List;
+
 @Mixin(AbstractContainerMenu.class)
 public abstract class CraftingRestorationMixin {
-
-    @Mixin(CraftingMenu.class)
-    public interface CraftingMenuAccessor {
-        @Accessor("craftSlots")
-        CraftingContainer getRepairInventory();
-    }
 
     @Inject(method = "clicked", at = @At("HEAD"), cancellable = true)
     private void onCraftingClick(int slotIndex, int button, ClickType clickType, Player player, CallbackInfo ci) {
@@ -62,9 +56,9 @@ public abstract class CraftingRestorationMixin {
                 return;
             }
 
-            // Calculate how many we can craft
-            CraftingContainer grid = ((CraftingMenuAccessor) craftingMenu).getRepairInventory(); // Access via Accessor
-            int maxPossible = calculateMaxCrafts(grid);
+            // Access the 3x3 crafting grid slots (indices 0-8, top-left to bottom-right)
+            List<Slot> inputSlots = craftingMenu.getInputGridSlots();
+            int maxPossible = calculateMaxCrafts(inputSlots);
             if (maxPossible <= 0)
                 return;
 
@@ -73,7 +67,7 @@ public abstract class CraftingRestorationMixin {
             int toRestore = (clickType == ClickType.QUICK_MOVE) ? Math.min(maxPossible, needed) : 1;
 
             // 5. Execute Restoration
-            consumeIngredients(grid, toRestore);
+            consumeIngredients(inputSlots, toRestore);
             data.addInfluence(toRestore);
 
             serverPlayer.sendSystemMessage(Component.literal("Your Influence has been restored by " + toRestore + "!")
@@ -86,35 +80,34 @@ public abstract class CraftingRestorationMixin {
     }
 
     @Unique
-    private int calculateMaxCrafts(CraftingContainer inv) {
-        // Implementation of your maxCraftsPossible logic using Fabric slots
-        // Slot mapping in CraftingContainer: 0-8 (top-left to bottom-right)
-        // Your ECHO_SLOT 1, GOLD 3/5, TOTEM 4, AMETHYST 7 matches exactly.
-        int echo = inv.getItem(1).getCount();
-        int gold = inv.getItem(3).getCount() + inv.getItem(5).getCount();
-        int totem = inv.getItem(4).getCount();
-        int amethyst = inv.getItem(7).getCount();
+    private int calculateMaxCrafts(List<Slot> slots) {
+        // Slot mapping in the 3x3 grid (0-indexed): 0-8 (top-left to bottom-right)
+        // ECHO_SLOT=1, GOLD=3&5, TOTEM=4, AMETHYST=7
+        int echo = slots.get(1).getItem().getCount();
+        int gold = slots.get(3).getItem().getCount() + slots.get(5).getItem().getCount();
+        int totem = slots.get(4).getItem().getCount();
+        int amethyst = slots.get(7).getItem().getCount();
 
         return Math.min(Math.min(gold / 2, totem), Math.min(echo, amethyst));
     }
 
     @Unique
-    private void consumeIngredients(CraftingContainer inv, int amount) {
-        inv.removeItem(1, amount); // Echo
-        inv.removeItem(4, amount); // Totem
-        inv.removeItem(7, amount); // Amethyst
+    private void consumeIngredients(List<Slot> slots, int amount) {
+        slots.get(1).remove(amount); // Echo
+        slots.get(4).remove(amount); // Totem
+        slots.get(7).remove(amount); // Amethyst
 
-        // Split gold consumption
+        // Split gold consumption across two slots
         int remainingGold = amount * 2;
-        remainingGold = takeFromSlot(inv, 3, remainingGold);
-        takeFromSlot(inv, 5, remainingGold);
+        remainingGold = takeFromSlot(slots, 3, remainingGold);
+        takeFromSlot(slots, 5, remainingGold);
     }
 
     @Unique
-    private int takeFromSlot(CraftingContainer inv, int slot, int amount) {
-        ItemStack stack = inv.getItem(slot);
+    private int takeFromSlot(List<Slot> slots, int index, int amount) {
+        ItemStack stack = slots.get(index).getItem();
         int canTake = Math.min(stack.getCount(), amount);
-        inv.removeItem(slot, canTake);
+        slots.get(index).remove(canTake);
         return amount - canTake;
     }
 }

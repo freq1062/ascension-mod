@@ -2,31 +2,35 @@ package freq.ascension.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import freq.ascension.managers.AbilityManager;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
 
 @Mixin(LivingEntity.class)
 public abstract class FoodMixin {
 
-    @ModifyVariable(method = "eat", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/food/FoodData;eat(Lnet/minecraft/world/item/Item;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/LivingEntity;)V"), argsOnly = true)
-    private ItemStack modifyFoodBeforeEating(ItemStack stack) {
+    // completeUsingItem() is called when a player finishes using an item (e.g.
+    // eating).
+    // We store the player context here so FoodDataMixin can modify saturation.
+    @Inject(method = "completeUsingItem", at = @At("HEAD"))
+    private void beforeCompleteUsingItem(CallbackInfo ci) {
         if (AbilityManager.shouldSkipModification()) {
-            return stack;
+            return;
         }
 
         LivingEntity entity = (LivingEntity) (Object) this;
-        
+
         if (!(entity instanceof ServerPlayer serverPlayer)) {
-            return stack;
+            return;
         }
 
-        // Store the player context so we can modify saturation in FoodData
-        FoodDataMixin.setCurrentPlayer(serverPlayer);
-        
-        return stack;
+        // Only set player context if the item being used is food
+        if (entity.getUseItem().has(DataComponents.FOOD)) {
+            FoodDataMixin.setCurrentPlayer(serverPlayer);
+        }
     }
 }
