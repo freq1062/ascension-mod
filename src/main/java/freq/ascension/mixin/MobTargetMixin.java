@@ -18,9 +18,12 @@ public abstract class MobTargetMixin {
             Mob mob = (Mob) (Object) this;
             if (AbilityManager.anyMatch(player, (order) -> order.isIgnoredBy(player, mob))) {
                 ci.cancel();
+                return;
             }
 
+            // Cancel this setTarget call and redirect to null so the mob becomes neutral
             if (AbilityManager.anyMatch(player, (order) -> order.isNeutralBy(player, mob))) {
+                ci.cancel();
                 mob.setTarget(null);
             }
         }

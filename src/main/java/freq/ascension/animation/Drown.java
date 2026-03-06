@@ -8,6 +8,7 @@ import org.joml.Vector3f;
 import freq.ascension.Ascension;
 import freq.ascension.api.RepeatedTask;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
@@ -79,9 +80,11 @@ public class Drown {
             droplets.removeIf(droplet -> {
                 long age = tick - droplet.spawnTick;
 
+                // Blue dust particle: 0xFF0000FF = opaque blue (ARGB), size 1.0
+                DustParticleOptions blueDust = new DustParticleOptions(0xFF0000FF, 1.0f);
                 if (age < hoverTicks) {
                     // Hover phase: stay at spawn position
-                    serverLevel.sendParticles(ParticleTypes.DRIPPING_WATER,
+                    serverLevel.sendParticles(blueDust,
                             droplet.position.x, droplet.position.y, droplet.position.z,
                             1, 0, 0, 0, 0.0);
                     return false; // Keep droplet
@@ -94,7 +97,7 @@ public class Drown {
                     float fallAmount = droplet.fallDistance * fallProgress * fallProgress;
                     float currentY = droplet.position.y - fallAmount;
 
-                    serverLevel.sendParticles(ParticleTypes.DRIPPING_WATER,
+                    serverLevel.sendParticles(blueDust,
                             droplet.position.x, currentY, droplet.position.z,
                             1, 0, 0, 0, 0.0);
                     return false; // Keep droplet
@@ -120,7 +123,7 @@ public class Drown {
 
                     // Randomise speed slightly so the ring feels alive
                     double speed = 0.02 + Math.random() * 0.08;
-                    serverLevel.sendParticles(ParticleTypes.BUBBLE_COLUMN_UP,
+                    serverLevel.sendParticles(ParticleTypes.END_ROD,
                             point.x, point.y, point.z,
                             1, 0.0, 0.0, 0.0, speed);
                 }

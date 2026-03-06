@@ -128,7 +128,7 @@ public class Earth implements Order {
     public void applyEffect(ServerPlayer player) {
         if (hasCapability(player, "passive"))
             player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                    net.minecraft.world.effect.MobEffects.HASTE, 60, 0));
+                    net.minecraft.world.effect.MobEffects.HASTE, 60, 0, true, false, true));
     }
 
     public static void toggleSupermine(ServerPlayer player) {
@@ -160,15 +160,20 @@ public class Earth implements Order {
         try {
             // Allow autosmelt to work with supermine if enabled
             boolean supermine = SUPERMINE_ENABLED.getOrDefault(uuid, false);
-            if (supermine && !hasSilkTouch && isSupermineTool(tool)) {
+            if (supermine && isSupermineTool(tool)) {
                 SpellStats stats = getSpellStats("supermine");
                 IS_MINING_INTERNALLY.add(uuid);
-                breakSurroundingCube(player, pos, stats.getInt(0), stats.getInt(1));
+                breakSurroundingCube(player, pos, stats.getInt(0), stats.getInt(1),
+                        state, hasSilkTouch);
             }
         } catch (Throwable ignored) {
         } finally {
             IS_MINING_INTERNALLY.remove(uuid);
         }
+
+        // Do not apply doubling for creative/spectator players
+        if (player.isCreative() || player.isSpectator())
+            return;
 
         // If using Silk Touch, do not smelt (let vanilla drops happen)
         if (hasSilkTouch)
@@ -183,6 +188,11 @@ public class Earth implements Order {
         if (smelted.isEmpty())
             return;
 
+        // Only double when the tool is suitable for this block (e.g. iron+ pickaxe for
+        // diamond ore)
+        if (!tool.isCorrectToolForDrops(state))
+            return;
+
         // Spawn small fire particles around the broken block
         world.sendParticles(
                 net.minecraft.core.particles.ParticleTypes.FLAME,
@@ -195,24 +205,13 @@ public class Earth implements Order {
         dropSmeltedOre(world, pos, state, xpMultiplier);
     }
 
-    // ????
+    // Cost reduction is handled directly in AnvilPrepareMixin via @Shadow DataSlot access
     @Override
     public void onAnvilPrepare(AnvilMenu menu) {
-        int originalCost = menu.getCost();
-        if (originalCost <= 0)
-            return;
-
-        int reducedCost = (int) Math.floor(originalCost * 0.5);
-        try {
-            var costField = AnvilMenu.class.getDeclaredField("cost");
-            costField.setAccessible(true);
-            costField.setInt(menu, Math.max(1, reducedCost));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
-    private void breakSurroundingCube(ServerPlayer player, BlockPos origin, int diameter, int maxDurabilityLoss) {
+    private void breakSurroundingCube(ServerPlayer player, BlockPos origin, int diameter, int maxDurabilityLoss,
+            BlockState originalState, boolean hasSilkTouch) {
         if (origin == null)
             return;
 
@@ -246,10 +245,19 @@ public class Earth implements Order {
                     if (!Utils.isBreakable(targetState, world, targetPos))
                         continue;
 
-                    if (targetState.is(ORE_TAG)) {
-                        dropSmeltedOre(world, targetPos, targetState, 1.0);
+                    // Match blocks by hardness — handles logs in different orientations, variants, etc.
+                    if (targetState.getDestroySpeed(world, targetPos) != originalState.getDestroySpeed(world, origin))
+                        continue;
+
+                    if (targetState.is(ORE_TAG) && !hasSilkTouch) {
+                        ItemStack heldTool = player.getInventory().getSelectedItem();
+                        if (heldTool.isCorrectToolForDrops(targetState)) {
+                            dropSmeltedOre(world, targetPos, targetState, 1.0);
+                        } else {
+                            world.destroyBlock(targetPos, true, player);
+                        }
                     } else {
-                        // Break the block and spawn drops
+                        // destroyBlock respects silk touch on the player's tool naturally
                         world.destroyBlock(targetPos, true, player);
                     }
 

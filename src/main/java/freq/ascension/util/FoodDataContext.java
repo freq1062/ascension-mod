@@ -1,4 +1,4 @@
-package freq.ascension.mixin;
+package freq.ascension.util;
 
 import net.minecraft.server.level.ServerPlayer;
 

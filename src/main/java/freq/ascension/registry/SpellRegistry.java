@@ -48,6 +48,9 @@ public class SpellRegistry {
     public static final Map<String, Spell> SPELLS = new HashMap<>();
     // {order: {type: [ spell1, spell2 ]}}
     private static final Map<Order, Map<String, List<Spell>>> BY_ORDER_AND_TYPE = new HashMap<>();
+    // Rate-limit the "You need solid ground" message to once per 5 seconds per
+    // player
+    private static final java.util.concurrent.ConcurrentHashMap<UUID, Long> LAST_GROUND_MSG = new java.util.concurrent.ConcurrentHashMap<>();
 
     public static void register(Spell spell) {
         SPELLS.put(spell.getId(), spell);
@@ -98,7 +101,12 @@ public class SpellRegistry {
                         && p.level().getFluidState(center.below()).is(net.minecraft.tags.FluidTags.LAVA));
 
         if (!standingOnSolid && !submergedInLava) {
-            p.sendSystemMessage(Component.literal("You need solid ground or lava to unleash Magma Bubble."));
+            long now = System.currentTimeMillis();
+            Long lastSent = LAST_GROUND_MSG.get(p.getUUID());
+            if (lastSent == null || now - lastSent >= 5000L) {
+                LAST_GROUND_MSG.put(p.getUUID(), now);
+                p.sendSystemMessage(Component.literal("You need solid ground or lava to unleash Magma Bubble."));
+            }
             return;
         }
 
@@ -278,10 +286,6 @@ public class SpellRegistry {
 
         Dash.spawnDashCone(player, newVel.toVector3f(), 15, 1.5f, 2.5f,
                 2.0f);
-
-        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WITHER_SHOOT,
-                SoundSource.PLAYERS, 0.5f,
-                dashDamage ? 1.0f : 1.35f);
 
         if (dashDamage) {
             Ascension.scheduler.schedule(new RepeatedTask(1, 60, (task) -> {
@@ -709,7 +713,12 @@ public class SpellRegistry {
         Level level = player.level();
 
         // Spawn ghast above the player
-        HappyGhast ghast = new HappyGhast(EntityType.HAPPY_GHAST, level);
+        HappyGhast ghast = EntityType.HAPPY_GHAST.create(level, net.minecraft.world.entity.EntitySpawnReason.TRIGGERED);
+        if (ghast == null) {
+            player.sendSystemMessage(Component.literal("§cFailed to summon ghast!"));
+            as.setInUse(false);
+            return;
+        }
 
         Vec3 playerPos = player.position();
         ghast.teleportTo(playerPos.x, playerPos.y + 3, playerPos.z);
@@ -826,27 +835,43 @@ public class SpellRegistry {
 
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("shapeshift"));
 
-        xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
-        disguise.disguiseAs(form);
-        disguise.setTrueSight(true);
+        try {
+            xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
+            disguise.disguiseAs(form);
+            disguise.setTrueSight(true);
 
-        player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                net.minecraft.world.effect.MobEffects.NIGHT_VISION,
-                durationTicks + 40, 0, true, false, true));
+            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                    net.minecraft.world.effect.MobEffects.NIGHT_VISION,
+                    durationTicks + 40, 0, true, false, true));
 
-        String formName = form.getDescription().getString();
-        player.sendSystemMessage(Component.literal("§dYou have transformed into " + formName + "!"));
+            String formName = form.getDescription().getString();
+            player.sendSystemMessage(Component.literal("§dYou have transformed into " + formName + "!"));
 
-        Ascension.scheduler.schedule(new DelayedTask(durationTicks, () -> {
-            if (!player.isAlive() || player.isRemoved()) {
-                if (as != null)
-                    as.setInUse(false);
-                return;
-            }
-            disguise.disguiseAs(player.getType());
-            player.removeEffect(net.minecraft.world.effect.MobEffects.NIGHT_VISION);
+            Ascension.scheduler.schedule(new DelayedTask(durationTicks, () -> {
+                try {
+                    if (!player.isAlive() || player.isRemoved()) {
+                        if (as != null)
+                            as.setInUse(false);
+                        return;
+                    }
+                    // Re-cast player to EntityDisguise to avoid stale reference issues
+                    xyz.nucleoid.disguiselib.api.EntityDisguise freshDisguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
+                    freshDisguise.disguiseAs(EntityType.PLAYER);
+                    freshDisguise.setTrueSight(false);
+                    player.removeEffect(net.minecraft.world.effect.MobEffects.NIGHT_VISION);
+                    player.sendSystemMessage(Component.literal("§7You have returned to your normal form."));
+                } catch (Exception e) {
+                    Ascension.LOGGER.error("Failed to restore player form after shapeshift: " + e.getMessage());
+                } finally {
+                    if (as != null)
+                        as.setInUse(false);
+                }
+            }));
+        } catch (Exception e) {
+            Ascension.LOGGER.error("Failed to shapeshift player: " + e.getMessage());
+            player.sendSystemMessage(Component.literal("§cShapeshift failed! Please try again."));
             if (as != null)
                 as.setInUse(false);
-        }));
+        }
     }
 }

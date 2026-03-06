@@ -14,11 +14,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-<<<<<<< HEAD
 
-// import xyz.nucleoid.disguiselib.api.EntityDisguise;
-=======
->>>>>>> 57d774efeaf876d6055e2910503e7802d596b1e8
 import net.minecraft.world.entity.EntityType;
 
 public class Magic implements Order {
@@ -51,24 +47,10 @@ public class Magic implements Order {
         };
     }
 
-<<<<<<< HEAD
-    public void makeMeACreeper(ServerPlayer player) {
-        // DisguiseLib 'magic' - every entity now has this interface
-        // EntityDisguise disguise = (EntityDisguise) player;
-
-        // Morph the player into a Creeper
-        // disguise.disguiseAs(EntityType.CREEPER);
-
-        // Optional: Make it so the player can see their own morph in 3rd person
-        // disguise.setTrueSight(true);
-    }
-
-=======
->>>>>>> 57d774efeaf876d6055e2910503e7802d596b1e8
     @Override
     public void applyEffect(ServerPlayer player) {
         if (hasCapability(player, "passive"))
-            player.addEffect(new MobEffectInstance(MobEffects.SPEED, 60, 0));
+            player.addEffect(new MobEffectInstance(MobEffects.SPEED, 60, 0, true, false, true));
     }
 
     @Override
@@ -149,7 +131,23 @@ public class Magic implements Order {
         boolean isGod = "god".equals(data.getRank());
         if (!isGod && (victim instanceof net.minecraft.server.level.ServerPlayer || isBossType(type)))
             return;
+
+        // Add to transformation list
         data.pushShapeshiftKill(type);
+
+        // Spawn potion flame effect at death location
+        freq.ascension.animation.PotionFlame.spawnPotionFlame(killer, 14); // 0.7 seconds = 14 ticks
+
+        // Play amethyst sound
+        killer.level().playSound(null, victim.blockPosition(),
+                net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_CHIME,
+                net.minecraft.sounds.SoundSource.PLAYERS, 1.0f, 1.2f);
+
+        // Send chat message
+        String mobName = type.getDescription().getString();
+        killer.sendSystemMessage(
+                net.minecraft.network.chat.Component.literal(
+                        "§d" + mobName + "§7 has been added to your transformations!"));
     }
 
     private static boolean isBossType(EntityType<?> type) {

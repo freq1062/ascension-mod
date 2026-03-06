@@ -10,6 +10,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 public class MagmaBubble {
     public static void spawnMagmaSpikes(Player player, int numSpikes, float radius, float heightScale) {
@@ -22,8 +23,9 @@ public class MagmaBubble {
             float rz = (float) ((Math.random() - 0.5) * radius);
             Vector3f worldPos = new Vector3f(playerPos).add(rx, 0, rz);
 
-            // 2. Snap to floor (updates worldPos.y)
-            resolveSurface(level, worldPos, 4);
+            // 2. Anchor base to the ground via heightmap (reliable for any Y offset)
+            int topY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, (int) worldPos.x, (int) worldPos.z);
+            worldPos.y = topY;
 
             // 3. Direction of the spike (randomly tilted up)
             Vector3f spikeDir = new Vector3f(
@@ -41,7 +43,7 @@ public class MagmaBubble {
             new VFXBuilder(level, worldPos, Blocks.MAGMA_BLOCK.defaultBlockState(),
                     VFXBuilder.instant(new Vector3f(0), GeometrySource.faceVector(spikeDir),
                             new Vector3f(thickness, 0.0f, thickness)))
-                    .addKeyframeS(null, null, new Vector3f(thickness, heightScale, thickness), 4, initialDelay) // Grow
+                    .addKeyframeS(null, null, new Vector3f(thickness, heightScale - 0.5f, thickness), 4, initialDelay) // Grow
                     .withAction(() -> {
                         if (level instanceof ServerLevel sl) {
                             sl.sendParticles(

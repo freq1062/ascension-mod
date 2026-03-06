@@ -4,6 +4,8 @@ import org.joml.Vector3f;
 
 import freq.ascension.Ascension;
 
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -28,6 +30,10 @@ public class Dash {
         if (velocityDir.lengthSquared() < 1e-6) {
             velocityDir = new Vector3f(0, 1, 0);
         }
+
+        // Play sound once per VFX trigger, regardless of how Dash was activated
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.WITHER_SHOOT, SoundSource.PLAYERS, 0.5f, 1.0f);
 
         for (int i = 0; i < numParticles; i++) {
             Vector3f axis = new Vector3f(velocityDir).normalize();

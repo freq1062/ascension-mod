@@ -4,6 +4,7 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.server.MinecraftServer;
 
 import org.slf4j.Logger;
@@ -87,6 +88,55 @@ public class Ascension implements ModInitializer {
 		AbilityManager.init();
 		InfluenceManager.init();
 		PlantProximityManager.init();
+
+		// Clear disguises on player join to fix any corrupted persistent data
+		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+			try {
+				xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) handler
+						.getPlayer();
+				// Reset to player's normal form on join
+				disguise.disguiseAs(net.minecraft.world.entity.EntityType.PLAYER);
+				disguise.setTrueSight(false);
+				LOGGER.debug("Cleared disguise for player on join: " + handler.getPlayer().getName().getString());
+			} catch (Exception e) {
+				// Log but don't crash - player can still join
+				LOGGER.warn("Failed to clear disguise on join for " + handler.getPlayer().getName().getString() + ": "
+						+ e.getMessage());
+			}
+		});
+
+		// Clear disguises when players disconnect to prevent DisguiseLib errors on
+		// rejoin
+		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+			try {
+				xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) handler
+						.getPlayer();
+				// Reset to player's normal form
+				disguise.disguiseAs(net.minecraft.world.entity.EntityType.PLAYER);
+				disguise.setTrueSight(false);
+			} catch (Exception e) {
+				// Silently ignore if disguise clear fails - player is already disconnecting
+				LOGGER.debug("Failed to clear disguise on disconnect: " + e.getMessage());
+			}
+		});
+
+		// Clear all disguises on server shutdown
+		ServerLifecycleEvents.SERVER_STOPPING.register((stoppingServer) -> {
+			try {
+				stoppingServer.getPlayerList().getPlayers().forEach(player -> {
+					try {
+						xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
+						disguise.disguiseAs(net.minecraft.world.entity.EntityType.PLAYER);
+						disguise.setTrueSight(false);
+					} catch (Exception e) {
+						// Silently ignore per-player failures
+					}
+				});
+			} catch (Exception e) {
+				LOGGER.debug("Failed to clear disguises on server stop: " + e.getMessage());
+			}
+		});
+
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
 			AscensionMenuOpenCommand.register(dispatcher);
 			BindCommand.register(dispatcher);
@@ -97,6 +147,7 @@ public class Ascension implements ModInitializer {
 			SetOrderCommand.register(dispatcher);
 			// Register click-action command for book UI
 			freq.ascension.commands.AscensionActionCommand.register(dispatcher);
+			freq.ascension.commands.ShapelistCommand.register(dispatcher);
 		});
 
 		LOGGER.info("Ascension SMP Mod Loaded!");

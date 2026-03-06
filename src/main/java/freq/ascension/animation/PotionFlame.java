@@ -31,7 +31,7 @@ public class PotionFlame {
     public static void spawnPotionFlame(ServerPlayer player, int durationTicks, int durationGrantedTicks) {
         Vector3f origin = player.position().toVector3f().add(0, 0.1f, 0);
 
-        int numParticles = Math.min(40, 10 + (durationGrantedTicks / 20)); // scale by seconds granted, cap 40
+        int numParticles = Math.min(20, 5 + (durationGrantedTicks / 40)); // -50% density, cap 20
 
         for (int i = 0; i < numParticles; i++) {
             float offsetX = (float) (Math.random() - 0.5) * 0.8f;
@@ -42,7 +42,7 @@ public class PotionFlame {
             int riseTime = 10 + (int) (Math.random() * 15);
 
             Quaternionf randomRot = GeometrySource.randomRot();
-            Vector3f randomScale = GeometrySource.randomScaleEqual(0.15f, 0.4f);
+            Vector3f randomScale = GeometrySource.randomScaleEqual(0.40f, 0.65f); // +0.25 size
 
             BlockState block = PINK_PALETTE[(int) (Math.random() * PINK_PALETTE.length)];
 

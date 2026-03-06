@@ -5,6 +5,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 import freq.ascension.managers.AbilityManager;
+import freq.ascension.util.FoodDataContext;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.food.FoodData;
 

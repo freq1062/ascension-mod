@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import freq.ascension.managers.AbilityManager;
 import freq.ascension.managers.PlantProximityManager;
+import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -17,16 +18,16 @@ import net.minecraft.world.level.gameevent.vibrations.VibrationSystem;
 public abstract class SculkSensorMixin {
 
     @Inject(method = "handleGameEvent", at = @At("HEAD"), cancellable = true)
-    private void onHandleGameEvent(ServerLevel level, GameEvent gameEvent, GameEvent.Context context, 
+    private void onHandleGameEvent(ServerLevel level, Holder<GameEvent> gameEvent, GameEvent.Context context,
             net.minecraft.world.phys.Vec3 pos, CallbackInfoReturnable<Boolean> cir) {
         Entity entity = context.sourceEntity();
-        
+
         if (entity instanceof ServerPlayer player) {
             // Check if player has plant proximity effect active and is near a plant
             if (PlantProximityManager.isNearPlant(player)) {
-                boolean hasEffect = AbilityManager.anyMatch(player, 
-                    (order) -> order.hasPlantProximityEffect(player));
-                
+                boolean hasEffect = AbilityManager.anyMatch(player,
+                        (order) -> order.hasPlantProximityEffect(player));
+
                 if (hasEffect) {
                     cir.setReturnValue(false);
                 }
