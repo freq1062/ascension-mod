@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import freq.ascension.orders.Order;
+import net.minecraft.world.entity.EntityType;
 
 public interface AscensionData {
 
@@ -69,4 +70,12 @@ public interface AscensionData {
     void setGodOrder(String order);
 
     List<Order> getEquippedOrders();
+
+    /** Shapeshift history: stack of entity type registry IDs (max 5). Last element = next form. */
+    List<String> getShapeshiftHistory();
+
+    void pushShapeshiftKill(EntityType<?> entityType);
+
+    /** Removes and returns the next form to transform into, or null if empty. */
+    EntityType<?> popShapeshiftForm();
 }

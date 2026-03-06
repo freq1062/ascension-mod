@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 
 public class InfluenceManager {
@@ -91,6 +92,14 @@ public class InfluenceManager {
                                 Component.literal(GAIN_INFLUENCE_MSG));
                     } catch (Throwable ignored) {
                     }
+                    // Shapeshift kill history (any living entity death by player)
+                    AbilityManager.broadcast(killer, order -> order.onPlayerKill(killer, victim));
+                }
+            } else if (!ent.level().isClientSide() && ent instanceof LivingEntity victim) {
+                // Non-player entity died: check if killer is ServerPlayer for Shapeshift history
+                Entity attacker = src.getEntity();
+                if (attacker instanceof ServerPlayer killer) {
+                    AbilityManager.broadcast(killer, order -> order.onPlayerKill(killer, victim));
                 }
             }
         });

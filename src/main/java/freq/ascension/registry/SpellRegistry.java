@@ -365,10 +365,6 @@ public class SpellRegistry {
             strikePoint = hitResult.getLocation();
         }
 
-        // Pre-impact rumble sound
-        level.playSound(null, strikePoint.x, strikePoint.y, strikePoint.z,
-                SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.PLAYERS, 0.9f, 0.55f);
-
         {
             int hex = augmented ? 0x000000 : 0xFFFFFF;
             float r = ((hex >> 16) & 0xFF) / 255.0f;
@@ -461,9 +457,11 @@ public class SpellRegistry {
                     if (target instanceof ServerPlayer victim) {
                         victim.setAirSupply(0);
                     }
-                    // Ignore knockback resistance by resetting velocity
+                    // Apply normal drowning damage (2.0 = 1 heart, same as vanilla drowning)
+                    // Use drown damage source to avoid triggering Ocean passive crits
                     Vec3 before = target.getDeltaMovement();
-                    Utils.spellDmg(target, player, 5);
+                    target.hurt(target.damageSources().drown(), 2.0f);
+                    // Ignore knockback resistance by resetting velocity
                     try {
                         target.setDeltaMovement(before);
                     } catch (Throwable ignored) {
@@ -521,6 +519,7 @@ public class SpellRegistry {
                     AABB blockAABB = new AABB(pos);
                     if (!player.getBoundingBox().intersects(blockAABB)) {
                         level.setBlock(pos, Blocks.FROSTED_ICE.defaultBlockState(), 3);
+                        level.playSound(null, pos, SoundEvents.GLASS_BREAK, SoundSource.BLOCKS, 1.0f, 1.4f);
                         ((ServerLevel) level).sendParticles(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5,
                                 pos.getZ() + 0.5,
                                 3, 0.0, 0.05, 0.0, 0.0);
@@ -540,6 +539,7 @@ public class SpellRegistry {
                     if (block != Blocks.BLUE_ICE) {
                         if (level.dimension() == Level.OVERWORLD || level.dimension() == Level.END) {
                             level.setBlock(pos, Blocks.WATER.defaultBlockState(), 3);
+                            level.playSound(null, pos, SoundEvents.GLASS_BREAK, SoundSource.BLOCKS, 1.0f, 0.8f);
                             ((ServerLevel) level).sendParticles(ParticleTypes.BUBBLE_POP, pos.getX() + 0.5,
                                     pos.getY() + 0.5,
                                     pos.getZ() + 0.5, 3, 0.0, 0.05, 0.0, 0.0);
@@ -553,6 +553,7 @@ public class SpellRegistry {
                 // Cobweb -> Air
                 if (block == Blocks.COBWEB) {
                     level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+                    level.playSound(null, pos, SoundEvents.GLASS_BREAK, SoundSource.BLOCKS, 0.8f, 1.1f);
                     ((ServerLevel) level).sendParticles(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5,
                             pos.getZ() + 0.5,
                             3, 0.0, 0.05, 0.0, 0.0);
@@ -564,6 +565,7 @@ public class SpellRegistry {
                 // Wet sponge -> Sponge
                 if (block == Blocks.WET_SPONGE) {
                     level.setBlock(pos, Blocks.SPONGE.defaultBlockState(), 3);
+                    level.playSound(null, pos, SoundEvents.GLASS_BREAK, SoundSource.BLOCKS, 0.8f, 0.9f);
                     ((ServerLevel) level).sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, pos.getX() + 0.5,
                             pos.getY() + 0.5,
                             pos.getZ() + 0.5, 3, 0.0, 0.05, 0.0, 0.0);
@@ -574,8 +576,18 @@ public class SpellRegistry {
 
                 // Water cauldron <-> Powdered snow cauldron
                 if (block == Blocks.WATER_CAULDRON) {
-                    level.setBlock(pos, Blocks.POWDER_SNOW_CAULDRON.defaultBlockState(),
-                            3);
+                    // Preserve the fill level when transforming
+                    var currentState = level.getBlockState(pos);
+                    var newState = Blocks.POWDER_SNOW_CAULDRON.defaultBlockState();
+                    // Copy the "level" property if it exists in both states
+                    if (currentState.hasProperty(net.minecraft.world.level.block.LayeredCauldronBlock.LEVEL)) {
+                        int fillLevel = currentState
+                                .getValue(net.minecraft.world.level.block.LayeredCauldronBlock.LEVEL);
+                        newState = newState.setValue(net.minecraft.world.level.block.LayeredCauldronBlock.LEVEL,
+                                fillLevel);
+                    }
+                    level.setBlock(pos, newState, 3);
+                    level.playSound(null, pos, SoundEvents.GLASS_BREAK, SoundSource.BLOCKS, 1.0f, 1.6f);
                     ((ServerLevel) level).sendParticles(ParticleTypes.SNOWFLAKE, pos.getX() + 0.5, pos.getY() + 0.5,
                             pos.getZ() + 0.5,
                             3, 0.0, 0.03, 0.0, 0.0);
@@ -584,7 +596,18 @@ public class SpellRegistry {
                     continue;
                 }
                 if (block == Blocks.POWDER_SNOW_CAULDRON) {
-                    level.setBlock(pos, Blocks.WATER_CAULDRON.defaultBlockState(), 3);
+                    // Preserve the fill level when transforming
+                    var currentState = level.getBlockState(pos);
+                    var newState = Blocks.WATER_CAULDRON.defaultBlockState();
+                    // Copy the "level" property if it exists in both states
+                    if (currentState.hasProperty(net.minecraft.world.level.block.LayeredCauldronBlock.LEVEL)) {
+                        int fillLevel = currentState
+                                .getValue(net.minecraft.world.level.block.LayeredCauldronBlock.LEVEL);
+                        newState = newState.setValue(net.minecraft.world.level.block.LayeredCauldronBlock.LEVEL,
+                                fillLevel);
+                    }
+                    level.setBlock(pos, newState, 3);
+                    level.playSound(null, pos, SoundEvents.GLASS_BREAK, SoundSource.BLOCKS, 1.0f, 0.7f);
                     ((ServerLevel) level).sendParticles(ParticleTypes.DRIPPING_WATER, pos.getX() + 0.5,
                             pos.getY() + 0.5,
                             pos.getZ() + 0.5, 3, 0.0, 0.03, 0.0, 0.0);
@@ -780,6 +803,50 @@ public class SpellRegistry {
         // This spell just activates for 10 seconds (200 ticks)
         Ascension.scheduler.schedule(new DelayedTask(200, () -> {
             as.setInUse(false);
+        }));
+    }
+
+    /*
+     * MAGIC — Shapeshift
+     */
+
+    public static void shapeshift(ServerPlayer player, int durationTicks) {
+        AscensionData data = (AscensionData) player;
+        if (data.getShapeshiftHistory().isEmpty()) {
+            player.sendSystemMessage(
+                    Component.literal("§cNo transformation available. Kill a mob to add it to your history."));
+            return;
+        }
+
+        EntityType<?> form = data.popShapeshiftForm();
+        if (form == null) {
+            player.sendSystemMessage(Component.literal("§cNo transformation available."));
+            return;
+        }
+
+        ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("shapeshift"));
+
+        xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
+        disguise.disguiseAs(form);
+        disguise.setTrueSight(true);
+
+        player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                net.minecraft.world.effect.MobEffects.NIGHT_VISION,
+                durationTicks + 40, 0, true, false, true));
+
+        String formName = form.getDescription().getString();
+        player.sendSystemMessage(Component.literal("§dYou have transformed into " + formName + "!"));
+
+        Ascension.scheduler.schedule(new DelayedTask(durationTicks, () -> {
+            if (!player.isAlive() || player.isRemoved()) {
+                if (as != null)
+                    as.setInUse(false);
+                return;
+            }
+            disguise.disguiseAs(player.getType());
+            player.removeEffect(net.minecraft.world.effect.MobEffects.NIGHT_VISION);
+            if (as != null)
+                as.setInUse(false);
         }));
     }
 }

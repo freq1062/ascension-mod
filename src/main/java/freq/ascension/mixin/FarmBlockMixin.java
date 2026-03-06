@@ -17,7 +17,7 @@ import net.minecraft.world.level.block.state.BlockState;
 public class FarmBlockMixin {
     @Inject(method = "fallOn", at = @At("HEAD"), cancellable = true)
     private void flora$preventCropTrampling(Level level, BlockState state, BlockPos pos, Entity entity,
-            float fallDistance, CallbackInfo ci) {
+            double fallDistance, CallbackInfo ci) {
         if (entity instanceof ServerPlayer player) {
             if (AbilityManager.anyMatch(player, (order) -> !order.canTrampleCrops(player))) {
                 ci.cancel();

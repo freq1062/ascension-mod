@@ -33,25 +33,32 @@ public class StarStrike {
                                 .addKeyframeS(coreCenter, null, new Vector3f(T, distance, T), 5)
                                 .withAction(() -> {
                                         Level level = player.level();
-                                        level.playSound(null, origin.x, origin.y, origin.z, SoundEvents.GENERIC_EXPLODE,
-                                                        SoundSource.PLAYERS, 0.6f,
-                                                        1.4f);
-                                        level.playSound(null, origin.x, origin.y, origin.z, SoundEvents.TOTEM_USE,
-                                                        SoundSource.PLAYERS, 1.0f, 0.5f);
+                                        // Warden charge fires at the beam ORIGIN (high above target) the moment
+                                        // the beam begins its descent — not at the strike point.
                                         level.playSound(null, origin.x, origin.y, origin.z,
-                                                        SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS,
-                                                        1.0f,
-                                                        1.0f);
-                                        level.playSound(null, origin.x, origin.y, origin.z, SoundEvents.TRIDENT_THUNDER,
-                                                        SoundSource.PLAYERS, 1.0f,
-                                                        1.0f);
+                                                        SoundEvents.WARDEN_SONIC_CHARGE,
+                                                        SoundSource.PLAYERS, 0.9f, 0.55f);
                                         applyScreenShake(level, targetPos, 0.4f, 15.0f);
                                 })
 
                                 // Shrink Down (Move translation to target while scaling Y to 0)
                                 // Translation = coreCenter + (direction * distance)
                                 .addKeyframeS(new Vector3f(coreCenter).add(new Vector3f(dir).mul(distance)),
-                                                null, new Vector3f(T, 0, T), 10, 20);
+                                                null, new Vector3f(T, 0, T), 10, 20)
+                                .withAction(() -> {
+                                        Level level = player.level();
+                                        // Impact audio layer — all three sounds fire simultaneously at the target.
+                                        // Each is pitched down to give a deep, heavy impact feel.
+                                        level.playSound(null, targetPos.x, targetPos.y, targetPos.z,
+                                                        SoundEvents.TOTEM_USE,
+                                                        SoundSource.PLAYERS, 1.0f, 0.4f);      // totem pop, pitched down
+                                        level.playSound(null, targetPos.x, targetPos.y, targetPos.z,
+                                                        SoundEvents.TRIDENT_THUNDER,
+                                                        SoundSource.PLAYERS, 1.0f, 0.5f);      // channeling trident land, pitched down
+                                        level.playSound(null, targetPos.x, targetPos.y, targetPos.z,
+                                                        SoundEvents.LIGHTNING_BOLT_THUNDER,
+                                                        SoundSource.PLAYERS, 1.0f, 0.3f);      // lightning strike, significantly pitched down
+                                });
 
                 float G = blockThickness + 0.5f;
                 Vector3f glowCenter = rotation.transform(new Vector3f(-G * 0.5f, 0, -G * 0.5f), new Vector3f());

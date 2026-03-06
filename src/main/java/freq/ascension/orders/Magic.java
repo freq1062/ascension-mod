@@ -1,20 +1,24 @@
 package freq.ascension.orders;
 
-import java.util.UUID;
-
-import freq.ascension.Ascension;
 import freq.ascension.animation.PotionFlame;
 import freq.ascension.managers.AbilityManager;
-// import io.github.retrooper.packetevents.factory.fabric.FabricPacketEventsAPI; // Temporarily disabled
-import net.minecraft.client.User;
+import freq.ascension.managers.AscensionData;
+import freq.ascension.managers.Spell;
+import freq.ascension.managers.SpellCooldownManager;
+import freq.ascension.managers.SpellStats;
+import freq.ascension.registry.SpellRegistry;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+<<<<<<< HEAD
 
 // import xyz.nucleoid.disguiselib.api.EntityDisguise;
+=======
+>>>>>>> 57d774efeaf876d6055e2910503e7802d596b1e8
 import net.minecraft.world.entity.EntityType;
 
 public class Magic implements Order {
@@ -47,6 +51,7 @@ public class Magic implements Order {
         };
     }
 
+<<<<<<< HEAD
     public void makeMeACreeper(ServerPlayer player) {
         // DisguiseLib 'magic' - every entity now has this interface
         // EntityDisguise disguise = (EntityDisguise) player;
@@ -58,10 +63,10 @@ public class Magic implements Order {
         // disguise.setTrueSight(true);
     }
 
+=======
+>>>>>>> 57d774efeaf876d6055e2910503e7802d596b1e8
     @Override
     public void applyEffect(ServerPlayer player) {
-        makeMeACreeper(player);
-        AbilityManager.skipNextModification();
         if (hasCapability(player, "passive"))
             player.addEffect(new MobEffectInstance(MobEffects.SPEED, 60, 0));
     }
@@ -73,21 +78,22 @@ public class Magic implements Order {
 
     @Override
     public MobEffectInstance onPotionEffect(ServerPlayer player, MobEffectInstance effectInstance) {
-        if (!hasCapability(player, "passive") || !effectInstance.getEffect().value().isBeneficial()
+        if (!hasCapability(player, "utility")
+                || !effectInstance.getEffect().value().isBeneficial()
                 || effectInstance.getEffect() == MobEffects.RESISTANCE
+                || effectInstance.getEffect() == MobEffects.SLOWNESS // Turtle Master
                 || effectInstance.getDuration() > getPotionEffectTicks()
                 || effectInstance.isInfiniteDuration()
                 || effectInstance.isAmbient()
                 || !effectInstance.isVisible())
             return effectInstance;
 
-        boolean isTippedArrow = effectInstance.getDuration() <= 20 * 20; // Tipped arrows typically have short durations
-                                                                         // (≤11 seconds)
+        boolean isTippedArrow = effectInstance.getDuration() <= 20 * 20; // Tipped arrows: short duration
         int flameDuration = isTippedArrow ? 20 : 60;
-        int targetDuration = isTippedArrow ? 20 * 60 : getPotionEffectTicks(); // 1 minute for arrows, 5 minutes for
-                                                                               // potions
+        int targetDuration = isTippedArrow ? 20 * 60 : getPotionEffectTicks(); // 1 min arrows, 5 min potions
+        int durationGranted = targetDuration - effectInstance.getDuration();
 
-        PotionFlame.spawnPotionFlame(player, flameDuration);
+        PotionFlame.spawnPotionFlame(player, flameDuration, Math.max(0, durationGranted));
 
         return new MobEffectInstance(
                 effectInstance.getEffect(),
@@ -113,5 +119,41 @@ public class Magic implements Order {
         if (mob.getType().is(EntityTypeTags.ILLAGER) && hasCapability(player, "passive"))
             return true;
         return false;
+    }
+
+    @Override
+    public void registerSpells() {
+        SpellCooldownManager.register(new Spell("shapeshift", this, "combat", (player, stats) -> {
+            SpellRegistry.shapeshift(player, stats.getInt(0));
+        }));
+    }
+
+    @Override
+    public SpellStats getSpellStats(String spellId) {
+        return switch (spellId.toLowerCase()) {
+            case "shapeshift" -> new SpellStats(600,
+                    "Transform into the last mob you killed for 30s. Up to 5 forms in history. Die as the mob = die for real.",
+                    600); // duration ticks (30s)
+            default -> null;
+        };
+    }
+
+    @Override
+    public void onPlayerKill(ServerPlayer killer, LivingEntity victim) {
+        if (!hasCapability(killer, "combat"))
+            return;
+        AscensionData data = (AscensionData) killer;
+        if (data.getShapeshiftHistory().size() >= 5)
+            return;
+        EntityType<?> type = victim.getType();
+        boolean isGod = "god".equals(data.getRank());
+        if (!isGod && (victim instanceof net.minecraft.server.level.ServerPlayer || isBossType(type)))
+            return;
+        data.pushShapeshiftKill(type);
+    }
+
+    private static boolean isBossType(EntityType<?> type) {
+        return type == EntityType.ELDER_GUARDIAN || type == EntityType.WITHER
+                || type == EntityType.ENDER_DRAGON || type == EntityType.WARDEN;
     }
 }

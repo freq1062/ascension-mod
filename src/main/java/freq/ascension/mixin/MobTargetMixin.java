@@ -12,7 +12,7 @@ import freq.ascension.managers.AbilityManager;
 @Mixin(Mob.class)
 public abstract class MobTargetMixin {
 
-    @Inject(method = "setTarget", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "setTarget(Lnet/minecraft/world/entity/LivingEntity;)V", at = @At("HEAD"), cancellable = true)
     private void onSetTarget(LivingEntity target, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
         if (target instanceof ServerPlayer player) {
             Mob mob = (Mob) (Object) this;

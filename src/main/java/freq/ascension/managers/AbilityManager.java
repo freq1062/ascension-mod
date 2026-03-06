@@ -50,6 +50,8 @@ public class AbilityManager {
     public static boolean anyMatch(ServerPlayer player, Predicate<Order> predicate) {
         AscensionData data = (AscensionData) player;
         for (Order order : data.getEquippedOrders()) {
+            if (order == null)
+                continue; // empty equipment slot — mirrors the null-guard in broadcast()
             if (predicate.test(order)) {
                 return true;
             }

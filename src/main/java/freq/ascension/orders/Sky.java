@@ -97,16 +97,16 @@ public class Sky implements Order {
 
     @Override
     public void onEntityDamage(ServerPlayer victim, DamageContext context) {
-        // DamageSource source = context.getSource();
-        // if (source.is(DamageTypeTags.IS_FALL)) {
-        // context.setCancelled(true);
-        // } else if (source.is(DamageTypes.STALAGMITE)) {
-        // context.setAmount((float) (context.getAmount() * 0.5));
-        // }
         DamageSource source = context.getSource();
-        if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypes.STALAGMITE)
-                || source.is(DamageTypeTags.IS_PROJECTILE)) {
+
+        // Fall damage and projectile damage: full immunity for demigods
+        if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypeTags.IS_PROJECTILE)) {
             context.setCancelled(true);
+        }
+        // Dripstone damage: 50% reduction for demigods (gods get full immunity via
+        // SkyGod)
+        else if (source.is(DamageTypes.STALAGMITE)) {
+            context.setAmount(context.getAmount() * 0.5f);
         }
     }
 
