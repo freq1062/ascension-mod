@@ -3,6 +3,25 @@
 	"package": "freq.ascension.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"AnvilPrepareMixin",
+		"BreezeTargetMixin",
+		"CraftingEligibilityMixin",
+		"CraftingRestorationMixin",
+		"DamageMixin",
+		"EnchantmentMixin",
+		"FarmBlockMixin",
+		"FlightMixin",
+		"FoodDataMixin",
+		"FoodMixin",
+		"LavaSwimmingMixin",
+		"MobAggroDistanceMixin",
+		"MobTargetMixin",
+		"PotionMixin",
+		"PowderSnowMixin",
+		"ProjectileShieldMixin",
+		"SculkSensorMixin",
+		"SculkShriekerMixin",
+		"ServerPlayerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

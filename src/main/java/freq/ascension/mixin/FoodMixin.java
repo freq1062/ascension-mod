@@ -30,7 +30,7 @@ public abstract class FoodMixin {
 
         // Only set player context if the item being used is food
         if (entity.getUseItem().has(DataComponents.FOOD)) {
-            FoodDataMixin.setCurrentPlayer(serverPlayer);
+            FoodDataContext.setCurrentPlayer(serverPlayer);
         }
     }
 }

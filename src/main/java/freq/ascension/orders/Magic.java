@@ -61,8 +61,8 @@ public class Magic implements Order {
     public MobEffectInstance onPotionEffect(ServerPlayer player, MobEffectInstance effectInstance) {
         if (!hasCapability(player, "utility")
                 || !effectInstance.getEffect().value().isBeneficial()
-                || effectInstance.getEffect() == MobEffects.DAMAGE_RESISTANCE
-                || effectInstance.getEffect() == MobEffects.MOVEMENT_SLOWDOWN // Turtle Master
+                || effectInstance.getEffect() == MobEffects.RESISTANCE
+                || effectInstance.getEffect() == MobEffects.SLOWNESS // Turtle Master
                 || effectInstance.getDuration() > getPotionEffectTicks()
                 || effectInstance.isInfiniteDuration()
                 || effectInstance.isAmbient()

@@ -17,10 +17,13 @@ public class OceanGod extends Ocean {
     @Override
     public void applyEffect(ServerPlayer player) {
         if (hasCapability(player, "passive"))
-            player.addEffect(new MobEffectInstance(MobEffects.CONDUIT_POWER, 60, 0));
+            // ambient=true, showParticles=false, showIcon=true — matches Ocean base pattern.
+            // 80 ticks matches Ocean base class buffer (> 40-tick refresh interval).
+            player.addEffect(new MobEffectInstance(MobEffects.CONDUIT_POWER, 80, 0, true, false, true));
         ActiveSpell as = SpellCooldownManager.getActiveSpell(player, SpellCooldownManager.get("drown"));
-        if (player.isInWaterOrRain() || as.isInUse())
-            player.addEffect(new MobEffectInstance(MobEffects.HASTE, 60, 0));
+        // Guard against null ActiveSpell when no drown spell has been cast yet.
+        if (player.isInWaterOrRain() || (as != null && as.isInUse()))
+            player.addEffect(new MobEffectInstance(MobEffects.HASTE, 80, 0, true, false, true));
     }
 
     @Override

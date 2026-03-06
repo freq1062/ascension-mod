@@ -107,3 +107,14 @@ fabricApi {
         enableGameTests = true // This enables the framework
     }
 }
+
+// Wire the gametest source set to inherit the main compile/runtime classpaths so
+// Minecraft (remapped) and Fabric API classes are available during compilation.
+configurations {
+    gametestImplementation.extendsFrom(implementation)
+    gametestRuntimeOnly.extendsFrom(runtimeOnly)
+}
+
+dependencies {
+    gametestImplementation sourceSets.main.output
+}

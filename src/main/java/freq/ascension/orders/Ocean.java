@@ -7,6 +7,7 @@ import freq.ascension.managers.SpellStats;
 import freq.ascension.registry.SpellRegistry;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -19,7 +20,7 @@ public class Ocean implements Order {
 
     @Override
     public Order getVersion(String rank) {
-        if (rank == "god") {
+        if (rank.equals("god")) {
             return OceanGod.INSTANCE;
         }
         return this;
@@ -90,15 +91,22 @@ public class Ocean implements Order {
             context.setAmount((float) (context.getAmount() * 1.5));
             attacker.level().playSound(null, attacker.blockPosition(), SoundEvents.PLAYER_ATTACK_CRIT,
                     SoundSource.PLAYERS, 1.0f, 1.0f);
-            attacker.level().addParticle(ParticleTypes.CRIT, victim.getX(), victim.getY(), victim.getZ(), 0.0, 0.0,
-                    0.0);
+            if (attacker.level() instanceof ServerLevel serverLevel) {
+                serverLevel.sendParticles(ParticleTypes.CRIT,
+                        victim.getX(), victim.getY() + victim.getBbHeight() * 0.5, victim.getZ(),
+                        10, 0.3, 0.3, 0.3, 0.05);
+            }
         }
     }
 
     @Override
     public void applyEffect(ServerPlayer player) {
         if (hasCapability(player, "passive"))
-            player.addEffect(new MobEffectInstance(MobEffects.WATER_BREATHING, 60, 0));
+            // ambient=true → no dot-particles; showParticles=false → fully hidden;
+            // showIcon=true → HUD icon still visible so the player knows it's active.
+            // 80 ticks > 40-tick refresh interval, ensuring the effect never expires
+            // between applyEffect calls (gives a 40-tick safety buffer).
+            player.addEffect(new MobEffectInstance(MobEffects.WATER_BREATHING, 80, 0, true, false, true));
     }
 
     public String getOrderName() {

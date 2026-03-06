@@ -27,8 +27,13 @@ public class Drown {
         }
     }
 
+    /** Five latitude offsets (as fractions of radius) that trace the sphere surface. */
+    private static final float[] RING_FRACS = { -1.0f, -0.5f, 0.0f, 0.5f, 1.0f };
+
     public static void drownSphere(Player player, float radius, int durationTicks) {
         Vector3f playerPos = player.position().toVector3f();
+        // Shift the sphere centre to the player's waist rather than feet.
+        Vector3f sphereCenter = new Vector3f(playerPos.x, playerPos.y + 1f, playerPos.z);
         Level level = player.level();
 
         if (!(level instanceof ServerLevel serverLevel)) {
@@ -45,6 +50,7 @@ public class Drown {
         Ascension.scheduler.schedule(new RepeatedTask(0, durationTicks + hoverTicks + fallTicks, (task) -> {
             long tick = task.getTick();
 
+            // ── Existing droplet system ──────────────────────────────────────────────
             // Spawn new droplets every 3 ticks during the duration period
             if (tick < durationTicks && tick % spawnInterval == 0) {
 
@@ -97,6 +103,28 @@ public class Drown {
                     return true; // Remove droplet
                 }
             });
+
+            // ── NEW: Circular ring layer — sphere-surface paths ──────────────────────
+            // Active only during the main duration; each tick emits one point per ring.
+            if (tick < durationTicks) {
+                for (float frac : RING_FRACS) {
+                    float h = frac * radius;
+                    // Ring radius traces the sphere surface: r = sqrt(R² - h²)
+                    float ringRadius = (float) Math.sqrt((double) radius * radius - (double) h * h);
+                    if (ringRadius < 0.2f)
+                        continue; // poles — skip degenerate rings
+
+                    Vector3f ringCenter = new Vector3f(sphereCenter.x, sphereCenter.y + h, sphereCenter.z);
+                    // Horizontal circle: normal points straight up
+                    Vector3f point = GeometrySource.circle(ringCenter, new Vector3f(0, 1, 0), ringRadius, true);
+
+                    // Randomise speed slightly so the ring feels alive
+                    double speed = 0.02 + Math.random() * 0.08;
+                    serverLevel.sendParticles(ParticleTypes.BUBBLE_COLUMN_UP,
+                            point.x, point.y, point.z,
+                            1, 0.0, 0.0, 0.0, speed);
+                }
+            }
 
             // Stop task when no more droplets will spawn and all existing droplets are done
             if (tick >= durationTicks + hoverTicks + fallTicks) {

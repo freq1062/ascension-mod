@@ -98,3 +98,8 @@ For canonical usage examples of project-specific libraries, refer to `LibReferen
 - Features are implemented **one at a time**, in strict sequential order.
 - Parallel implementation is **forbidden** to prevent concurrent edits to shared files such as `AbilityManager.java`.
 - The QA Tester must confirm a green `runGameTest` run before work on the next feature starts.
+
+## 10. Testing standard
+
+- Always validate changes by running `./gradlew runGameTest`.
+- If the tests fail, analyze the stack trace in the terminal and propose a fix.

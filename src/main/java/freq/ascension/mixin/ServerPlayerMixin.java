@@ -23,7 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 
@@ -399,8 +400,7 @@ public class ServerPlayerMixin implements AscensionData {
     public void pushShapeshiftKill(EntityType<?> entityType) {
         if (entityType == null || this.shapeshift_history.size() >= SHAPESHIFT_HISTORY_MAX)
             return;
-        ServerPlayer player = (ServerPlayer) (Object) this;
-        String id = player.registryAccess().registryOrThrow(Registries.ENTITY_TYPE).getKey(entityType).toString();
+        String id = BuiltInRegistries.ENTITY_TYPE.getKey(entityType).toString();
         this.shapeshift_history.add(id);
     }
 
@@ -409,8 +409,7 @@ public class ServerPlayerMixin implements AscensionData {
         if (this.shapeshift_history.isEmpty())
             return null;
         String id = this.shapeshift_history.remove(this.shapeshift_history.size() - 1);
-        ServerPlayer player = (ServerPlayer) (Object) this;
-        return player.registryAccess().registryOrThrow(Registries.ENTITY_TYPE).get(ResourceLocation.parse(id));
+        return BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(id)).map(Holder.Reference::value).orElse(null);
     }
 }
 

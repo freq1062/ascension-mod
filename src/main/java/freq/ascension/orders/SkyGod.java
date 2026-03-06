@@ -31,6 +31,8 @@ public class SkyGod extends Sky {
     @Override
     public void onEntityDamage(ServerPlayer victim, DamageContext context) {
         DamageSource source = context.getSource();
+        // Gods get full immunity to fall damage, dripstone damage, and projectile
+        // damage
         if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypes.STALAGMITE)
                 || source.is(DamageTypeTags.IS_PROJECTILE)) {
             context.setCancelled(true);

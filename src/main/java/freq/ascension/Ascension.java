@@ -30,6 +30,7 @@ import freq.ascension.managers.AbilityManager;
 import freq.ascension.managers.InfluenceManager;
 import freq.ascension.managers.PlantProximityManager;
 import freq.ascension.managers.SpellCooldownManager;
+import freq.ascension.registry.OrderRegistry;
 
 // import io.github.retrooper.packetevents.PacketEventsServerMod;
 // import io.github.retrooper.packetevents.factory.fabric.FabricPacketEventsAPI;
@@ -82,6 +83,8 @@ public class Ascension implements ModInitializer {
 		// }, PacketListenerPriority.HIGH);
 		// });
 		SpellCooldownManager.updateActiveSpells();
+		OrderRegistry.registerAllSpells();
+		AbilityManager.init();
 		InfluenceManager.init();
 		PlantProximityManager.init();
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {

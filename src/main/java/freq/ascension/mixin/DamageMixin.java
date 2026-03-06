@@ -21,7 +21,7 @@ public abstract class DamageMixin {
     @Unique
     private DamageContext ascension$currentDamageContext;
 
-    @Inject(method = "hurtServer", at = @At("HEAD"))
+    @Inject(method = "hurtServer", at = @At("HEAD"), cancellable = true)
     private void ascension$initDamageContext(ServerLevel level, DamageSource source, float amount,
             CallbackInfoReturnable<Boolean> cir) {
         LivingEntity victim = (LivingEntity) (Object) this;
