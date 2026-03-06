@@ -782,4 +782,45 @@ public class SpellRegistry {
             as.setInUse(false);
         }));
     }
+
+    /*
+     * MAGIC — Shapeshift
+     */
+
+    public static void shapeshift(ServerPlayer player, int durationTicks) {
+        AscensionData data = (AscensionData) player;
+        if (data.getShapeshiftHistory().isEmpty()) {
+            player.sendSystemMessage(Component.literal("§cNo transformation available. Kill a mob to add it to your history."));
+            return;
+        }
+
+        EntityType<?> form = data.popShapeshiftForm();
+        if (form == null) {
+            player.sendSystemMessage(Component.literal("§cNo transformation available."));
+            return;
+        }
+
+        ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("shapeshift"));
+
+        xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
+        disguise.disguiseAs(form);
+        disguise.setTrueSight(true);
+
+        player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                net.minecraft.world.effect.MobEffects.NIGHT_VISION,
+                durationTicks + 40, 0, true, false, true));
+
+        String formName = form.getDescription().getString();
+        player.sendSystemMessage(Component.literal("§dYou have transformed into " + formName + "!"));
+
+        Ascension.scheduler.schedule(new DelayedTask(durationTicks, () -> {
+            if (!player.isAlive() || !player.isAddedToLevel()) {
+                if (as != null) as.setInUse(false);
+                return;
+            }
+            disguise.clearDisguise();
+            player.removeEffect(net.minecraft.world.effect.MobEffects.NIGHT_VISION);
+            if (as != null) as.setInUse(false);
+        }));
+    }
 }

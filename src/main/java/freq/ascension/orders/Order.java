@@ -104,6 +104,9 @@ public interface Order {
     default void onEntityDamage(ServerPlayer victim, DamageContext context) {
     }
 
+    default void onPlayerKill(ServerPlayer killer, LivingEntity victim) {
+    }
+
     default void onToggleFlight(ServerPlayer player) {
     }
 
@@ -159,7 +162,7 @@ public interface Order {
             case "utility":
                 return data.getUtility() != null && data.getUtility().equals(this);
             case "combat":
-                return data.getUtility() != null && data.getCombat().equals(this);
+                return data.getCombat() != null && data.getCombat().equals(this);
             default:
                 return false;
         }

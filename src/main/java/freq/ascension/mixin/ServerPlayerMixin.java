@@ -17,9 +17,15 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityType;
 
 @Mixin(ServerPlayer.class)
 public class ServerPlayerMixin implements AscensionData {
@@ -39,6 +45,10 @@ public class ServerPlayerMixin implements AscensionData {
     private String godOrder = null;
     @Unique
     private final Map<String, OrderUnlock> unlocked_orders = new HashMap<>();
+    @Unique
+    private final List<String> shapeshift_history = new ArrayList<>();
+    @Unique
+    private static final int SHAPESHIFT_HISTORY_MAX = 5;
 
     // Item drop broadcasting
     // @Inject(method =
@@ -89,6 +99,11 @@ public class ServerPlayerMixin implements AscensionData {
         });
 
         ascensionData.putString("unlocked_orders", orders_sb.toString());
+
+        // Shapeshift history (stack of entity type ids, semicolon-separated)
+        if (!this.shapeshift_history.isEmpty()) {
+            ascensionData.putString("shapeshift_history", String.join(";", this.shapeshift_history));
+        }
     }
 
     @Unique
@@ -152,6 +167,7 @@ public class ServerPlayerMixin implements AscensionData {
 
             parseSpellBindings(ascensionData.getStringOr("spell_bindings", ""));
             parseUnlockedOrders(ascensionData.getStringOr("unlocked_orders", ""));
+            parseShapeshiftHistory(ascensionData.getStringOr("shapeshift_history", ""));
         } else {
             // LOAD FROM ROOT (Legacy Fallback)
             this.influence = input.getInt("influence").orElse(0);
@@ -164,6 +180,19 @@ public class ServerPlayerMixin implements AscensionData {
 
             parseSpellBindings(input.getStringOr("spell_bindings", ""));
             parseUnlockedOrders(input.getStringOr("unlocked_orders", ""));
+            parseShapeshiftHistory(input.getStringOr("shapeshift_history", ""));
+        }
+    }
+
+    @Unique
+    private void parseShapeshiftHistory(String encoded) {
+        this.shapeshift_history.clear();
+        if (encoded != null && !encoded.isEmpty()) {
+            for (String id : encoded.split(";")) {
+                if (!id.isEmpty() && this.shapeshift_history.size() < SHAPESHIFT_HISTORY_MAX) {
+                    this.shapeshift_history.add(id);
+                }
+            }
         }
     }
 
@@ -359,6 +388,29 @@ public class ServerPlayerMixin implements AscensionData {
         if (getCombat() != null)
             list.add(getCombat());
         return list;
+    }
+
+    @Override
+    public List<String> getShapeshiftHistory() {
+        return Collections.unmodifiableList(new ArrayList<>(this.shapeshift_history));
+    }
+
+    @Override
+    public void pushShapeshiftKill(EntityType<?> entityType) {
+        if (entityType == null || this.shapeshift_history.size() >= SHAPESHIFT_HISTORY_MAX)
+            return;
+        ServerPlayer player = (ServerPlayer) (Object) this;
+        String id = player.registryAccess().registryOrThrow(Registries.ENTITY_TYPE).getKey(entityType).toString();
+        this.shapeshift_history.add(id);
+    }
+
+    @Override
+    public EntityType<?> popShapeshiftForm() {
+        if (this.shapeshift_history.isEmpty())
+            return null;
+        String id = this.shapeshift_history.remove(this.shapeshift_history.size() - 1);
+        ServerPlayer player = (ServerPlayer) (Object) this;
+        return player.registryAccess().registryOrThrow(Registries.ENTITY_TYPE).get(ResourceLocation.parse(id));
     }
 }
 
