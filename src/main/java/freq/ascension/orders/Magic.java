@@ -14,7 +14,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Mob;
 
-import xyz.nucleoid.disguiselib.api.EntityDisguise;
+// import xyz.nucleoid.disguiselib.api.EntityDisguise;
 import net.minecraft.world.entity.EntityType;
 
 public class Magic implements Order {
@@ -49,13 +49,13 @@ public class Magic implements Order {
 
     public void makeMeACreeper(ServerPlayer player) {
         // DisguiseLib 'magic' - every entity now has this interface
-        EntityDisguise disguise = (EntityDisguise) player;
+        // EntityDisguise disguise = (EntityDisguise) player;
 
         // Morph the player into a Creeper
-        disguise.disguiseAs(EntityType.CREEPER);
+        // disguise.disguiseAs(EntityType.CREEPER);
 
         // Optional: Make it so the player can see their own morph in 3rd person
-        disguise.setTrueSight(true);
+        // disguise.setTrueSight(true);
     }
 
     @Override
