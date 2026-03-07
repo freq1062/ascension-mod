@@ -40,7 +40,7 @@ public class Ocean implements Order {
         }));
 
         SpellCooldownManager.register(new Spell("drown", this, "combat", (player, stats) -> {
-            SpellRegistry.drown(player, stats.getInt(0), 8);
+            SpellRegistry.drown(player, stats.getInt(0), stats.getInt(1));
             // duration, radius
         }));
     }
@@ -56,7 +56,7 @@ public class Ocean implements Order {
                                                                                               // duration(seconds)
             case "drown" -> new SpellStats(10,
                     "Drowns players within 8 blocks and activates passives on land for 7s",
-                    7); // duration 600
+                    7, 8); // duration, radius
             default -> null;
         };
     }

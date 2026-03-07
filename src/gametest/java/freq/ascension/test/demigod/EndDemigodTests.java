@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.Blocks;
 
 import freq.ascension.managers.SpellStats;
 import freq.ascension.orders.End;
+import freq.ascension.registry.OrderRegistry;
 
 /**
  * Comprehensive GameTest suite for End Order (Demigod) abilities.
@@ -784,6 +785,18 @@ public class EndDemigodTests {
         if (firstRemovedIteration != maxIteration) {
             helper.fail("Reverse animation must start at max iteration " + maxIteration
                     + ", not " + firstRemovedIteration);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Validates that the End order is registered in OrderRegistry after the fix
+     * that adds {@code register(End.INSTANCE)} to OrderRegistry's static initializer.
+     */
+    @GameTest
+    public void endOrderIsRegisteredInOrderRegistry(GameTestHelper helper) {
+        if (OrderRegistry.get("end") == null) {
+            helper.fail("OrderRegistry.get(\"end\") must return non-null — End.INSTANCE must be registered");
         }
         helper.succeed();
     }

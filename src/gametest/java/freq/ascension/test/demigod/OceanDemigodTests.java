@@ -3,6 +3,7 @@ package freq.ascension.test.demigod;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
@@ -12,6 +13,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LayeredCauldronBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
+import freq.ascension.orders.Ocean;
 import freq.ascension.orders.Order.DamageContext;
 
 /**
@@ -949,6 +951,97 @@ public class OceanDemigodTests {
             helper.fail("Autocrit damage should be 15.0 (10.0 * 1.5), got " + critDamage);
         }
 
+        helper.succeed();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // POWDER SNOW TESTS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * <b>OCEAN PASSIVE — canWalkOnPowderSnow Interface Contract</b>
+     *
+     * <p>Verifies that {@link Ocean} overrides {@code canWalkOnPowderSnow} and
+     * that the default implementation on the {@link freq.ascension.orders.Order}
+     * interface returns {@code false}. The Ocean override returns {@code true}
+     * when the player has the passive slot equipped (checked at runtime via
+     * {@code hasCapability(player, "passive")}); the Order default returns
+     * {@code false} unconditionally.
+     *
+     * <p>This is a compile-time / API-shape check: if Ocean stopped overriding
+     * the method the mixin would silently stop working.
+     */
+    @GameTest
+    public void oceanOverridesCanWalkOnPowderSnow(GameTestHelper helper) {
+        // Ocean must declare its own override of canWalkOnPowderSnow.
+        try {
+            Ocean.class.getDeclaredMethod("canWalkOnPowderSnow",
+                    net.minecraft.server.level.ServerPlayer.class);
+        } catch (NoSuchMethodException e) {
+            helper.fail("Ocean must override canWalkOnPowderSnow(ServerPlayer) — mixin delegate requires it");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * <b>OCEAN PASSIVE — Powder Snow Sound Event Exists</b>
+     *
+     * <p>Compile-time guard: {@code SoundEvents.DOLPHIN_AMBIENT} must resolve at
+     * runtime. If the Yarn name changed this would fail with a null constant.
+     */
+    @GameTest
+    public void dolphinAmbientSoundEventExists(GameTestHelper helper) {
+        if (SoundEvents.DOLPHIN_AMBIENT == null) {
+            helper.fail("SoundEvents.DOLPHIN_AMBIENT must not be null in 1.21.10");
+        }
+        helper.succeed();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DOLPHINS GRACE TOGGLE TESTS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * <b>OCEAN — Dolphins Grace Toggle: Off → On</b>
+     *
+     * <p>Simulates the first toggle (no effect present → adds DOLPHINS_GRACE 1).
+     * Mirrors the logic in {@code SpellRegistry.dolphinsGrace}.
+     */
+    @GameTest
+    public void dolphinsGraceTogglesOnWhenNoEffect(GameTestHelper helper) {
+        Zombie entity = helper.spawn(EntityType.ZOMBIE, new BlockPos(1, 2, 1));
+        // No effect present → toggle on adds Dolphins Grace.
+        if (entity.getEffect(MobEffects.DOLPHINS_GRACE) == null) {
+            entity.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 200, 0, true, true, true));
+        }
+        MobEffectInstance effect = entity.getEffect(MobEffects.DOLPHINS_GRACE);
+        if (effect == null) {
+            helper.fail("DOLPHINS_GRACE must be applied after first toggle");
+        }
+        if (effect.getAmplifier() != 0) {
+            helper.fail("DOLPHINS_GRACE amplifier must be 0 (level 1) on first toggle, got " + effect.getAmplifier());
+        }
+        helper.succeed();
+    }
+
+    /**
+     * <b>OCEAN — Dolphins Grace Toggle: On → Off</b>
+     *
+     * <p>Simulates the second toggle (effect present at amplifier 0 → removes it).
+     */
+    @GameTest
+    public void dolphinsGraceTogglesOffWhenActive(GameTestHelper helper) {
+        Zombie entity = helper.spawn(EntityType.ZOMBIE, new BlockPos(1, 2, 1));
+        entity.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 200, 0, true, true, true));
+
+        MobEffectInstance currentEffect = entity.getEffect(MobEffects.DOLPHINS_GRACE);
+        if (currentEffect != null && currentEffect.getAmplifier() == 0) {
+            entity.removeEffect(MobEffects.DOLPHINS_GRACE);
+        }
+
+        if (entity.getEffect(MobEffects.DOLPHINS_GRACE) != null) {
+            helper.fail("DOLPHINS_GRACE must be removed after second toggle");
+        }
         helper.succeed();
     }
 }

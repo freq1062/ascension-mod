@@ -1,0 +1,377 @@
+package freq.ascension.managers;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+
+import freq.ascension.orders.Order;
+import freq.ascension.registry.OrderRegistry;
+import freq.ascension.registry.WeaponRegistry;
+import freq.ascension.weapons.MythicWeapon;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.world.item.ItemStack;
+
+/**
+ * Server-wide persistent store that tracks which player is currently the god of each order.
+ *
+ * <p>Saved to {@code world/data/ascension_gods.dat} via Fabric's {@link PersistentState} API.
+ *
+ * <p><b>Single entry point:</b> all promotion and demotion must go through this class.
+ * The {@code /setrank} command and the future ascension menu both delegate here.
+ *
+ * <p><b>Invariants enforced:</b>
+ * <ul>
+ *   <li>At most one god per order at any time.</li>
+ *   <li>A player can be god of at most one order at any time.</li>
+ *   <li>A player cannot hold a mythical weapon while a demigod.</li>
+ *   <li>God status is removed on death (wired via {@code ServerLivingEntityEvents.AFTER_DEATH}
+ *       in {@code AbilityManager.init()}).</li>
+ *   <li>Demotion carries a 24-hour cooldown tracked by UUID.</li>
+ * </ul>
+ */
+public class GodManager extends SavedData {
+
+    // 24 hours in milliseconds
+    public static final long DEMOTION_COOLDOWN_MS = 24L * 60 * 60 * 1000;
+
+    private static final String KEY = "ascension_gods";
+
+    // orderName (lowercase) → player UUID as string
+    private final Map<String, String> godsByOrder = new HashMap<>();
+
+    // player UUID as string → System.currentTimeMillis() when cooldown expires
+    private final Map<String, Long> demotionCooldowns = new HashMap<>();
+
+    // ─── Constructors ─────────────────────────────────────────────────────────
+
+    private GodManager() {}
+
+    private static GodManager fromMaps(Map<String, String> gods, Map<String, Long> cooldowns) {
+        GodManager m = new GodManager();
+        m.godsByOrder.putAll(gods);
+        m.demotionCooldowns.putAll(cooldowns);
+        return m;
+    }
+
+    // ─── Serialisation (Codec) ────────────────────────────────────────────────
+
+    private static final Codec<GodManager> CODEC = RecordCodecBuilder.create(instance ->
+            instance.group(
+                    Codec.unboundedMap(Codec.STRING, Codec.STRING)
+                            .optionalFieldOf("gods", Map.of())
+                            .forGetter(m -> Map.copyOf(m.godsByOrder)),
+                    Codec.unboundedMap(Codec.STRING, Codec.LONG)
+                            .optionalFieldOf("cooldowns", Map.of())
+                            .forGetter(m -> Map.copyOf(m.demotionCooldowns))
+            ).apply(instance, GodManager::fromMaps)
+    );
+
+    public static final SavedDataType<GodManager> TYPE = new SavedDataType<>(
+            KEY,
+            GodManager::new,
+            CODEC,
+            null
+    );
+
+    /**
+     * Retrieves (or creates) the {@link GodManager} from the server's overworld data storage.
+     * Must be called on the server thread.
+     */
+    public static GodManager get(MinecraftServer server) {
+        return server.overworld().getDataStorage().computeIfAbsent(TYPE);
+    }
+
+    // ─── Query ────────────────────────────────────────────────────────────────
+
+    /**
+     * Returns the UUID of the current god of the given order, or {@code null} if there is none.
+     */
+    public UUID getGodUUID(String orderName) {
+        if (orderName == null) return null;
+        String uuidStr = godsByOrder.get(orderName.toLowerCase());
+        if (uuidStr == null) return null;
+        try {
+            return UUID.fromString(uuidStr);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the online {@link ServerPlayer} who is currently god of the given order, or
+     * {@code null} if there is no god or the god is offline.
+     */
+    public ServerPlayer getGodPlayer(String orderName, MinecraftServer server) {
+        UUID uuid = getGodUUID(orderName);
+        if (uuid == null) return null;
+        return server.getPlayerList().getPlayer(uuid);
+    }
+
+    /** Returns {@code true} if the given player is currently a god of any order. */
+    public boolean isGod(ServerPlayer player) {
+        return godsByOrder.containsValue(player.getStringUUID());
+    }
+
+    /** Returns {@code true} if the given UUID is currently a god of any order. */
+    public boolean isGod(UUID uuid) {
+        return godsByOrder.containsValue(uuid.toString());
+    }
+
+    /**
+     * Returns the order name that the given player is god of, or {@code null} if they are not a
+     * god (or not recorded in the persistent state).
+     */
+    public String getGodOrderName(ServerPlayer player) {
+        String uuidStr = player.getStringUUID();
+        for (Map.Entry<String, String> e : godsByOrder.entrySet()) {
+            if (e.getValue().equals(uuidStr)) return e.getKey();
+        }
+        return null;
+    }
+
+    /**
+     * Returns the order name that the given UUID is god of, or {@code null} if not found.
+     */
+    public String getGodOrderName(UUID uuid) {
+        String uuidStr = uuid.toString();
+        for (Map.Entry<String, String> e : godsByOrder.entrySet()) {
+            if (e.getValue().equals(uuidStr)) return e.getKey();
+        }
+        return null;
+    }
+
+    /**
+     * Returns {@code true} if the player is on a 24-hour post-demotion cooldown that prevents
+     * them from being promoted to god again.
+     */
+    public boolean isOnDemotionCooldown(ServerPlayer player) {
+        Long until = demotionCooldowns.get(player.getStringUUID());
+        return until != null && System.currentTimeMillis() < until;
+    }
+
+    /** UUID-based overload for use in tests or non-player contexts. */
+    public boolean isOnDemotionCooldown(UUID uuid) {
+        Long until = demotionCooldowns.get(uuid.toString());
+        return until != null && System.currentTimeMillis() < until;
+    }
+
+    /**
+     * Returns the number of milliseconds remaining on the player's demotion cooldown,
+     * or {@code 0} if not on cooldown.
+     */
+    public long getDemotionCooldownRemainingMs(ServerPlayer player) {
+        Long until = demotionCooldowns.get(player.getStringUUID());
+        if (until == null) return 0;
+        return Math.max(0, until - System.currentTimeMillis());
+    }
+
+    /** UUID-based overload for use in tests or non-player contexts. */
+    public long getDemotionCooldownRemainingMs(UUID uuid) {
+        Long until = demotionCooldowns.get(uuid.toString());
+        if (until == null) return 0;
+        return Math.max(0, until - System.currentTimeMillis());
+    }
+
+    /** Returns an unmodifiable view of the order → UUID string map (for inspection/testing). */
+    public Map<String, String> getGodsByOrder() {
+        return Collections.unmodifiableMap(godsByOrder);
+    }
+
+    // ─── Promotion ───────────────────────────────────────────────────────────
+
+    /**
+     * Promotes a player to god of the given order.
+     *
+     * <p>Steps:
+     * <ol>
+     *   <li>Demote any existing god of this order (if online; if offline, just clear the entry).</li>
+     *   <li>If the player is already a god of another order, demote them from it first.</li>
+     *   <li>Update the player's {@link AscensionData}: rank → "god", godOrder → orderName,
+     *       all three ability slots → orderName.</li>
+     *   <li>Remove any active demotion cooldown (promotion overrides it).</li>
+     *   <li>Record the new god in the persistent map and mark dirty.</li>
+     *   <li>Give the player the mythical weapon if one is registered for this order.</li>
+     * </ol>
+     *
+     * @param player    the player being promoted
+     * @param order     the order they will be god of
+     * @param server    the running server instance
+     */
+    public void promoteToGod(ServerPlayer player, Order order, MinecraftServer server) {
+        String orderName = order.getOrderName().toLowerCase();
+
+        // Step 1: demote existing god of this order
+        String existingUuidStr = godsByOrder.get(orderName);
+        if (existingUuidStr != null) {
+            try {
+                UUID existingUuid = UUID.fromString(existingUuidStr);
+                ServerPlayer existingGod = server.getPlayerList().getPlayer(existingUuid);
+                if (existingGod != null) {
+                    demoteFromGod(existingGod, server);
+                    existingGod.sendSystemMessage(Component.literal(
+                            "§cYou have been dethroned as the God of " +
+                            capitalize(order.getOrderName()) + "!"));
+                } else {
+                    // Offline — clear the entry only (cannot remove weapon or send message)
+                    godsByOrder.remove(orderName);
+                    setDirty();
+                }
+            } catch (IllegalArgumentException ignored) {
+                godsByOrder.remove(orderName);
+                setDirty();
+            }
+        }
+
+        // Step 2: if this player is already god of another order, demote them first
+        if (isGod(player)) {
+            String oldOrder = getGodOrderName(player);
+            demoteFromGod(player, server);
+            player.sendSystemMessage(Component.literal(
+                    "§eYou relinquished your title as God of " +
+                    capitalize(oldOrder != null ? oldOrder : "?") + "."));
+        }
+
+        // Step 3: update AscensionData
+        AscensionData data = (AscensionData) player;
+        data.setRank("god");
+        data.setGodOrder(orderName);
+        data.setPassive(orderName);
+        data.setUtility(orderName);
+        data.setCombat(orderName);
+
+        // Step 4: clear any active demotion cooldown
+        demotionCooldowns.remove(player.getStringUUID());
+
+        // Step 5: record in persistent map
+        godsByOrder.put(orderName, player.getStringUUID());
+        setDirty();
+
+        // Step 6: give mythical weapon
+        MythicWeapon weapon = WeaponRegistry.getForOrder(orderName);
+        if (weapon != null) {
+            ItemStack weaponStack = weapon.createItem();
+            if (!player.getInventory().add(weaponStack)) {
+                // Inventory full — drop at player's feet
+                player.drop(weaponStack, false);
+            }
+            player.sendSystemMessage(Component.literal(
+                    "§6⚔ You received your mythical weapon: " +
+                    MythicWeapon.formatWeaponName(weapon.getWeaponId()) + "!"));
+        }
+    }
+
+    // ─── Demotion ────────────────────────────────────────────────────────────
+
+    /**
+     * Demotes the given player from god status.
+     *
+     * <p>Steps:
+     * <ol>
+     *   <li>Verify the player is actually a god; no-op otherwise.</li>
+     *   <li>Remove all mythical weapons from their inventory.</li>
+     *   <li>Reset AscensionData: rank → "demigod", godOrder → null, all slots → null.</li>
+     *   <li>Record a 24-hour demotion cooldown.</li>
+     *   <li>Remove from persistent map and mark dirty.</li>
+     * </ol>
+     *
+     * @param player the player being demoted
+     * @param server the running server instance
+     */
+    public void demoteFromGod(ServerPlayer player, MinecraftServer server) {
+        if (!isGod(player)) return;
+
+        String orderName = getGodOrderName(player);
+
+        // Step 2: remove all mythical weapons
+        removeAllMythicalWeapons(player);
+
+        // Step 3: reset AscensionData
+        AscensionData data = (AscensionData) player;
+        data.setRank("demigod");
+        data.setGodOrder(null);
+        data.setPassive(null);
+        data.setUtility(null);
+        data.setCombat(null);
+
+        // Step 4: record demotion cooldown
+        demotionCooldowns.put(player.getStringUUID(),
+                System.currentTimeMillis() + DEMOTION_COOLDOWN_MS);
+
+        // Step 5: update persistent map
+        if (orderName != null) {
+            godsByOrder.remove(orderName);
+        }
+        setDirty();
+    }
+
+    /**
+     * Removes the god entry for the given order without triggering a full demotion sequence
+     * (no cooldown recorded, no weapon removal). Use when cleaning up stale/offline god entries.
+     */
+    public void clearGod(String orderName) {
+        if (orderName == null) return;
+        godsByOrder.remove(orderName.toLowerCase());
+        setDirty();
+    }
+
+    // ─── Testing support ─────────────────────────────────────────────────────
+
+    /**
+     * Creates an empty {@link GodManager} instance for use in game tests.
+     * Not backed by the file system; not registered with any server.
+     */
+    public static GodManager createForTesting() {
+        return new GodManager();
+    }
+
+    /**
+     * Directly records a god entry without running the full promotion sequence (no AscensionData
+     * changes, no weapon granting). Use only in game tests to set up preconditions.
+     */
+    public void setGodEntryForTesting(String orderName, UUID uuid) {
+        godsByOrder.put(orderName.toLowerCase(), uuid.toString());
+        setDirty();
+    }
+
+    /**
+     * Directly removes a god entry without running the demotion sequence. Use in game tests.
+     */
+    public void clearGodEntryForTesting(String orderName) {
+        godsByOrder.remove(orderName.toLowerCase());
+        setDirty();
+    }
+
+    /**
+     * Directly records a demotion cooldown without triggering a demotion. Use in game tests.
+     */
+    public void setDemotionCooldownForTesting(UUID uuid, long expiresAtMillis) {
+        demotionCooldowns.put(uuid.toString(), expiresAtMillis);
+        setDirty();
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    private static void removeAllMythicalWeapons(ServerPlayer player) {
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (WeaponRegistry.isMythicalWeapon(stack)) {
+                inventory.setItem(i, ItemStack.EMPTY);
+            }
+        }
+    }
+
+    private static String capitalize(String s) {
+        if (s == null || s.isEmpty()) return s;
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+}

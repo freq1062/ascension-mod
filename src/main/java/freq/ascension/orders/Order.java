@@ -146,6 +146,15 @@ public interface Order {
         return false;
     }
 
+    /** FloraGod: returns true when utility is equipped AND player has a plant block in their inventory. */
+    default boolean hasInventoryPlantEffect(ServerPlayer player) {
+        return false;
+    }
+
+    /** Called when a player finishes eating or drinking an item. */
+    default void onItemEaten(ServerPlayer player, ItemStack stack) {
+    }
+
     default boolean canSwimInlava(ServerPlayer player) {
         return false;
     }

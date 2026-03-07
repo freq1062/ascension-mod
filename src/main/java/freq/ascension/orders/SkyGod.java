@@ -20,6 +20,8 @@ public class SkyGod extends Sky {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
+            case "double_jump" -> new SpellStats(160, "Jump twice mid-air. Upon landing, nearby entities take damage.", 6, true);
+            // Jump height, slam=true for landing AoE
             case "dash" -> new SpellStats(225, "Dash forward 12 blocks", 12);
             case "star_strike" -> new SpellStats(675,
                     "Summon a 2x2 beam of light that damages and launches entities",
@@ -48,8 +50,8 @@ public class SkyGod extends Sky {
             serverLevel.getChunkSource().sendToTrackingPlayers(projectile,
                     new ClientboundSetEntityMotionPacket(projectile));
             Vec3 velocity = projectile.getDeltaMovement();
-            if (Math.abs(velocity.x) > 0.01 && Math.abs(velocity.z) > 0.01) {
-                projectile.setDeltaMovement(velocity.scale(0.3));
+            if (Math.abs(velocity.x) > 0.01 || Math.abs(velocity.z) > 0.01) {
+                projectile.setDeltaMovement(velocity.scale(0.5));
             }
             serverLevel.sendParticles(
                     net.minecraft.core.particles.ParticleTypes.GLOW,

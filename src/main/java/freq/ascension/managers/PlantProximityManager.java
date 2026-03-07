@@ -17,8 +17,8 @@ public class PlantProximityManager {
     private static final int PLANT_CHECK_RADIUS = 5;
 
     public static void init() {
-        // Check every second (20 ticks) if players are near plant blocks
-        Ascension.scheduler.schedule(new ContinuousTask(20, () -> {
+        // Check every 5 ticks for more responsive plant proximity detection
+        Ascension.scheduler.schedule(new ContinuousTask(5, () -> {
             for (ServerPlayer player : Ascension.getServer().getPlayerList().getPlayers()) {
                 boolean nearPlant = isPlayerNearPlant(player);
                 NEAR_PLANTS.put(player.getUUID(), nearPlant);
@@ -28,6 +28,11 @@ public class PlantProximityManager {
 
     public static boolean isNearPlant(ServerPlayer player) {
         return NEAR_PLANTS.getOrDefault(player.getUUID(), false);
+    }
+
+    /** Synchronous on-demand check — bypasses the cache for time-critical callers like sculk mixins. */
+    public static boolean isNearPlantSync(ServerPlayer player) {
+        return isPlayerNearPlant(player);
     }
 
     private static boolean isPlayerNearPlant(ServerPlayer player) {

@@ -17,6 +17,7 @@ public class OrderRegistry {
         register(Magic.INSTANCE);
         register(Flora.INSTANCE);
         register(Nether.INSTANCE);
+        register(End.INSTANCE);
     }
 
     private static void register(Order order) {

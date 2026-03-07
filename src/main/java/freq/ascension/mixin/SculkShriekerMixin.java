@@ -16,8 +16,8 @@ public abstract class SculkShriekerMixin {
 
     @Inject(method = "tryToWarn", at = @At("HEAD"), cancellable = true)
     private void onTryToWarn(ServerLevel level, ServerPlayer player, CallbackInfoReturnable<Boolean> cir) {
-        // Check if player has plant proximity effect active and is near a plant
-        if (PlantProximityManager.isNearPlant(player)) {
+        // Use synchronous check to avoid staleness from the 5-tick cache update interval
+        if (PlantProximityManager.isNearPlantSync(player)) {
             boolean hasEffect = AbilityManager.anyMatch(player,
                     (order) -> order.hasPlantProximityEffect(player));
 

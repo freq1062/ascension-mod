@@ -11,7 +11,16 @@
 			"freq.ascension.test.demigod.EarthDemigodTests",
 			"freq.ascension.test.demigod.MagicDemigodTests",
 			"freq.ascension.test.demigod.NetherDemigodTests",
-			"freq.ascension.test.demigod.EndDemigodTests"
+			"freq.ascension.test.demigod.EndDemigodTests",
+			"freq.ascension.test.demigod.FloraDemigodTests",
+			"freq.ascension.test.god.GodPromotionTests",
+			"freq.ascension.test.god.GodMythicWeaponTests",
+			"freq.ascension.test.god.EarthGodTests",
+			"freq.ascension.test.god.SkyGodTests",
+			"freq.ascension.test.god.OceanGodTests",
+			"freq.ascension.test.god.NetherGodTests",
+			"freq.ascension.test.god.FloraGodTests",
+			"freq.ascension.test.god.MagicGodTests"
 		]
 	},
 	"depends": {

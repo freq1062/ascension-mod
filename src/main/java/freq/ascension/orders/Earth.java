@@ -42,7 +42,7 @@ public class Earth implements Order {
 
     @Override
     public Order getVersion(String rank) {
-        if (rank == "god") {
+        if ("god".equals(rank)) {
             return EarthGod.INSTANCE;
         }
         return this;
@@ -202,7 +202,7 @@ public class Earth implements Order {
         double xpMultiplier = Utils.isGod(player) ? 2.0 : 1.0;
 
         // This handles the doubling (count * 2) and XP dropping
-        dropSmeltedOre(world, pos, state, xpMultiplier);
+        dropSmeltedOre(player, world, pos, state, xpMultiplier);
     }
 
     // Cost reduction is handled directly in AnvilPrepareMixin via @Shadow DataSlot access
@@ -245,14 +245,16 @@ public class Earth implements Order {
                     if (!Utils.isBreakable(targetState, world, targetPos))
                         continue;
 
-                    // Match blocks by hardness — handles logs in different orientations, variants, etc.
-                    if (targetState.getDestroySpeed(world, targetPos) != originalState.getDestroySpeed(world, origin))
-                        continue;
+                    // Match blocks by hardness with tolerance to allow naturally-grouped blocks
+                    // (e.g. dirt+grass 0.5/0.6, stone+cobblestone 1.5/2.0) to mine together.
+                    float targetHardness = targetState.getDestroySpeed(world, targetPos);
+                    float originalHardness = originalState.getDestroySpeed(world, origin);
+                    if (Math.abs(targetHardness - originalHardness) > 0.5f) continue;
 
                     if (targetState.is(ORE_TAG) && !hasSilkTouch) {
                         ItemStack heldTool = player.getInventory().getSelectedItem();
                         if (heldTool.isCorrectToolForDrops(targetState)) {
-                            dropSmeltedOre(world, targetPos, targetState, 1.0);
+                            dropSmeltedOre(player, world, targetPos, targetState, 1.0);
                         } else {
                             world.destroyBlock(targetPos, true, player);
                         }
@@ -273,12 +275,20 @@ public class Earth implements Order {
         }
     }
 
-    private boolean dropSmeltedOre(ServerLevel world, BlockPos pos, BlockState state, double xpMultiplier) {
+    private boolean dropSmeltedOre(ServerPlayer player, ServerLevel world, BlockPos pos, BlockState state, double xpMultiplier) {
         ItemStack smelted = getSmeltedResult(world, state);
         if (smelted.isEmpty())
             return false;
 
-        smelted.setCount(smelted.getCount() * 2);
+        ItemStack tool = player.getMainHandItem();
+        int fortuneLevel = EnchantmentHelper.getItemEnchantmentLevel(
+                player.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE),
+                tool);
+        int baseCount = smelted.getCount();
+        int fortuneBonus = fortuneLevel > 0 ? player.level().getRandom().nextInt(fortuneLevel + 1) : 0;
+        int totalCount = (baseCount + fortuneBonus) * 2;
+        smelted.setCount(totalCount);
+
         Block.popResource(world, pos, smelted);
 
         final int xp = Math.max(1, (int) Math.round(getOreXP(state) * xpMultiplier));

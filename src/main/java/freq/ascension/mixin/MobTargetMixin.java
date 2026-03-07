@@ -21,8 +21,13 @@ public abstract class MobTargetMixin {
                 return;
             }
 
-            // Cancel this setTarget call and redirect to null so the mob becomes neutral
+            // Cancel this setTarget call and redirect to null so the mob becomes neutral.
+            // Exception: if the mob is retaliating (player hit it first), allow targeting.
             if (AbilityManager.anyMatch(player, (order) -> order.isNeutralBy(player, mob))) {
+                LivingEntity lastHurt = mob.getLastHurtByMob();
+                if (lastHurt == player) {
+                    return; // mob is retaliating — allow it
+                }
                 ci.cancel();
                 mob.setTarget(null);
             }

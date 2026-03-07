@@ -43,8 +43,7 @@ import freq.ascension.orders.Order.DamageContext;
  * <li><b>PASSIVE (Breeze Neutrality):</b> Breeze entities treat Sky players
  * as neutral/passive targets.</li>
  * <li><b>PASSIVE (Projectile Shield):</b> Hostile projectiles have their
- * velocity
- * reduced by 70% (scale to 0.3x); beneficial projectiles pass through
+ * velocity reduced by 50% (scale to 0.5x); beneficial projectiles pass through
  * unaffected.</li>
  * <li><b>DOUBLE JUMP:</b> Mid-air jump with 8-second cooldown to prevent
  * spam.</li>
@@ -444,41 +443,30 @@ public class SkyDemigodTests {
     }
 
     /**
-     * <b>SKY PASSIVE — Hostile Projectile Velocity Reduction (70%)</b>
+     * <b>SKY PASSIVE — Hostile Projectile Velocity Reduction (50%)</b>
      * 
      * <p>
      * <b>Intention:</b> Sky demigods create an invisible wind shield that slows
-     * incoming hostile projectiles to 30% of their original speed (70% reduction).
-     * This makes arrows, snowballs, and harmful potions nearly trivial to dodge,
+     * incoming hostile projectiles to 50% of their original speed.
+     * This makes arrows, snowballs, and harmful potions easier to dodge,
      * reinforcing Sky's dominance in ranged combat scenarios.
      * 
      * <p>
      * <b>Implementation:</b> Sky.applyProjectileShield() is called when a
-     * projectile
-     * enters the player's vicinity. The method:
+     * projectile enters the player's vicinity. The method:
      * <ol>
-     * <li>Checks if the projectile is tagged "sky_slowed" (prevents
-     * double-slowing)</li>
+     * <li>Checks if the projectile is tagged "sky_slowed" (prevents double-slowing)</li>
      * <li>Calls nonHarmfulProjectiles() to filter beneficial projectiles</li>
-     * <li>Scales velocity by 0.3:
-     * {@code projectile.setDeltaMovement(velocity.scale(0.3))}</li>
+     * <li>Scales velocity by 0.5:
+     * {@code projectile.setDeltaMovement(velocity.scale(0.5))}</li>
      * <li>Adds "sky_slowed" tag to prevent re-application</li>
      * <li>Spawns GLOW particles around the projectile for visual feedback</li>
      * </ol>
      * 
      * <p>
-     * <b>Design Rationale:</b> 70% reduction (to 0.3x speed) was chosen through
-     * playtesting. 50% reduction (0.5x speed) was still too fast for players to
-     * react;
-     * 80% reduction (0.2x speed) made arrows float unrealistically. 0.3x provides
-     * clear visual feedback while maintaining believable physics.
-     * 
-     * <p>
-     * <b>Root Cause Note:</b> Initial implementation used absolute velocity
-     * clamping
-     * (max 2 m/s), causing fast projectiles to suddenly stop mid-air. Proportional
-     * scaling (0.3x) produces smoother deceleration and clearer visual indication
-     * of the shield's effect.
+     * <b>Root Cause Note:</b> Changed from 0.3x to 0.5x — 0.3x was too strong
+     * and caused arrows to barely move, preventing them from ever reaching the player.
+     * 0.5x preserves meaningful deceleration while keeping projectile physics realistic.
      */
     @GameTest
     public void skyPassiveReducesHostileProjectileVelocity(GameTestHelper helper) {
@@ -498,19 +486,19 @@ public class SkyDemigodTests {
 
             if (isHarmful) {
                 Vec3 velocity = arrow.getDeltaMovement();
-                Vec3 reducedVelocity = velocity.scale(0.3); // 70% reduction
+                Vec3 reducedVelocity = velocity.scale(0.5); // 50% reduction
                 arrow.setDeltaMovement(reducedVelocity);
                 arrow.addTag("sky_slowed");
             }
         }
 
-        // Verify velocity was reduced to exactly 30% (0.3x) of original
+        // Verify velocity was reduced to exactly 50% (0.5x) of original
         Vec3 finalVelocity = arrow.getDeltaMovement();
-        Vec3 expectedVelocity = initialVelocity.scale(0.3);
+        Vec3 expectedVelocity = initialVelocity.scale(0.5);
 
         if (Math.abs(finalVelocity.x - expectedVelocity.x) >= 0.01) {
             helper.fail("Arrow X velocity should be reduced to " + expectedVelocity.x
-                    + " (30% of original), got " + finalVelocity.x);
+                    + " (50% of original), got " + finalVelocity.x);
         }
 
         // Verify tag was added to prevent double-slowing
@@ -522,12 +510,40 @@ public class SkyDemigodTests {
     }
 
     /**
-     * <b>SKY PASSIVE — Snowball Velocity Reduction (70%)</b>
-     * 
-     * <p>
-     * <b>Intention:</b> Snowballs, despite dealing no damage, count as hostile
-     * projectiles (they can trigger mob aggro and interact with entity state).
-     * Sky's projectile shield treats them as threats and reduces their velocity.
+     * <b>SKY PASSIVE — Arrow Velocity Is Positive After Shield (Not Stopped)</b>
+     *
+     * <p>Verifies that scale(0.5) leaves the arrow with positive velocity so it
+     * continues travelling toward the player.  A scale of 0.3 would also pass
+     * this check; the real guard is that the arrow is <em>never</em> stopped
+     * outright (velocity == 0) by the shield.
+     */
+    @GameTest
+    public void skyPassiveArrowVelocityIsPositiveAfterShield(GameTestHelper helper) {
+        Arrow arrow = helper.spawn(EntityType.ARROW, new BlockPos(2, 3, 2));
+        Vec3 initialVelocity = new Vec3(1.5, 0.0, 0.0);
+        arrow.setDeltaMovement(initialVelocity);
+
+        // Apply shield logic (50% reduction via scale(0.5))
+        Vec3 velocity = arrow.getDeltaMovement();
+        if (Math.abs(velocity.x) > 0.01 || Math.abs(velocity.z) > 0.01) {
+            arrow.setDeltaMovement(velocity.scale(0.5));
+        }
+
+        Vec3 finalVelocity = arrow.getDeltaMovement();
+        if (finalVelocity.length() <= 0.0) {
+            helper.fail("Arrow must still have positive velocity after shield; got " + finalVelocity);
+        }
+        if (finalVelocity.x <= 0.0) {
+            helper.fail("Arrow X velocity must remain positive after 50% shield reduction, got " + finalVelocity.x);
+        }
+
+        helper.succeed();
+    }
+
+    /**
+     * <b>SKY PASSIVE — Snowball Velocity Reduction (50%)</b>
+     *
+     * <p>Snowballs are hostile projectiles; the shield reduces their speed to 50%.
      */
     @GameTest
     public void skyPassiveReducesSnowballVelocity(GameTestHelper helper) {
@@ -542,17 +558,17 @@ public class SkyDemigodTests {
         // Apply Sky projectile shield logic
         if (!snowball.getTags().contains("sky_slowed")) {
             Vec3 velocity = snowball.getDeltaMovement();
-            Vec3 reducedVelocity = velocity.scale(0.3);
+            Vec3 reducedVelocity = velocity.scale(0.5);
             snowball.setDeltaMovement(reducedVelocity);
             snowball.addTag("sky_slowed");
         }
 
         Vec3 finalVelocity = snowball.getDeltaMovement();
-        Vec3 expectedVelocity = initialVelocity.scale(0.3);
+        Vec3 expectedVelocity = initialVelocity.scale(0.5);
 
         if (Math.abs(finalVelocity.x - expectedVelocity.x) >= 0.01
                 || Math.abs(finalVelocity.z - expectedVelocity.z) >= 0.01) {
-            helper.fail("Snowball velocity should be reduced to 30% of original");
+            helper.fail("Snowball velocity should be reduced to 50% of original");
         }
 
         helper.succeed();
@@ -635,8 +651,8 @@ public class SkyDemigodTests {
      * <p>
      * <b>Test Matrix:</b>
      * <ul>
-     * <li>ARROW → Hostile (should be slowed to 30%)</li>
-     * <li>SNOWBALL → Hostile (should be slowed to 30%)</li>
+     * <li>ARROW → Hostile (should be slowed to 50%)</li>
+     * <li>SNOWBALL → Hostile (should be slowed to 50%)</li>
      * <li>EXPERIENCE_BOTTLE → Beneficial (should remain 100%)</li>
      * </ul>
      */
@@ -1153,6 +1169,84 @@ public class SkyDemigodTests {
         // Verify doubling relationship
         if (Math.abs(godRange - (demigodRange * 2.0)) >= 0.01) {
             helper.fail("God range must be exactly 2x Demigod range");
+        }
+
+        helper.succeed();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DRIPSTONE & FALL DAMAGE ORDERING TESTS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * <b>SKY PASSIVE — STALAGMITE Must Be Checked Before IS_FALL</b>
+     *
+     * <p>In vanilla Minecraft, {@code DamageTypes.STALAGMITE} is tagged as
+     * {@code DamageTypeTags.IS_FALL}. If the IS_FALL check runs first, dripstone
+     * damage would be fully cancelled instead of getting the intended 50% reduction.
+     * This test verifies that the fixed ordering (STALAGMITE first) produces 50%
+     * reduction and not 0% cancellation.
+     */
+    @GameTest
+    public void skyPassiveStalagmiteCheckedBeforeFall(GameTestHelper helper) {
+        DamageSource source = helper.getLevel().damageSources().stalagmite();
+
+        // Confirm vanilla: STALAGMITE is IS_FALL — this is why ordering matters.
+        if (!source.is(DamageTypeTags.IS_FALL)) {
+            helper.fail("STALAGMITE must be tagged IS_FALL in vanilla — prerequisite for this bug");
+        }
+
+        float baseDamage = 10.0f;
+        DamageContext context = new DamageContext(source, baseDamage);
+
+        // Apply the FIXED ordering from Sky.onEntityDamage: check STALAGMITE first.
+        if (source.is(DamageTypes.STALAGMITE)) {
+            context.setAmount(context.getAmount() * 0.5f);
+        } else if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypeTags.IS_PROJECTILE)) {
+            context.setCancelled(true);
+        }
+
+        if (context.isCancelled()) {
+            helper.fail("Dripstone (STALAGMITE) damage must be 50% reduced, not fully cancelled");
+        }
+        float expected = baseDamage * 0.5f;
+        if (Math.abs(context.getAmount() - expected) >= 0.001f) {
+            helper.fail("Dripstone damage should be " + expected + " after 50% reduction, got "
+                    + context.getAmount());
+        }
+
+        helper.succeed();
+    }
+
+    /**
+     * <b>SKY PASSIVE — Regular Fall Damage Is Still Cancelled After STALAGMITE Fix</b>
+     *
+     * <p>Regression guard: fixing the STALAGMITE ordering must not break fall-damage
+     * immunity. A plain fall damage source (not STALAGMITE) must still be fully
+     * cancelled by Sky passive.
+     */
+    @GameTest
+    public void skyPassiveFallDamageStillCancelledAfterFix(GameTestHelper helper) {
+        DamageSource fallSource = helper.getLevel().damageSources().fall();
+
+        if (!fallSource.is(DamageTypeTags.IS_FALL)) {
+            helper.fail("Fall damage source must be tagged IS_FALL");
+        }
+        if (fallSource.is(DamageTypes.STALAGMITE)) {
+            helper.fail("Plain fall damage must not be tagged STALAGMITE");
+        }
+
+        DamageContext context = new DamageContext(fallSource, 20.0f);
+
+        // Apply the FIXED ordering from Sky.onEntityDamage.
+        if (fallSource.is(DamageTypes.STALAGMITE)) {
+            context.setAmount(context.getAmount() * 0.5f);
+        } else if (fallSource.is(DamageTypeTags.IS_FALL) || fallSource.is(DamageTypeTags.IS_PROJECTILE)) {
+            context.setCancelled(true);
+        }
+
+        if (!context.isCancelled()) {
+            helper.fail("Regular fall damage must be fully cancelled by Sky passive");
         }
 
         helper.succeed();

@@ -23,8 +23,8 @@ public abstract class SculkSensorMixin {
         Entity entity = context.sourceEntity();
 
         if (entity instanceof ServerPlayer player) {
-            // Check if player has plant proximity effect active and is near a plant
-            if (PlantProximityManager.isNearPlant(player)) {
+            // Use synchronous check to avoid staleness from the 5-tick cache update interval
+            if (PlantProximityManager.isNearPlantSync(player)) {
                 boolean hasEffect = AbilityManager.anyMatch(player,
                         (order) -> order.hasPlantProximityEffect(player));
 

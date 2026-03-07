@@ -30,7 +30,7 @@ public abstract class AnvilPrepareMixin {
     private Player ascension$player;
 
     // Direct access to AnvilMenu.cost DataSlot — avoids reflection entirely
-    @Shadow private final DataSlot cost = null;
+    @Shadow private DataSlot cost;
 
     @Inject(method = "<init>(ILnet/minecraft/world/entity/player/Inventory;Lnet/minecraft/world/inventory/ContainerLevelAccess;)V", at = @At("RETURN"))
     private void ascension$capturePlayer(int syncId, net.minecraft.world.entity.player.Inventory inventory,

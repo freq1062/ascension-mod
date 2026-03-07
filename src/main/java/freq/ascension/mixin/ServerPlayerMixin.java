@@ -16,8 +16,10 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -62,6 +64,16 @@ public class ServerPlayerMixin implements AscensionData {
     // AbilityManager.broadcast(player, (order) -> order.onItemDrop(player, stack));
     // // goes to mythic weapons later
     // }
+
+    // Guard against NPE when vanilla PlayerTrigger fires during ServerPlayer.tick()
+    // for GameTest fake players that have connection == null (no network link).
+    // No Fabric API hook exists to intercept advancement reward packet sending.
+    @Inject(method = "awardRecipes", at = @At("HEAD"), cancellable = true)
+    private void ascension$guardNullConnectionOnAward(Collection<?> recipes, CallbackInfoReturnable<?> ci) {
+        if (((ServerPlayer) (Object) this).connection == null) {
+            ci.cancel();
+        }
+    }
 
     // SAVING DATA
     @Inject(method = "addAdditionalSaveData", at = @At("TAIL"))
@@ -224,7 +236,8 @@ public class ServerPlayerMixin implements AscensionData {
 
     @Override
     public Order getPassive() {
-        return OrderRegistry.get(this.passive);
+        Order o = OrderRegistry.get(this.passive);
+        return (o == null) ? null : o.getVersion(this.rank);
     }
 
     @Override
@@ -238,7 +251,8 @@ public class ServerPlayerMixin implements AscensionData {
 
     @Override
     public Order getUtility() {
-        return OrderRegistry.get(this.utility);
+        Order o = OrderRegistry.get(this.utility);
+        return (o == null) ? null : o.getVersion(this.rank);
     }
 
     @Override
@@ -251,7 +265,8 @@ public class ServerPlayerMixin implements AscensionData {
 
     @Override
     public Order getCombat() {
-        return OrderRegistry.get(this.combat);
+        Order o = OrderRegistry.get(this.combat);
+        return (o == null) ? null : o.getVersion(this.rank);
     }
 
     @Override

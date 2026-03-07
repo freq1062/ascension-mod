@@ -24,10 +24,12 @@ import freq.ascension.commands.AscensionMenuOpenCommand;
 import freq.ascension.commands.BindCommand;
 import freq.ascension.commands.GetInfluenceCommand;
 import freq.ascension.commands.GiveInfluenceCommand;
+import freq.ascension.commands.SetRankCommand;
 import freq.ascension.commands.UnbindCommand;
 import freq.ascension.commands.WithdrawCommand;
 import freq.ascension.commands.SetOrderCommand;
 import freq.ascension.managers.AbilityManager;
+import freq.ascension.managers.GodManager;
 import freq.ascension.managers.InfluenceManager;
 import freq.ascension.managers.PlantProximityManager;
 import freq.ascension.managers.SpellCooldownManager;
@@ -118,10 +120,22 @@ public class Ascension implements ModInitializer {
 				// Silently ignore if disguise clear fails - player is already disconnecting
 				LOGGER.debug("Failed to clear disguise on disconnect: " + e.getMessage());
 			}
+
+			// Clean up lava flight state so the next login doesn't inherit stale ability flags
+			freq.ascension.managers.LavaFlightManager.cleanup(handler.getPlayer().getUUID());
+			// Clean up fire-contact tracking for autocrit
+			freq.ascension.orders.Nether.clearFireTracking(handler.getPlayer().getUUID());
 		});
 
 		// Clear all disguises on server shutdown
 		ServerLifecycleEvents.SERVER_STOPPING.register((stoppingServer) -> {
+			// Flush GodManager persistent state so no god data is lost on graceful shutdown
+			try {
+				GodManager.get(stoppingServer).setDirty();
+			} catch (Exception e) {
+				LOGGER.warn("Failed to flush GodManager on shutdown: " + e.getMessage());
+			}
+
 			try {
 				stoppingServer.getPlayerList().getPlayers().forEach(player -> {
 					try {
@@ -144,6 +158,7 @@ public class Ascension implements ModInitializer {
 			UnbindCommand.register(dispatcher);
 			WithdrawCommand.register(dispatcher);
 			SetOrderCommand.register(dispatcher);
+			SetRankCommand.register(dispatcher);
 			// Register click-action command for book UI
 			freq.ascension.commands.AscensionActionCommand.register(dispatcher);
 			freq.ascension.commands.ShapelistCommand.register(dispatcher);

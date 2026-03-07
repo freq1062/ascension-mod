@@ -36,7 +36,7 @@ public class Sky implements Order {
 
     @Override
     public Order getVersion(String rank) {
-        if (rank == "god") {
+        if ("god".equals(rank)) {
             return SkyGod.INSTANCE;
         }
         return this;
@@ -99,14 +99,12 @@ public class Sky implements Order {
     public void onEntityDamage(ServerPlayer victim, DamageContext context) {
         DamageSource source = context.getSource();
 
-        // Fall damage and projectile damage: full immunity for demigods
-        if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypeTags.IS_PROJECTILE)) {
-            context.setCancelled(true);
-        }
-        // Dripstone damage: 50% reduction for demigods (gods get full immunity via
-        // SkyGod)
-        else if (source.is(DamageTypes.STALAGMITE)) {
+        // STALAGMITE is tagged IS_FALL in vanilla, so it must be checked first.
+        // Dripstone damage: 50% reduction for demigods (gods get full immunity via SkyGod).
+        if (source.is(DamageTypes.STALAGMITE)) {
             context.setAmount(context.getAmount() * 0.5f);
+        } else if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypeTags.IS_PROJECTILE)) {
+            context.setCancelled(true);
         }
     }
 
@@ -175,8 +173,8 @@ public class Sky implements Order {
 
         if (projectile.level() instanceof ServerLevel serverLevel) {
             Vec3 velocity = projectile.getDeltaMovement();
-            if (Math.abs(velocity.x) > 0.01 && Math.abs(velocity.z) > 0.01) {
-                projectile.setDeltaMovement(velocity.scale(0.3));
+            if (Math.abs(velocity.x) > 0.01 || Math.abs(velocity.z) > 0.01) {
+                projectile.setDeltaMovement(velocity.scale(0.5));
             }
             serverLevel.getChunkSource().sendToTrackingPlayers(projectile,
                     new ClientboundSetEntityMotionPacket(projectile));

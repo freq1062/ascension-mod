@@ -51,7 +51,7 @@ public class EarthGod extends Earth {
             case "supermine" -> new SpellStats(60,
                     "Activate to toggle 3x3 mining. Consumes normal durability.",
                     3, 1); // diameter, max durability loss
-            case "magma_bubble" -> new SpellStats(600,
+            case "magma_bubble" -> new SpellStats(900,
                     "Scorches enemy with magma spikes in a 4x4 centered area, dealing 4 hearts and launching you into the air. Must be activated on land or in lava.",
                     4, 40, true);
             default -> null;

@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,6 +14,9 @@ import freq.ascension.api.ContinuousTask;
 import freq.ascension.api.DelayedTask;
 import freq.ascension.orders.End;
 import freq.ascension.orders.Order;
+import freq.ascension.registry.WeaponRegistry;
+import freq.ascension.weapons.MythicWeapon;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
@@ -62,6 +66,47 @@ public class AbilityManager {
         return false;
     }
 
+    /**
+     * Invokes an action on the player's active mythical weapon if one is registered for their
+     * god order and they currently hold a matching item in any inventory slot.
+     *
+     * <p>No-op if the player is not a god, has no weapon registered for their order, or does
+     * not have the weapon in their inventory.
+     */
+    public static void broadcastWeapon(ServerPlayer player, Consumer<MythicWeapon> action) {
+        AscensionData data = (AscensionData) player;
+        if (!"god".equals(data.getRank())) return;
+
+        String godOrder = data.getGodOrder();
+        if (godOrder == null) return;
+
+        MythicWeapon weapon = WeaponRegistry.getForOrder(godOrder);
+        if (weapon == null) return;
+
+        // Only invoke if the player actually carries the weapon
+        if (!WeaponRegistry.hasWeapon(player)) return;
+
+        action.accept(weapon);
+    }
+
+    /**
+     * Returns the {@link MythicWeapon} currently associated with the god player, or {@code null}
+     * if the player is not a god, has no weapon registered, or does not carry it.
+     */
+    public static MythicWeapon getActiveWeapon(ServerPlayer player) {
+        AscensionData data = (AscensionData) player;
+        if (!"god".equals(data.getRank())) return null;
+        String godOrder = data.getGodOrder();
+        if (godOrder == null) return null;
+        MythicWeapon weapon = WeaponRegistry.getForOrder(godOrder);
+        if (weapon == null || !WeaponRegistry.hasWeapon(player)) return null;
+        return weapon;
+    }
+
+    public static void onItemEaten(ServerPlayer player, net.minecraft.world.item.ItemStack stack) {
+        broadcast(player, (order) -> order.onItemEaten(player, stack));
+    }
+
     // EVENTS THAT DO NOT REQUIRE MIXINS
     public static void init() {
         // Block Break Events
@@ -80,10 +125,11 @@ public class AbilityManager {
             return InteractionResult.PASS;
         });
 
-        // Auto Refreshed Effects (2s)
+        // Auto Refreshed Effects (2s) — also triggers weapon onHold hook
         Ascension.scheduler.schedule(new ContinuousTask(40, () -> {
             for (ServerPlayer player : Ascension.getServer().getPlayerList().getPlayers()) {
                 broadcast(player, (order) -> order.applyEffect(player));
+                broadcastWeapon(player, (weapon) -> weapon.onHold(player));
             }
         }));
 
@@ -142,6 +188,22 @@ public class AbilityManager {
 
             }
             return InteractionResult.PASS;
+        });
+
+        // God demotion on death — fires before ServerPlayerEvents.COPY_FROM so the demoted
+        // data (rank="demigod", godOrder=null) is what gets copied to the respawn entity.
+        ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
+            if (entity instanceof ServerPlayer sp && Ascension.getServer() != null) {
+                GodManager gm = GodManager.get(Ascension.getServer());
+                if (gm.isGod(sp)) {
+                    // Notify weapon of impending death before demotion removes it
+                    broadcastWeapon(sp, (weapon) -> weapon.onDeath(sp));
+
+                    gm.demoteFromGod(sp, Ascension.getServer());
+                    sp.sendSystemMessage(Component.literal(
+                            "§cYou died and lost your god status."));
+                }
+            }
         });
     }
 }

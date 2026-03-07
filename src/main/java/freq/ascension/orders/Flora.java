@@ -1,11 +1,13 @@
 package freq.ascension.orders;
 
+import freq.ascension.managers.PlantProximityManager;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
 import freq.ascension.registry.SpellRegistry;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -18,7 +20,7 @@ public class Flora implements Order {
 
     @Override
     public Order getVersion(String rank) {
-        if (rank == "god") {
+        if ("god".equals(rank)) {
             return FloraGod.INSTANCE;
         }
         return this;
@@ -54,8 +56,16 @@ public class Flora implements Order {
 
     @Override
     public void applyEffect(ServerPlayer player) {
-        if (hasCapability(player, "passive"))
-            player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 60, 0));
+        if (hasCapability(player, "passive")) {
+            // ambient=true keeps HUD icon without particle spam; showIcon=true ensures it shows
+            player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 80, 0, true, false, true));
+            // Spawn falling leaf particles when near a plant block
+            if (PlantProximityManager.isNearPlant(player) && player.level() instanceof ServerLevel sl) {
+                sl.sendParticles(ParticleTypes.COMPOSTER,
+                        player.getX(), player.getY() + 1.5, player.getZ(),
+                        5, 0.5, 0.5, 0.5, 0.05);
+            }
+        }
     }
 
     public String getOrderName() {
@@ -94,7 +104,13 @@ public class Flora implements Order {
     public boolean isIgnoredBy(ServerPlayer player, Mob mob) {
         if (mob instanceof Bee && hasCapability(player, "passive"))
             return true;
-        else if (mob instanceof Creeper && hasCapability(player, "utility"))
+        return false;
+    }
+
+    @Override
+    public boolean isNeutralBy(ServerPlayer player, Mob mob) {
+        if (mob instanceof Creeper && hasCapability(player, "utility")
+                && PlantProximityManager.isNearPlant(player))
             return true;
         return false;
     }

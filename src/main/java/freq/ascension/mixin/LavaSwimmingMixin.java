@@ -1,111 +1,73 @@
 package freq.ascension.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import freq.ascension.managers.AbilityManager;
+import freq.ascension.managers.LavaFlightManager;
+import freq.ascension.orders.Nether;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 
+/**
+ * Grants Nether-order players elytra-style creative flight while in lava.
+ * Flight is enabled on lava entry and disabled on lava exit.
+ *
+ * <p>Replaces the previous swimming-mode approach (updateSwimming / travel injections)
+ * which instantly reset because Minecraft does not support swimming state in lava.
+ *
+ * <p>No Fabric event exists that intercepts the per-tick player ability update before
+ * the server sends ability packets, so a Player tick Mixin is the correct hook here.
+ */
 @Mixin(Player.class)
 public abstract class LavaSwimmingMixin {
 
-    /**
-     * Allow Nether order players to swim in lava by treating it like water
-     */
-    @Inject(method = "updateSwimming", at = @At("HEAD"), cancellable = true)
-    private void allowLavaSwimming(CallbackInfo ci) {
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void manageLavaFlight(CallbackInfo ci) {
         Player player = (Player) (Object) this;
+        if (!(player instanceof ServerPlayer serverPlayer)) return;
 
-        if (!(player instanceof ServerPlayer serverPlayer)) {
-            return;
-        }
-
-        // Check if this is a Nether order player with passive capability
-        boolean canSwimInLava = AbilityManager.anyMatch(serverPlayer, (order) -> order.canSwimInlava(serverPlayer));
+        boolean canSwimInLava = AbilityManager.anyMatch(serverPlayer,
+                order -> order.canSwimInlava(serverPlayer));
 
         if (!canSwimInLava) {
-            return;
-        }
-
-        // If in lava, handle swimming
-        if (player.isInLava()) {
-            // Enable swimming in lava (simplified - removed isEyeInFluid check)
-            // TODO: Add proper fluid eye check when correct method is found
-            player.setSwimming(true);
-            ci.cancel();
-        }
-    }
-
-    /**
-     * Allow Nether order players to move in lava like in water
-     */
-    @Inject(method = "travel", at = @At("HEAD"))
-    private void modifyLavaTravel(Vec3 travelVector, CallbackInfo ci) {
-        Player player = (Player) (Object) this;
-
-        if (!(player instanceof ServerPlayer serverPlayer)) {
-            return;
-        }
-
-        // Check if this is a Nether order player with passive capability
-        boolean canSwimInLava = AbilityManager.anyMatch(serverPlayer,
-                (order) -> order.getOrderName().equals("nether") && order.hasCapability(serverPlayer, "passive"));
-
-        if (!canSwimInLava || !player.isInLava()) {
-            return;
-        }
-
-        // Make lava movement feel more like water
-        // This helps with vertical movement control
-        Vec3 motion = player.getDeltaMovement();
-
-        // If player is looking up/down while in lava, give them better vertical control
-        if (player.isSwimming() && player.isInLava()) {
-            double verticalBoost = player.getXRot() < -20 ? 0.04 : (player.getXRot() > 20 ? -0.04 : 0);
-            if (verticalBoost != 0) {
-                player.setDeltaMovement(motion.add(0, verticalBoost, 0));
+            if (LavaFlightManager.isActive(serverPlayer.getUUID())) {
+                ascension$disableLavaFlight(serverPlayer);
             }
+            return;
+        }
+
+        boolean inLava = serverPlayer.isInLava();
+        boolean wasInLavaFlight = LavaFlightManager.isActive(serverPlayer.getUUID());
+
+        if (inLava && !wasInLavaFlight) {
+            ascension$enableLavaFlight(serverPlayer);
+        } else if (!inLava && wasInLavaFlight) {
+            ascension$disableLavaFlight(serverPlayer);
         }
     }
 
-    // TODO: Fix this injection - isEyeInFluid doesn't exist on Player class in MC
-    // 1.21.10
-    // Need to find the correct method name or target Entity class instead
-    /*
-     * @Inject(method = "isEyeInFluid", at = @At("HEAD"), cancellable = true)
-     * private void
-     * treatLavaAsWater(net.minecraft.tags.TagKey<net.minecraft.world.level.material
-     * .Fluid> fluidTag,
-     * CallbackInfoReturnable<Boolean> cir) {
-     * Player player = (Player) (Object) this;
-     * 
-     * if (!(player instanceof ServerPlayer serverPlayer)) {
-     * return;
-     * }
-     * 
-     * // Check if this is a Nether order player with passive capability
-     * boolean canSwimInLava = AbilityManager.anyMatch(serverPlayer,
-     * (order) -> order.getOrderName().equals("nether") &&
-     * order.hasCapability(serverPlayer, "passive"));
-     * 
-     * if (!canSwimInLava) {
-     * return;
-     * }
-     * 
-     * // If checking for water and player is in lava, return true to enable
-     * swimming
-     * // mechanics
-     * if (fluidTag == FluidTags.WATER && player.isEyeInFluid(FluidTags.LAVA)) {
-     * cir.setReturnValue(true);
-     * }
-     * }
-     */
+    @Unique
+    private static void ascension$enableLavaFlight(ServerPlayer player) {
+        LavaFlightManager.setActive(player.getUUID(), true);
+        player.getAbilities().mayfly = true;
+        player.getAbilities().flying = true;
+        player.onUpdateAbilities();
+        Nether.recordFireContact(player);
+    }
+
+    @Unique
+    private static void ascension$disableLavaFlight(ServerPlayer player) {
+        LavaFlightManager.setActive(player.getUUID(), false);
+        boolean hasSkyFlight = AbilityManager.anyMatch(player,
+                o -> o.getOrderName().equals("sky") && o.hasCapability(player, "passive"));
+        if (!hasSkyFlight) {
+            player.getAbilities().mayfly = false;
+            player.getAbilities().flying = false;
+            player.onUpdateAbilities();
+        }
+    }
 }

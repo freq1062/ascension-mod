@@ -22,9 +22,14 @@ public class Magic implements Order {
 
     @Override
     public Order getVersion(String rank) {
-        if (rank == "god")
+        if ("god".equals(rank))
             return MagicGod.INSTANCE;
         return this;
+    }
+
+    /** Returns the maximum number of shapeshift forms a player can store in history. */
+    protected int getMaxShapeshiftHistory() {
+        return 5;
     }
 
     public String getOrderName() {
@@ -125,7 +130,7 @@ public class Magic implements Order {
         if (!hasCapability(killer, "combat"))
             return;
         AscensionData data = (AscensionData) killer;
-        if (data.getShapeshiftHistory().size() >= 5)
+        if (data.getShapeshiftHistory().size() >= getMaxShapeshiftHistory())
             return;
         EntityType<?> type = victim.getType();
         boolean isGod = "god".equals(data.getRank());

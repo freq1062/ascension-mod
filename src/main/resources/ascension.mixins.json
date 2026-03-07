@@ -2,6 +2,7 @@
 	"required": true,
 	"package": "freq.ascension.mixin",
 	"compatibilityLevel": "JAVA_21",
+	"refmap": "ascension-refmap.json",
 	"mixins": [
 		"ActionBarPacketMixin",
 		"AnvilPrepareMixin",

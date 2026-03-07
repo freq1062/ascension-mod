@@ -19,21 +19,27 @@ public abstract class MobAggroDistanceMixin {
         if (!((Object) this instanceof Mob))
             return;
         if (target instanceof ServerPlayer player) {
-            // Check if player has plant proximity effect active and is near a plant
+            Mob mob = (Mob) (Object) this;
+            double distance = mob.distanceToSqr(target);
+            double followRange = mob.getAttributeValue(
+                    net.minecraft.world.entity.ai.attributes.Attributes.FOLLOW_RANGE);
+
+            // FloraGod utility: plant block in inventory = 90% aggro reduction (no proximity needed)
+            if (AbilityManager.anyMatch(player, (order) -> order.hasInventoryPlantEffect(player))) {
+                double reducedRange = followRange * 0.1;
+                if (distance > reducedRange * reducedRange) {
+                    cir.setReturnValue(false);
+                }
+                return;
+            }
+
+            // Flora demigod passive: near a plant = 50% aggro reduction
             if (PlantProximityManager.isNearPlant(player)) {
                 boolean hasEffect = AbilityManager.anyMatch(player,
                         (order) -> order.hasPlantProximityEffect(player));
 
                 if (hasEffect) {
-                    Mob mob = (Mob) (Object) this;
-                    double distance = mob.distanceToSqr(target);
-                    // Get the normal follow range
-                    double followRange = mob
-                            .getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.FOLLOW_RANGE);
-                    // Reduce by 50%
                     double reducedRange = followRange * 0.5;
-
-                    // If the player is beyond the reduced range, cancel the attack
                     if (distance > reducedRange * reducedRange) {
                         cir.setReturnValue(false);
                     }

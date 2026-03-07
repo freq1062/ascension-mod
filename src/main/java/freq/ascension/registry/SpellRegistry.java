@@ -318,7 +318,7 @@ public class SpellRegistry {
                 SpellCooldownManager.get("star_strike"));
 
         Level level = player.level();
-        double range = augmented ? 60.0 : 30.0;
+        double range = augmented ? 64.0 : 32.0;
 
         // Perform raycast to find target or fallback to max range
         Vec3 eyePos = player.getEyePosition();
@@ -439,6 +439,9 @@ public class SpellRegistry {
         } else if (currentEffect.getAmplifier() == 0) {
             player.removeEffect(net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE);
         }
+        player.level().playSound(null, player.blockPosition(),
+                net.minecraft.sounds.SoundEvents.DOLPHIN_AMBIENT,
+                net.minecraft.sounds.SoundSource.PLAYERS, 1.0f, 1.0f);
         currSpell.setInUse(false); // Allow cooldown to start
     }
 
@@ -665,30 +668,46 @@ public class SpellRegistry {
             return; // Timed out
         }
 
+        // God vs demigod thorns parameters
+        boolean isFloraGod = freq.ascension.managers.AbilityManager.anyMatch(player, o -> o instanceof FloraGod);
+        int freezeTicks = isFloraGod ? 80 : 60;
+        float initialDamage = isFloraGod ? 25.0f : 15.0f;
+        float pullDamage = isFloraGod ? 15.0f : 5.0f;
+
         Level level = player.level();
 
-        // Spawn thorns animation
-        Thorns.spawnThorns(player, target, 8, 60); // 8 vines, 3 second duration
+        // Spawn thorns animation scaled to freeze duration
+        Thorns.spawnThorns(player, target, 8, freezeTicks);
 
-        // Freeze target by preventing AI (if it's a mob)
+        // Freeze: disable mob AI; apply extreme slowness for all entity types
         if (target instanceof net.minecraft.world.entity.Mob mob) {
             mob.setNoAi(true);
-            Ascension.scheduler.schedule(new DelayedTask(60, () -> {
-                mob.setNoAi(false);
-            }));
         }
+        target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, freezeTicks, 255, false, false));
 
-        // Apply poison
-        target.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                net.minecraft.world.effect.MobEffects.POISON, 200, 0, false, true));
+        // Apply poison 1 for 10 seconds
+        target.addEffect(new MobEffectInstance(MobEffects.POISON, 200, 0, false, true));
 
-        Utils.spellDmg(target, player, 15);
+        // Initial impale damage
+        Utils.spellDmg(target, player, initialDamage);
 
         // Play sound
         level.playSound(null, target.getX(), target.getY(), target.getZ(),
                 SoundEvents.WOOD_BREAK, SoundSource.PLAYERS, 1.0f, 0.8f);
 
-        player.sendSystemMessage(Component.literal("§aVines ensnare your target!"));
+        // Schedule unfreeze + pull-out damage after freeze ends
+        final float finalPullDamage = pullDamage;
+        Ascension.scheduler.schedule(new DelayedTask(freezeTicks, () -> {
+            if (target instanceof net.minecraft.world.entity.Mob mob) {
+                mob.setNoAi(false);
+            }
+            target.removeEffect(MobEffects.SLOWNESS);
+            if (target.isAlive()) {
+                Utils.spellDmg(target, player, finalPullDamage);
+                level.playSound(null, target.getX(), target.getY(), target.getZ(),
+                        SoundEvents.VINE_BREAK, SoundSource.PLAYERS, 1.0f, 1.2f);
+            }
+        }));
 
         // Mark spell as no longer in use
         ActiveSpell as = SpellCooldownManager.getActiveSpell(player, SpellCooldownManager.get("thorns"));
@@ -707,7 +726,7 @@ public class SpellRegistry {
 
     private static final Map<UUID, HappyGhast> ACTIVE_GHASTS = new HashMap<>();
 
-    public static void ghast_carry(ServerPlayer player) {
+    public static void ghast_carry(ServerPlayer player, boolean doubleHealth, double speedMultiplier) {
         // Check if player already has an active ghast
         if (ACTIVE_GHASTS.containsKey(player.getUUID())) {
             player.sendSystemMessage(Component.literal("§cYou already have a ghast summoned!"));
@@ -731,6 +750,23 @@ public class SpellRegistry {
         // Make ghast non-aggressive and persistent
         ghast.setPersistenceRequired();
         ghast.setSilent(false); // Allow sounds
+
+        // Apply god-tier modifiers before adding to world
+        if (doubleHealth) {
+            net.minecraft.world.entity.ai.attributes.AttributeInstance maxHp =
+                    ghast.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+            if (maxHp != null) {
+                maxHp.setBaseValue(maxHp.getBaseValue() * 2.0);
+                ghast.setHealth(ghast.getMaxHealth());
+            }
+        }
+        if (speedMultiplier != 1.0) {
+            net.minecraft.world.entity.ai.attributes.AttributeInstance flyingSpd =
+                    ghast.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.FLYING_SPEED);
+            if (flyingSpd != null) {
+                flyingSpd.setBaseValue(flyingSpd.getBaseValue() * speedMultiplier);
+            }
+        }
 
         // Add ghast to world
         level.addFreshEntity(ghast);
@@ -768,7 +804,7 @@ public class SpellRegistry {
 
             // Check distance between player and ghast
             double distance = player.position().distanceTo(ghast.position());
-            if (distance > 3.0 && !player.isPassenger()) {
+            if (distance > 5.0 && !player.isPassenger()) {
                 // Player is too far from ghast and not riding it
                 player.sendSystemMessage(Component.literal("§cYour ghast vanished as you strayed too far!"));
                 cleanupGhast(player, ghast, as);
@@ -805,7 +841,7 @@ public class SpellRegistry {
         }
     }
 
-    public static void soul_drain(ServerPlayer player) {
+    public static void soul_drain(ServerPlayer player, int durationTicks) {
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("soul_drain"));
 
         // Play activation sound
@@ -813,9 +849,8 @@ public class SpellRegistry {
                 SoundEvents.SOUL_ESCAPE, SoundSource.PLAYERS, 1.0f, 0.7f);
 
         // The actual healing effect is handled in the Nether order's
-        // onEntityDamageByEntity method
-        // This spell just activates for 10 seconds (200 ticks)
-        Ascension.scheduler.schedule(new DelayedTask(200, () -> {
+        // onEntityDamageByEntity method using getSoulDrainRatio()
+        Ascension.scheduler.schedule(new DelayedTask(durationTicks, () -> {
             as.setInUse(false);
         }));
     }
@@ -861,7 +896,9 @@ public class SpellRegistry {
                     }
                     // Re-cast player to EntityDisguise to avoid stale reference issues
                     xyz.nucleoid.disguiselib.api.EntityDisguise freshDisguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
-                    freshDisguise.disguiseAs(EntityType.PLAYER);
+                    // Use removeDisguise() instead of disguiseAs(PLAYER) to prevent a
+                    // persistent PLAYER disguise from being saved in NBT on disconnect.
+                    freshDisguise.removeDisguise();
                     freshDisguise.setTrueSight(false);
                     player.removeEffect(net.minecraft.world.effect.MobEffects.NIGHT_VISION);
                     player.sendSystemMessage(Component.literal("§7You have returned to your normal form."));
@@ -887,7 +924,8 @@ public class SpellRegistry {
     /**
      * Teleport spell for the End Order.
      *
-     * <p><b>Intent:</b> The player fires a ray from their eye position along their
+     * <p>
+     * <b>Intent:</b> The player fires a ray from their eye position along their
      * look direction, up to 10 blocks. The ray stops after intersecting 2 solid
      * blocks. The player teleports to the <em>farthest valid</em> non-solid block
      * position along the path (a position where they would not suffocate). If no
@@ -919,7 +957,8 @@ public class SpellRegistry {
                 }
             } else {
                 solidCount++;
-                if (solidCount >= 2) break; // Stop checking beyond 2nd solid
+                if (solidCount >= 2)
+                    break; // Stop checking beyond 2nd solid
             }
         }
 
@@ -960,7 +999,8 @@ public class SpellRegistry {
     /**
      * Desolation of Time combat spell for the End Order.
      *
-     * <p><b>Intent:</b> Within a 7-block radius of the caster, all players (except
+     * <p>
+     * <b>Intent:</b> Within a 7-block radius of the caster, all players (except
      * the caster) have their combat abilities disabled for 5 seconds (100 ticks)
      * and receive Weakness I for 10 seconds (200 ticks). New players who enter the
      * radius during the spell are also affected. Players already affected cannot
@@ -968,7 +1008,8 @@ public class SpellRegistry {
      * animated during the spell duration.
      *
      * @param player the caster
-     * @param stats  the spell's stat block (extra[0]=disable ticks, extra[1]=weakness ticks)
+     * @param stats  the spell's stat block (extra[0]=disable ticks,
+     *               extra[1]=weakness ticks)
      */
     public static void desolationOfTime(ServerPlayer player, SpellStats stats) {
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(
@@ -990,7 +1031,8 @@ public class SpellRegistry {
 
         // Helper to apply desolation to a single target
         java.util.function.Consumer<ServerPlayer> applyDesolation = (target) -> {
-            if (affectedThisActivation.contains(target.getUUID())) return;
+            if (affectedThisActivation.contains(target.getUUID()))
+                return;
             affectedThisActivation.add(target.getUUID());
             End.DESOLATED_PLAYERS.add(target.getUUID());
             target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, weaknessTicks, 0, false, true, true));
@@ -998,27 +1040,30 @@ public class SpellRegistry {
                     "§5Your combat abilities have been disabled for " + (disableTicks / 20) + " seconds!"));
 
             // Schedule removal of combat disable
-            Ascension.scheduler.schedule(new DelayedTask(disableTicks, () ->
-                    End.DESOLATED_PLAYERS.remove(target.getUUID())));
+            Ascension.scheduler
+                    .schedule(new DelayedTask(disableTicks, () -> End.DESOLATED_PLAYERS.remove(target.getUUID())));
         };
 
         // Initial sweep: affect all nearby players (excluding caster)
         AABB searchBox = new AABB(castPos.x - 7, castPos.y - 7, castPos.z - 7,
                 castPos.x + 7, castPos.y + 7, castPos.z + 7);
         for (ServerPlayer nearby : level.getEntitiesOfClass(ServerPlayer.class, searchBox)) {
-            if (nearby.getUUID().equals(player.getUUID())) continue;
+            if (nearby.getUUID().equals(player.getUUID()))
+                continue;
             if (nearby.position().distanceTo(castPos) <= 7.0) {
                 applyDesolation.accept(nearby);
             }
         }
 
         // Recurring scan for new entrants every 5 ticks
-        final int[] elapsed = {0};
+        final int[] elapsed = { 0 };
         ContinuousTask scanTask = new ContinuousTask(5, () -> {
             elapsed[0] += 5;
-            if (elapsed[0] >= disableTicks) return;
+            if (elapsed[0] >= disableTicks)
+                return;
             for (ServerPlayer nearby : level.getEntitiesOfClass(ServerPlayer.class, searchBox)) {
-                if (nearby.getUUID().equals(player.getUUID())) continue;
+                if (nearby.getUUID().equals(player.getUUID()))
+                    continue;
                 if (nearby.position().distanceTo(castPos) <= 7.0) {
                     applyDesolation.accept(nearby);
                 }
@@ -1030,7 +1075,8 @@ public class SpellRegistry {
         Ascension.scheduler.schedule(new DelayedTask(disableTicks, () -> {
             scanTask.stop();
             DragonCurve activeCurve = ACTIVE_DESOLATIONS.remove(player.getUUID());
-            if (activeCurve != null) activeCurve.teardown();
+            if (activeCurve != null)
+                activeCurve.teardown();
             as.setInUse(false);
         }));
     }

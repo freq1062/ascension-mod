@@ -1,4 +1,146 @@
-// package com.ascension.commands;
+// package com.ascension.commands; — original Bukkit file, replaced below
+
+package freq.ascension.commands;
+
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+
+import freq.ascension.managers.GodManager;
+import freq.ascension.orders.End;
+import freq.ascension.orders.Order;
+import freq.ascension.registry.OrderRegistry;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Implements {@code /setrank <player> demigod} and {@code /setrank <player> god <order>}.
+ *
+ * <p>Requires operator level 2 (same as vanilla {@code /gamemode}).
+ * All promotion and demotion logic is delegated to {@link GodManager}.
+ *
+ * <p>God promotion is refused for the End order because no EndGod class exists.
+ */
+public class SetRankCommand {
+
+    private static final SuggestionProvider<CommandSourceStack> RANK_SUGGESTIONS =
+            (ctx, builder) -> SharedSuggestionProvider.suggest(List.of("demigod", "god"), builder);
+
+    private static final SuggestionProvider<CommandSourceStack> GOD_ORDER_SUGGESTIONS =
+            (ctx, builder) -> {
+                List<String> orders = new ArrayList<>();
+                for (Order order : OrderRegistry.iterable()) {
+                    if (!(order instanceof End)) {
+                        orders.add(order.getOrderName());
+                    }
+                }
+                return SharedSuggestionProvider.suggest(orders, builder);
+            };
+
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(Commands.literal("setrank")
+                .requires(source -> source.hasPermission(2))
+
+                // /setrank <player> demigod
+                .then(Commands.argument("player", EntityArgument.player())
+                        .then(Commands.literal("demigod")
+                                .executes(SetRankCommand::demotePlayer))
+
+                        // /setrank <player> god <order>
+                        .then(Commands.literal("god")
+                                .then(Commands.argument("order", StringArgumentType.word())
+                                        .suggests(GOD_ORDER_SUGGESTIONS)
+                                        .executes(SetRankCommand::promotePlayer)))));
+    }
+
+    // ─── Demotion ─────────────────────────────────────────────────────────────
+
+    private static int demotePlayer(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer target;
+        try {
+            target = EntityArgument.getPlayer(ctx, "player");
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(Component.literal("§cPlayer not found."));
+            return 0;
+        }
+
+        MinecraftServer server = ctx.getSource().getServer();
+        GodManager gm = GodManager.get(server);
+
+        gm.demoteFromGod(target, server);
+        target.sendSystemMessage(Component.literal("§eYour rank has been set to Demigod."));
+        ctx.getSource().sendSuccess(
+                () -> Component.literal("§aSet " + target.getName().getString() + "'s rank to Demigod."),
+                true);
+        return 1;
+    }
+
+    // ─── Promotion ────────────────────────────────────────────────────────────
+
+    private static int promotePlayer(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer target;
+        try {
+            target = EntityArgument.getPlayer(ctx, "player");
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(Component.literal("§cPlayer not found."));
+            return 0;
+        }
+
+        String orderName = StringArgumentType.getString(ctx, "order").toLowerCase();
+        Order order = OrderRegistry.get(orderName);
+
+        if (order == null) {
+            ctx.getSource().sendFailure(
+                    Component.literal("§cUnknown order: '" + orderName + "'. Valid orders: " +
+                            validOrderList()));
+            return 0;
+        }
+
+        if (order instanceof End) {
+            ctx.getSource().sendFailure(
+                    Component.literal("§cThe End order has no god tier. Choose a different order."));
+            return 0;
+        }
+
+        MinecraftServer server = ctx.getSource().getServer();
+        GodManager gm = GodManager.get(server);
+
+        gm.promoteToGod(target, order, server);
+
+        target.sendSystemMessage(Component.literal(
+                "§6⚔ You are now the God of " + capitalize(order.getOrderName()) + "!"));
+        ctx.getSource().sendSuccess(
+                () -> Component.literal("§aPromoted " + target.getName().getString() +
+                        " to God of " + capitalize(order.getOrderName()) + "."),
+                true);
+        return 1;
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    private static String validOrderList() {
+        List<String> names = new ArrayList<>();
+        for (Order order : OrderRegistry.iterable()) {
+            if (!(order instanceof End)) names.add(order.getOrderName());
+        }
+        return String.join(", ", names);
+    }
+
+    private static String capitalize(String s) {
+        if (s == null || s.isEmpty()) return s;
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+}
+
 
 // import java.util.ArrayList;
 // import java.util.List;
