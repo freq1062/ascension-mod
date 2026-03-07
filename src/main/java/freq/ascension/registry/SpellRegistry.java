@@ -677,13 +677,17 @@ public class SpellRegistry {
         Level level = player.level();
 
         // Spawn thorns animation scaled to freeze duration
-        Thorns.spawnThorns(player, target, 8, freezeTicks);
+        Thorns.spawnThorns(player, target, 6, freezeTicks);
 
-        // Freeze: disable mob AI; apply extreme slowness for all entity types
+        // Freeze: disable mob AI; preserve original AI state for correct restoration
+        boolean tempHadNoAi = false;
         if (target instanceof net.minecraft.world.entity.Mob mob) {
+            tempHadNoAi = mob.isNoAi();
             mob.setNoAi(true);
         }
+        final boolean hadNoAi = tempHadNoAi;
         target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, freezeTicks, 255, false, false));
+        target.setDeltaMovement(0, 0, 0);
 
         // Apply poison 1 for 10 seconds
         target.addEffect(new MobEffectInstance(MobEffects.POISON, 200, 0, false, true));
@@ -698,8 +702,8 @@ public class SpellRegistry {
         // Schedule unfreeze + pull-out damage after freeze ends
         final float finalPullDamage = pullDamage;
         Ascension.scheduler.schedule(new DelayedTask(freezeTicks, () -> {
-            if (target instanceof net.minecraft.world.entity.Mob mob) {
-                mob.setNoAi(false);
+            if (target instanceof net.minecraft.world.entity.Mob frozenMob) {
+                frozenMob.setNoAi(hadNoAi); // restore original AI state
             }
             target.removeEffect(MobEffects.SLOWNESS);
             if (target.isAlive()) {
@@ -749,6 +753,7 @@ public class SpellRegistry {
 
         // Make ghast non-aggressive and persistent
         ghast.setPersistenceRequired();
+        ghast.setNoAi(true); // Stationary when unridden; player input still controls it while riding
         ghast.setSilent(false); // Allow sounds
 
         // Apply god-tier modifiers before adding to world
@@ -771,6 +776,10 @@ public class SpellRegistry {
         // Add ghast to world
         level.addFreshEntity(ghast);
 
+        // Equip red harness so the ghast is visually marked as summoned
+        ghast.setItemSlot(net.minecraft.world.entity.EquipmentSlot.BODY,
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.RED_HARNESS));
+
         // Store the ghast reference
         ACTIVE_GHASTS.put(player.getUUID(), ghast);
 
@@ -786,8 +795,12 @@ public class SpellRegistry {
             }
         }
 
-        // Make player ride the ghast
-        player.startRiding(ghast);
+        // Make player ride the ghast after a 1-tick delay to let the entity register
+        Ascension.scheduler.schedule(new DelayedTask(1, () -> {
+            if (ghast.isAlive() && player.isAlive()) {
+                player.startRiding(ghast, true, true); // force=true bypasses passenger checks
+            }
+        }));
 
         // Play summon sound
         level.playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -1052,6 +1065,8 @@ public class SpellRegistry {
                 continue;
             if (nearby.position().distanceTo(castPos) <= 7.0) {
                 applyDesolation.accept(nearby);
+                // 1-second darkness flash on initial hit
+                nearby.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 20, 0, false, false, false));
             }
         }
 

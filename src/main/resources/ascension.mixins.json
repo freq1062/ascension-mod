@@ -12,6 +12,8 @@
 		"DamageMixin",
 		"DisguiseLoadMixin",
 		"EnchantmentMixin",
+		"EnderChestMixin",
+		"EntitySharedFlagInvoker",
 		"FarmBlockMixin",
 		"FlightMixin",
 		"FoodDataMixin",

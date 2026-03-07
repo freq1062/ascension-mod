@@ -1,7 +1,6 @@
 package freq.ascension.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -11,63 +10,64 @@ import freq.ascension.managers.LavaFlightManager;
 import freq.ascension.orders.Nether;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 
 /**
- * Grants Nether-order players elytra-style creative flight while in lava.
- * Flight is enabled on lava entry and disabled on lava exit.
+ * Grants Nether-order players elytra-glide pose and swimming-speed movement while
+ * sprinting and submerged in lava.
  *
- * <p>Replaces the previous swimming-mode approach (updateSwimming / travel injections)
- * which instantly reset because Minecraft does not support swimming state in lava.
+ * <p>Uses entity shared flag 7 (isFallFlying / elytra pose) for the horizontal
+ * lying-flat visual. Creative-mode flight abilities are intentionally untouched so
+ * that creative players are unaffected.
  *
- * <p>No Fabric event exists that intercepts the per-tick player ability update before
- * the server sends ability packets, so a Player tick Mixin is the correct hook here.
+ * <p>Injected at TAIL so our flag write occurs after vanilla may have cleared it
+ * earlier in the same tick. No Fabric event provides an equivalent hook.
  */
 @Mixin(Player.class)
 public abstract class LavaSwimmingMixin {
 
-    @Inject(method = "tick", at = @At("HEAD"))
-    private void manageLavaFlight(CallbackInfo ci) {
+    @Inject(method = "tick", at = @At("TAIL"))
+    private void manageLavaGlide(CallbackInfo ci) {
         Player player = (Player) (Object) this;
         if (!(player instanceof ServerPlayer serverPlayer)) return;
 
-        boolean canSwimInLava = AbilityManager.anyMatch(serverPlayer,
+        // Cast to the invoker interface to access protected Entity.setSharedFlag
+        EntitySharedFlagInvoker flagSetter = (EntitySharedFlagInvoker) player;
+
+        boolean canSwim = AbilityManager.anyMatch(serverPlayer,
                 order -> order.canSwimInlava(serverPlayer));
 
-        if (!canSwimInLava) {
-            if (LavaFlightManager.isActive(serverPlayer.getUUID())) {
-                ascension$disableLavaFlight(serverPlayer);
+        boolean wasActive = LavaFlightManager.isActive(serverPlayer.getUUID());
+
+        if (!canSwim) {
+            if (wasActive) {
+                LavaFlightManager.setActive(serverPlayer.getUUID(), false);
+                flagSetter.invokeSetSharedFlag(7, false);
             }
             return;
         }
 
-        boolean inLava = serverPlayer.isInLava();
-        boolean wasInLavaFlight = LavaFlightManager.isActive(serverPlayer.getUUID());
+        boolean shouldBeActive = serverPlayer.isInLava() && serverPlayer.isSprinting();
 
-        if (inLava && !wasInLavaFlight) {
-            ascension$enableLavaFlight(serverPlayer);
-        } else if (!inLava && wasInLavaFlight) {
-            ascension$disableLavaFlight(serverPlayer);
+        if (shouldBeActive && !wasActive) {
+            LavaFlightManager.setActive(serverPlayer.getUUID(), true);
+            flagSetter.invokeSetSharedFlag(7, true);
+        } else if (!shouldBeActive && wasActive) {
+            LavaFlightManager.setActive(serverPlayer.getUUID(), false);
+            flagSetter.invokeSetSharedFlag(7, false);
         }
-    }
 
-    @Unique
-    private static void ascension$enableLavaFlight(ServerPlayer player) {
-        LavaFlightManager.setActive(player.getUUID(), true);
-        player.getAbilities().mayfly = true;
-        player.getAbilities().flying = true;
-        player.onUpdateAbilities();
-        Nether.recordFireContact(player);
-    }
+        if (LavaFlightManager.isActive(serverPlayer.getUUID())) {
+            // Maintain elytra glide pose (lying flat) every tick — written at TAIL to
+            // override any vanilla reset that ran earlier in the same tick.
+            flagSetter.invokeSetSharedFlag(7, true);
 
-    @Unique
-    private static void ascension$disableLavaFlight(ServerPlayer player) {
-        LavaFlightManager.setActive(player.getUUID(), false);
-        boolean hasSkyFlight = AbilityManager.anyMatch(player,
-                o -> o.getOrderName().equals("sky") && o.hasCapability(player, "passive"));
-        if (!hasSkyFlight) {
-            player.getAbilities().mayfly = false;
-            player.getAbilities().flying = false;
-            player.onUpdateAbilities();
+            // Drive movement in the look direction at vanilla swimming speed.
+            Vec3 look = serverPlayer.getLookAngle();
+            float speed = 0.12f;
+            serverPlayer.setDeltaMovement(look.x * speed, look.y * speed, look.z * speed);
+
+            Nether.recordFireContact(serverPlayer);
         }
     }
 }
