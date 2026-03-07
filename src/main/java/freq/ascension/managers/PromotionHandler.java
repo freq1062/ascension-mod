@@ -126,6 +126,14 @@ public class PromotionHandler {
         return pending.remove(playerUUID) != null;
     }
 
+    /**
+     * Inserts a pending promotion entry directly. Use only in game tests to verify the
+     * confirmation flow without going through {@link #handlePromotionRequest}.
+     */
+    public static void addPendingForTesting(UUID playerUUID, PendingPromotion promotion) {
+        pending.put(playerUUID, promotion);
+    }
+
     /** Removes all entries whose expiry tick has passed. Call every server tick. */
     public static void cleanExpired(int currentTick) {
         pending.entrySet().removeIf(e -> e.getValue().expiryTick() <= currentTick);

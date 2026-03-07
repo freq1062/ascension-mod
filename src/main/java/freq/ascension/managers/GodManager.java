@@ -427,6 +427,16 @@ public class GodManager extends SavedData {
         setDirty();
     }
 
+    /**
+     * Directly sets the last-daily-loss timestamp for the given order. Use only in game tests
+     * to simulate that a daily-loss increment occurred at a specific time.
+     */
+    public void setLastDailyLossTimestampForTesting(String orderName, long epochMs) {
+        if (orderName == null) return;
+        lastDailyLossMs.put(orderName.toLowerCase(), epochMs);
+        setDirty();
+    }
+
     // ─── Slot Save/Restore Helpers ────────────────────────────────────────────
 
     /**

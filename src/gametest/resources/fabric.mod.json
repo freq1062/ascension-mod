@@ -20,7 +20,10 @@
 			"freq.ascension.test.god.OceanGodTests",
 			"freq.ascension.test.god.NetherGodTests",
 			"freq.ascension.test.god.FloraGodTests",
-			"freq.ascension.test.god.MagicGodTests"
+			"freq.ascension.test.god.MagicGodTests",
+			"freq.ascension.test.challenger.PoiTests",
+			"freq.ascension.test.challenger.GodPromotionViaCubeTests",
+			"freq.ascension.test.challenger.ChallengerTrialTests"
 		]
 	},
 	"depends": {
