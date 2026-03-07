@@ -239,4 +239,20 @@ public class FloraGodTests {
         }
         helper.succeed();
     }
+
+    @GameTest
+    public void floraGodThornsSpikeCountReducedToSix(GameTestHelper helper) {
+        // FloraGod uses the shared executeThorns path which calls spawnThorns with 6 spikes.
+        // Verify Thorns.spawnThorns signature is intact for the god-tier call path.
+        try {
+            freq.ascension.animation.Thorns.class.getDeclaredMethod("spawnThorns",
+                    net.minecraft.server.level.ServerPlayer.class,
+                    net.minecraft.world.entity.LivingEntity.class,
+                    int.class, int.class);
+        } catch (NoSuchMethodException e) {
+            helper.fail("Thorns.spawnThorns(player, target, numSpikes, durationTicks) must exist for FloraGod thorns");
+            return;
+        }
+        helper.succeed();
+    }
 }

@@ -23,7 +23,7 @@ public class Thorns {
         for (int i = 0; i < numSpikes; i++) {
             // 1. Starting position: within 0.3-0.8 blocks of target center, at ground level
             float angle = random.nextFloat() * (float) (Math.PI * 2);
-            float dist = 0.3f + random.nextFloat() * 0.5f;
+            float dist = 1.3f + random.nextFloat() * 0.5f;
             float startX = targetCenterX + (float) Math.cos(angle) * dist;
             float startZ = targetCenterZ + (float) Math.sin(angle) * dist;
             Vector3f startPos = new Vector3f(startX, targetMinY, startZ);
@@ -40,7 +40,7 @@ public class Thorns {
             float distance = startPos.distance(targetPoint);
             float vineLength = distance + 0.5f + random.nextFloat() * 0.5f;
 
-            float thickness = 0.2f + random.nextFloat() * 0.1f;
+            float thickness = 0.07f + random.nextFloat() * 0.04f;
             int growDelay = random.nextInt(3);
             int growDuration = 5 + random.nextInt(4);
             int retractDuration = 6 + random.nextInt(4);

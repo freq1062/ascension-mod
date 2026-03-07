@@ -1,5 +1,7 @@
 package freq.ascension.orders;
 
+import freq.ascension.Ascension;
+import freq.ascension.api.DelayedTask;
 import freq.ascension.managers.PlantProximityManager;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -59,11 +61,19 @@ public class Flora implements Order {
         if (hasCapability(player, "passive")) {
             // ambient=true keeps HUD icon without particle spam; showIcon=true ensures it shows
             player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 80, 0, true, false, true));
-            // Spawn falling leaf particles when near a plant block
+            // Spawn cherry leaf particles when near a plant block — 6 staggered spawns per 40-tick window (~3/s)
             if (PlantProximityManager.isNearPlant(player) && player.level() instanceof ServerLevel sl) {
-                sl.sendParticles(ParticleTypes.COMPOSTER,
-                        player.getX(), player.getY() + 1.5, player.getZ(),
-                        5, 0.5, 0.5, 0.5, 0.05);
+                for (int i = 0; i < 6; i++) {
+                    final int tickDelay = i * 7;
+                    Ascension.scheduler.schedule(new DelayedTask(tickDelay, () -> {
+                        if (!player.isAlive() || !PlantProximityManager.isNearPlant(player)) return;
+                        sl.sendParticles(ParticleTypes.CHERRY_LEAVES,
+                                player.getX() + (sl.getRandom().nextFloat() - 0.5f) * 1.5,
+                                player.getY() + 1.5,
+                                player.getZ() + (sl.getRandom().nextFloat() - 0.5f) * 1.5,
+                                1, 0.3, 0.2, 0.3, 0.05);
+                    }));
+                }
             }
         }
     }
