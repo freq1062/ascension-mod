@@ -183,6 +183,12 @@ public class Earth implements Order {
         if (!isSupermineTool(tool))
             return;
 
+        // Only auto-smelt ores and ancient debris — not regular stone, dirt, etc.
+        boolean isOre = state.is(ORE_TAG);
+        boolean isAncientDebris = state.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS);
+        if (!isOre && !isAncientDebris)
+            return;
+
         // Determine the smelted result to check if we should intervene
         ItemStack smelted = getSmeltedResult(world, state);
         if (smelted.isEmpty())
@@ -251,7 +257,7 @@ public class Earth implements Order {
                     float originalHardness = originalState.getDestroySpeed(world, origin);
                     if (Math.abs(targetHardness - originalHardness) > 0.5f) continue;
 
-                    if (targetState.is(ORE_TAG) && !hasSilkTouch) {
+                    if ((targetState.is(ORE_TAG) || targetState.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS)) && !hasSilkTouch) {
                         ItemStack heldTool = player.getInventory().getSelectedItem();
                         if (heldTool.isCorrectToolForDrops(targetState)) {
                             dropSmeltedOre(player, world, targetPos, targetState, 1.0);
@@ -285,7 +291,10 @@ public class Earth implements Order {
                 player.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE),
                 tool);
         int baseCount = smelted.getCount();
-        int fortuneBonus = fortuneLevel > 0 ? player.level().getRandom().nextInt(fortuneLevel + 1) : 0;
+        // Vanilla fortune does not affect ancient debris — skip the bonus for it
+        boolean isAncientDebris = state.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS);
+        int fortuneBonus = (fortuneLevel > 0 && !isAncientDebris)
+                ? player.level().getRandom().nextInt(fortuneLevel + 1) : 0;
         int totalCount = (baseCount + fortuneBonus) * 2;
         smelted.setCount(totalCount);
 

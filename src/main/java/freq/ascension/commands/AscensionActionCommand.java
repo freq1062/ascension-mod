@@ -72,6 +72,16 @@ public class AscensionActionCommand {
             };
 
             if (!alreadyEquipped) {
+                // Check if the currently equipped order in this slot allows unequipping
+                Order currentOrder = switch (type) {
+                    case "passive" -> data.getPassive();
+                    case "utility" -> data.getUtility();
+                    case "combat" -> data.getCombat();
+                    default -> null;
+                };
+                if (currentOrder != null && !currentOrder.canUnequip(player)) {
+                    return 0;
+                }
                 switch (type) {
                     case "passive" -> data.setPassive(orderName);
                     case "utility" -> data.setUtility(orderName);
@@ -139,6 +149,16 @@ public class AscensionActionCommand {
             };
 
             if (!alreadyEquipped) {
+                // Check if the currently equipped order in this slot allows unequipping
+                Order currentOrder2 = switch (type) {
+                    case "passive" -> data.getPassive();
+                    case "utility" -> data.getUtility();
+                    case "combat" -> data.getCombat();
+                    default -> null;
+                };
+                if (currentOrder2 != null && !currentOrder2.canUnequip(player)) {
+                    return 0;
+                }
                 switch (type) {
                     case "passive" -> data.setPassive(orderName);
                     case "utility" -> data.setUtility(orderName);

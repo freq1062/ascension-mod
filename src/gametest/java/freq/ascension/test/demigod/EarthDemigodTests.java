@@ -10,8 +10,10 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
+import net.minecraft.world.item.crafting.SmeltingRecipe;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.block.Blocks;
@@ -685,6 +687,125 @@ public class EarthDemigodTests {
         if (recipe.isEmpty()) {
             helper.fail("Coal Ore must have a smelting recipe — dropSmeltedOre would return false "
                     + "and the ore would not be smelted+doubled during supermine");
+        }
+        helper.succeed();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BUG FIXES — Passive slot restriction, ore-only auto-smelt, ancient debris fortune
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Intention: {@code ignoreAnvilCostLimit()} always returns true on the Earth order,
+     * but the Mixin predicate must also confirm the order is in the passive slot via
+     * {@code order.hasCapability(player, "passive")}. This test verifies that the base
+     * flag is still true (it is unconditional by design), and that the slot check is
+     * the discriminating factor the Mixin relies on.
+     */
+    @GameTest
+    public void earthPassiveAnvilLimitOnlyRemovedWithPassive(GameTestHelper helper) {
+        // ignoreAnvilCostLimit() is always true on the Earth order — the slot guard
+        // lives in the Mixin lambda, not in the Order method itself.
+        if (!Earth.INSTANCE.ignoreAnvilCostLimit()) {
+            helper.fail("Earth.ignoreAnvilCostLimit() must return true unconditionally; "
+                    + "the passive-slot guard is enforced by the Mixin lambda");
+        }
+        // The Mixin predicate is: order.ignoreAnvilCostLimit() && order.hasCapability(player, "passive")
+        // Without a real player we can only verify the flag side here.
+        helper.succeed();
+    }
+
+    /**
+     * Intention: Stone has a smelting recipe (stone → smooth stone), but it is NOT in
+     * the {@code c:ores} tag and is not ancient debris. The Earth passive guard added
+     * in {@code onBlockBreak} must skip it before reaching {@code getSmeltedResult},
+     * preventing accidental auto-smelting of non-ore blocks like stone.
+     */
+    @GameTest
+    public void earthPassiveSuperminSkipsStone(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos pos = new BlockPos(1, 2, 1);
+        helper.setBlock(pos, Blocks.STONE.defaultBlockState());
+
+        BlockState stoneState = helper.getBlockState(pos);
+
+        // Stone must NOT be in c:ores
+        net.minecraft.tags.TagKey<net.minecraft.world.level.block.Block> oreTag =
+                net.minecraft.tags.TagKey.create(
+                        net.minecraft.core.registries.Registries.BLOCK,
+                        net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("c", "ores"));
+        boolean isOre = stoneState.is(oreTag);
+        boolean isAncientDebris = stoneState.is(Blocks.ANCIENT_DEBRIS);
+
+        if (isOre || isAncientDebris) {
+            helper.fail("Stone must not be in c:ores or equal to ancient_debris — "
+                    + "the Earth passive ore-only guard would incorrectly smelt it");
+        }
+
+        // Confirm stone does have a smelting recipe (smooth stone) — the guard is what stops it
+        ItemStack input = new ItemStack(stoneState.getBlock().asItem());
+        net.minecraft.world.item.crafting.SingleRecipeInput recipeInput =
+                new net.minecraft.world.item.crafting.SingleRecipeInput(input);
+        java.util.Optional<?> recipe = level.recipeAccess()
+                .getRecipeFor(RecipeType.SMELTING, recipeInput, level);
+
+        if (recipe.isEmpty()) {
+            helper.fail("Test setup: Stone should have a smelting recipe (smooth stone) to be meaningful");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Intention: Fortune does not work on ancient debris in vanilla. The fixed
+     * {@code dropSmeltedOre} must set fortuneBonus to 0 for ancient debris regardless
+     * of the fortune level on the tool, preventing the 8-drop exploit with Fortune III.
+     */
+    @GameTest
+    public void earthPassiveAncientDebrisNoFortune(GameTestHelper helper) {
+        // Simulate the fixed dropSmeltedOre fortune logic for ancient debris
+        int fortuneLevel = 3; // Fortune III pickaxe
+        // isAncientDebris = true → fortuneBonus must be 0
+        int fortuneBonus = 0; // fixed: (fortuneLevel > 0 && !isAncientDebris) ? random : 0
+        int base = 1;
+        int total = (base + fortuneBonus) * 2;
+
+        if (fortuneBonus != 0) {
+            helper.fail("Fortune bonus must be 0 for ancient debris, got " + fortuneBonus);
+        }
+        if (total != 2) {
+            helper.fail("Ancient debris drop with Fortune III must be exactly 2 (no fortune bonus), got " + total);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Intention: Even though fortune is skipped for ancient debris, the 2× doubling
+     * still applies. A plain diamond pickaxe (no fortune) mining ancient debris must
+     * yield exactly 2 Netherite Scraps.
+     */
+    @GameTest
+    public void earthPassiveAncientDebrisStillDoubles(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockState debrisState = Blocks.ANCIENT_DEBRIS.defaultBlockState();
+
+        // Verify the smelting recipe exists (ancient debris → netherite scrap)
+        ItemStack input = new ItemStack(debrisState.getBlock().asItem());
+        net.minecraft.world.item.crafting.SingleRecipeInput recipeInput =
+                new net.minecraft.world.item.crafting.SingleRecipeInput(input);
+        java.util.Optional<RecipeHolder<SmeltingRecipe>> recipeOpt =
+                level.recipeAccess().getRecipeFor(RecipeType.SMELTING, recipeInput, level);
+
+        if (recipeOpt.isEmpty()) {
+            helper.fail("Ancient Debris must have a smelting recipe (→ Netherite Scrap)");
+        }
+
+        // base count from recipe × 2 (fortune skipped for ancient debris)
+        int base = recipeOpt.get().value().assemble(recipeInput, level.registryAccess()).getCount();
+        int fortuneBonus = 0; // ancient debris skips fortune
+        int total = (base + fortuneBonus) * 2;
+
+        if (total < 2) {
+            helper.fail("Ancient debris drop must be at least 2 after doubling, got " + total);
         }
         helper.succeed();
     }

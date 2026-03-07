@@ -200,4 +200,14 @@ public interface Order {
         return this;
     }
 
+    /**
+     * Called before the player unequips (changes) this order in a given slot.
+     *
+     * @return {@code true} if unequipping is allowed; {@code false} to block it.
+     *         Implementations that block must send the player an explanatory message.
+     */
+    default boolean canUnequip(ServerPlayer player) {
+        return true;
+    }
+
 }

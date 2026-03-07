@@ -26,14 +26,14 @@ import net.minecraft.world.level.block.state.BlockState;
  * the first iteration and growing outward. When the spell ends the animation runs in
  * reverse — displays shrink from the outside inward.
  *
- * <p><b>Dragon Curve algorithm:</b>
+ * <p><b>Dragon Curve algorithm (correct):</b>
  * <ol>
- *   <li>Begin at a random interior point at least 1 block from the edge of the radius.</li>
- *   <li>Each iteration unfolds the polyline: for each existing segment, insert a
- *       90-degree right turn at its midpoint, alternating direction every other step.</li>
- *   <li>Iterate until all block-display positions are inside the 7-block circle.</li>
- *   <li>Each segment is rendered as a single thin {@link BlockDisplay} scaled to
- *       0.5 × 0.1 × 0.1 blocks (length × width × height).</li>
+ *   <li>Start with one 0.5-block segment at a random interior point.</li>
+ *   <li>Each iteration <em>appends</em> a 90° clockwise–rotated copy of the entire
+ *       current path (pivoting around the last point). The segment length stays constant
+ *       at {@value #SEGMENT_LENGTH} blocks throughout — never subdivided.</li>
+ *   <li>After N iterations: 2^N segments, all 0.5 blocks long.</li>
+ *   <li>Segments whose midpoint falls outside the 7-block radius are clipped.</li>
  * </ol>
  */
 public class DragonCurve {
@@ -47,8 +47,12 @@ public class DragonCurve {
     /** Maximum radius of the Desolation of Time effect area (blocks). */
     public static final double EFFECT_RADIUS = 7.0;
 
-    /** Half the length of one dragon-curve segment (blocks). */
-    private static final float SEGMENT_HALF = 0.25f;
+    /**
+     * Length of each dragon-curve segment in blocks.
+     * This value is <em>constant</em> — it never changes between iterations.
+     * Tests validate this constant directly.
+     */
+    public static final float SEGMENT_LENGTH = 0.5f;
 
     private static final BlockState PURPLE_CONCRETE =
             Blocks.PURPLE_CONCRETE.defaultBlockState();
@@ -73,44 +77,78 @@ public class DragonCurve {
         scheduleIterations();
     }
 
-    /** Schedule each iteration to appear {@value #ITERATION_INTERVAL_TICKS} ticks apart. */
+    /**
+     * Schedule each iteration to appear {@value #ITERATION_INTERVAL_TICKS} ticks apart.
+     *
+     * <p>Builds the full dragon-curve point list incrementally, recording which
+     * point-range was added at each step, then schedules display spawns for each group.
+     * The initial segment is shown immediately (step 0); each appended rotation group
+     * is shown with an additional {@value #ITERATION_INTERVAL_TICKS}-tick delay.
+     */
     private void scheduleIterations() {
-        // Generate the dragon-curve control points
-        List<float[]> points = generateDragonCurvePoints(maxIterations);
+        // Seed the point list with a single 0.5-block segment at a random interior point
+        Random rng = new Random();
+        float maxStart = (float) (EFFECT_RADIUS - 1.0);
+        float ox = (rng.nextFloat() * 2 - 1) * maxStart;
+        float oz = (rng.nextFloat() * 2 - 1) * maxStart;
 
-        // Subdivide into groups of segments — each "group" is one iteration's additions
-        // For simplicity, we draw all segments in one final pass and expose them
-        // step-by-step. A true iteration would show only the new segments at each step.
-        int total = Math.max(1, points.size() - 1);
-        int segmentsPerStep = Math.max(1, total / Math.max(1, maxIterations));
+        List<float[]> points = new ArrayList<>();
+        points.add(new float[]{ox, oz});
+        points.add(new float[]{ox + SEGMENT_LENGTH, oz});
 
-        for (int step = 0; step < maxIterations; step++) {
-            final int s = step;
-            int delayTicks = s * ITERATION_INTERVAL_TICKS;
+        // iterRanges[i] = [startPointIndex, endPointIndex] for segments added at step i.
+        // A "segment" is the line from points[j] to points[j+1].
+        List<int[]> iterRanges = new ArrayList<>();
+        iterRanges.add(new int[]{0, 1}); // initial segment (points 0→1)
+
+        for (int iter = 0; iter < maxIterations; iter++) {
+            int pivotIdx = points.size() - 1; // index of the last (pivot) point
+            float[] pivot = points.get(pivotIdx);
+
+            // Build rotated copy of all current points (90° clockwise around pivot).
+            // Iteration is in reverse order; the first entry equals the pivot and is skipped.
+            List<float[]> rotatedCopy = new ArrayList<>();
+            for (int i = pivotIdx; i >= 0; i--) {
+                float[] p = points.get(i);
+                float rx = p[0] - pivot[0];
+                float rz = p[1] - pivot[1];
+                // 90° clockwise: (rx, rz) → (rz, -rx)
+                rotatedCopy.add(new float[]{pivot[0] + rz, pivot[1] - rx});
+            }
+            // Skip index 0 (it duplicates the pivot) and append the rest
+            int newStart = points.size() - 1; // the segment starts at the current last point
+            for (int i = 1; i < rotatedCopy.size(); i++) {
+                points.add(rotatedCopy.get(i));
+            }
+            iterRanges.add(new int[]{newStart, points.size() - 1});
+        }
+
+        final List<float[]> finalPoints = points;
+
+        for (int step = 0; step < iterRanges.size(); step++) {
+            final int[] range = iterRanges.get(step);
+            int delayTicks = step * ITERATION_INTERVAL_TICKS;
 
             Ascension.scheduler.schedule(new DelayedTask(delayTicks, () -> {
                 List<BlockDisplay> stepDisplays = new ArrayList<>();
 
-                int start = s * segmentsPerStep;
-                int end = Math.min(start + segmentsPerStep, total);
+                for (int i = range[0]; i < range[1]; i++) {
+                    float[] a = finalPoints.get(i);
+                    float[] b = finalPoints.get(i + 1);
 
-                for (int i = start; i < end; i++) {
-                    if (i + 1 >= points.size()) break;
-                    float[] a = points.get(i);
-                    float[] b = points.get(i + 1);
-
-                    // Only spawn within the radius
-                    double dx = a[0], dz = a[1];
-                    if (Math.sqrt(dx * dx + dz * dz) > EFFECT_RADIUS - 0.5) continue;
+                    // Clip: skip segments whose midpoint is outside the effect radius
+                    double midX = (a[0] + b[0]) / 2.0;
+                    double midZ = (a[1] + b[1]) / 2.0;
+                    if (Math.sqrt(midX * midX + midZ * midZ) > EFFECT_RADIUS) continue;
 
                     BlockDisplay bd = spawnSegmentDisplay(a, b);
                     if (bd != null) {
                         stepDisplays.add(bd);
                         spawnedDisplays.add(bd);
 
-                        // Dragon's breath-style particles around each new display (WITCH is purple, server-safe)
+                        // Purple witch particles to accent each new segment
                         level.sendParticles(ParticleTypes.WITCH,
-                                origin.x + a[0], origin.y + 1, origin.z + a[1],
+                                origin.x + midX, origin.y + 1, origin.z + midZ,
                                 3, 0.2, 0.1, 0.2, 0.02);
                     }
                 }
@@ -160,59 +198,6 @@ public class DragonCurve {
         }
         spawnedDisplays.clear();
         iterationGroups.clear();
-    }
-
-    /**
-     * Generates dragon-curve polyline control points (X, Z offsets from origin).
-     * Each iteration doubles the number of segments by unfolding at 90 degrees.
-     *
-     * @param iterations number of unfolding iterations
-     * @return list of [x, z] float pairs (offsets from cast centre)
-     */
-    private List<float[]> generateDragonCurvePoints(int iterations) {
-        List<float[]> points = new ArrayList<>();
-        // Starting segment: random interior point at least 1 block from edge
-        Random rng = new Random();
-        float maxStart = (float) (EFFECT_RADIUS - 1.5);
-        float ox = (rng.nextFloat() * 2 - 1) * maxStart;
-        float oz = (rng.nextFloat() * 2 - 1) * maxStart;
-
-        points.add(new float[]{ox, oz});
-        points.add(new float[]{ox + SEGMENT_HALF * 2, oz});
-
-        float segLen = SEGMENT_HALF * 2;
-
-        for (int iter = 0; iter < iterations; iter++) {
-            List<float[]> next = new ArrayList<>();
-            boolean turnRight = true;
-
-            for (int i = 0; i < points.size() - 1; i++) {
-                float[] a = points.get(i);
-                float[] b = points.get(i + 1);
-                float mx = (a[0] + b[0]) / 2f;
-                float mz = (a[1] + b[1]) / 2f;
-
-                // Perpendicular direction (90 degrees)
-                float dx = b[0] - a[0];
-                float dz = b[1] - a[1];
-                float perpX = turnRight ? dz : -dz;
-                float perpZ = turnRight ? -dx : dx;
-                float len = (float) Math.sqrt(perpX * perpX + perpZ * perpZ);
-                if (len > 0) { perpX /= len; perpZ /= len; }
-
-                float newX = mx + perpX * (segLen / 2f);
-                float newZ = mz + perpZ * (segLen / 2f);
-
-                next.add(a);
-                next.add(new float[]{newX, newZ});
-                turnRight = !turnRight;
-
-                if (i == points.size() - 2) next.add(b);
-            }
-            points = next;
-            segLen /= 2f;
-        }
-        return points;
     }
 
     /** Spawns a thin BlockDisplay segment between two 2D (xz) control points. */

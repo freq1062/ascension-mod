@@ -41,9 +41,21 @@ public class SetOrderCommand {
             return 0;
         }
         switch (type) {
-            case "passive" -> data.setPassive(orderName);
-            case "utility" -> data.setUtility(orderName);
-            case "combat" -> data.setCombat(orderName);
+            case "passive" -> {
+                Order current = data.getPassive();
+                if (current != null && !current.canUnequip(target)) return 0;
+                data.setPassive(orderName);
+            }
+            case "utility" -> {
+                Order current = data.getUtility();
+                if (current != null && !current.canUnequip(target)) return 0;
+                data.setUtility(orderName);
+            }
+            case "combat" -> {
+                Order current = data.getCombat();
+                if (current != null && !current.canUnequip(target)) return 0;
+                data.setCombat(orderName);
+            }
             default -> {
                 context.getSource()
                         .sendFailure(Component.literal("Invalid type: " + type + ". Use passive, utility, or combat."));

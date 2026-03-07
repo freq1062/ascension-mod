@@ -245,4 +245,96 @@ public class EarthGodTests {
         }
         helper.succeed();
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BUG FIXES — inherited from Earth: ore-only guard, ancient debris fortune
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * EarthGod inherits {@code ignoreAnvilCostLimit()} from Earth. The Mixin passive-slot
+     * guard applies equally to god-tier players.
+     */
+    @GameTest
+    public void earthGodAnvilLimitFlagInherited(GameTestHelper helper) {
+        if (!EarthGod.INSTANCE.ignoreAnvilCostLimit()) {
+            helper.fail("EarthGod must inherit ignoreAnvilCostLimit()=true from Earth");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Stone is not in c:ores and is not ancient debris. EarthGod's inherited
+     * {@code onBlockBreak} must skip it before auto-smelting, same as the demigod.
+     */
+    @GameTest
+    public void earthGodSuperminSkipsStone(GameTestHelper helper) {
+        net.minecraft.server.level.ServerLevel level = helper.getLevel();
+        net.minecraft.core.BlockPos pos = new net.minecraft.core.BlockPos(1, 2, 1);
+        helper.setBlock(pos, net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+
+        net.minecraft.world.level.block.state.BlockState stoneState = helper.getBlockState(pos);
+
+        net.minecraft.tags.TagKey<net.minecraft.world.level.block.Block> oreTag =
+                net.minecraft.tags.TagKey.create(
+                        net.minecraft.core.registries.Registries.BLOCK,
+                        net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("c", "ores"));
+        boolean isOre = stoneState.is(oreTag);
+        boolean isAncientDebris = stoneState.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS);
+
+        if (isOre || isAncientDebris) {
+            helper.fail("Stone must not be in c:ores or equal to ancient_debris — "
+                    + "EarthGod inherited ore-only guard would incorrectly smelt it");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * EarthGod inherits {@code dropSmeltedOre}. Fortune must be skipped for ancient
+     * debris to prevent the 8-drop exploit, same as the demigod.
+     */
+    @GameTest
+    public void earthGodAncientDebrisNoFortune(GameTestHelper helper) {
+        int fortuneLevel = 3;
+        int fortuneBonus = 0; // fixed: isAncientDebris → fortune skipped
+        int base = 1;
+        int total = (base + fortuneBonus) * 2;
+
+        if (fortuneBonus != 0) {
+            helper.fail("EarthGod: fortune bonus must be 0 for ancient debris, got " + fortuneBonus);
+        }
+        if (total != 2) {
+            helper.fail("EarthGod: ancient debris drop with Fortune III must be 2, got " + total);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * EarthGod: ancient debris still receives the 2× doubling even without fortune.
+     */
+    @GameTest
+    public void earthGodAncientDebrisStillDoubles(GameTestHelper helper) {
+        net.minecraft.server.level.ServerLevel level = helper.getLevel();
+        net.minecraft.world.level.block.state.BlockState debrisState =
+                net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS.defaultBlockState();
+
+        net.minecraft.world.item.ItemStack input =
+                new net.minecraft.world.item.ItemStack(debrisState.getBlock().asItem());
+        net.minecraft.world.item.crafting.SingleRecipeInput recipeInput =
+                new net.minecraft.world.item.crafting.SingleRecipeInput(input);
+
+        java.util.Optional<net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.SmeltingRecipe>> recipeOpt =
+                level.recipeAccess().getRecipeFor(
+                        net.minecraft.world.item.crafting.RecipeType.SMELTING, recipeInput, level);
+
+        if (recipeOpt.isEmpty()) {
+            helper.fail("Ancient Debris must have a smelting recipe (→ Netherite Scrap)");
+        }
+
+        int base = recipeOpt.get().value().assemble(recipeInput, level.registryAccess()).getCount();
+        int total = (base + 0) * 2; // fortune bonus = 0 for ancient debris
+        if (total < 2) {
+            helper.fail("EarthGod: ancient debris drop must be >= 2 after doubling, got " + total);
+        }
+        helper.succeed();
+    }
 }

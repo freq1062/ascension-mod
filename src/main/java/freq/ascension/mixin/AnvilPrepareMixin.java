@@ -58,7 +58,9 @@ public abstract class AnvilPrepareMixin {
     @ModifyConstant(method = "createResult", constant = @Constant(intValue = 40))
     private int modifyAnvilLimit(int constant) {
         if (this.ascension$player instanceof ServerPlayer serverPlayer) {
-            if (AbilityManager.anyMatch(serverPlayer, Order::ignoreAnvilCostLimit)) {
+            // Only bypass the anvil limit when the earth order is in the passive slot
+            if (AbilityManager.anyMatch(serverPlayer,
+                    order -> order.ignoreAnvilCostLimit() && order.hasCapability(serverPlayer, "passive"))) {
                 return Integer.MAX_VALUE;
             }
         }
