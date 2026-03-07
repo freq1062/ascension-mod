@@ -4,14 +4,25 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import eu.pb4.sgui.api.elements.GuiElementInterface;
+import eu.pb4.sgui.api.gui.SimpleGui;
+import freq.ascension.Ascension;
+import freq.ascension.managers.EnderRowManager;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
 import freq.ascension.registry.SpellRegistry;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * Stub scaffold for the End Order (Demigod tier).
@@ -117,5 +128,77 @@ public class End implements Order {
     public void applyEffect(ServerPlayer player) {
         // Phase 2: apply passive effects (fire resistance not needed; passive is
         // mob neutrality + cooldown reduction — no potion effect tick needed)
+    }
+
+    // ─── Extra ender-chest row ─────────────────────────────────────────────────
+
+    /**
+     * Opens a custom 4-row chest GUI for the player:
+     * <ul>
+     *   <li>Rows 0–2 (slots 0–26) redirect to the player's vanilla ender-chest inventory.</li>
+     *   <li>Row 3 (slots 27–35) redirects to a temporary container backed by
+     *       {@link EnderRowManager}; changes are persisted when the GUI closes.</li>
+     * </ul>
+     */
+    public void openEnderChestWithExtraRow(ServerPlayer player) {
+        MinecraftServer server = Ascension.getServer();
+        UUID uuid = player.getUUID();
+        EnderRowManager mgr = EnderRowManager.get(server);
+
+        // Build a temporary SimpleContainer for the extra row so slot redirects work
+        SimpleContainer extraContainer = new SimpleContainer(EnderRowManager.ROW_SIZE);
+        ItemStack[] extraRow = mgr.getExtraRow(uuid);
+        for (int i = 0; i < EnderRowManager.ROW_SIZE; i++) {
+            extraContainer.setItem(i, extraRow[i].copy());
+        }
+
+        // 4-row GUI (36 slots total)
+        SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x4, player, false) {
+            @Override
+            public void onClose() {
+                // Persist the extra row back to EnderRowManager
+                for (int i = 0; i < EnderRowManager.ROW_SIZE; i++) {
+                    mgr.setSlot(uuid, i, extraContainer.getItem(i).copy());
+                }
+            }
+        };
+
+        gui.setTitle(Component.literal("Ender Chest")
+                .withStyle(style -> style
+                        .withColor(TextColor.fromRgb(0x7B2FBE))
+                        .withBold(true)
+                        .withItalic(false)));
+
+        // Redirect first 27 slots to the vanilla ender chest — item movements
+        // are handled directly by Minecraft and do not need explicit save logic.
+        SimpleContainer enderInv = player.getEnderChestInventory();
+        for (int i = 0; i < 27; i++) {
+            gui.setSlotRedirect(i, new Slot(enderInv, i, 0, 0));
+        }
+
+        // Redirect the extra row to our temporary container
+        for (int i = 0; i < EnderRowManager.ROW_SIZE; i++) {
+            gui.setSlotRedirect(27 + i, new Slot(extraContainer, i, 0, 0));
+        }
+
+        gui.open();
+    }
+
+    // ─── Unequip guard ────────────────────────────────────────────────────────
+
+    /**
+     * Prevents the player from unequipping the End passive while their extra ender-chest
+     * row still contains items.  All other slots (utility, combat) are always allowed.
+     */
+    @Override
+    public boolean canUnequip(ServerPlayer player) {
+        if (!hasCapability(player, "passive")) return true;
+        EnderRowManager mgr = EnderRowManager.get(Ascension.getServer());
+        if (mgr.hasItems(player.getUUID())) {
+            player.sendSystemMessage(Component.literal(
+                    "§cClear your extra ender chest row before unequipping the End passive!"));
+            return false;
+        }
+        return true;
     }
 }

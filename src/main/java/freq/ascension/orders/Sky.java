@@ -11,7 +11,6 @@ import freq.ascension.managers.SpellStats;
 import freq.ascension.registry.SpellRegistry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
@@ -27,7 +26,6 @@ import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.level.GameType;
-import net.minecraft.world.phys.Vec3;
 
 public class Sky implements Order {
 
@@ -163,29 +161,18 @@ public class Sky implements Order {
 
     @Override
     public void applyProjectileShield(ServerPlayer player, Projectile projectile) {
-        if (projectile.getTags().contains("sky_slowed") || projectile.getOwner() == player) {
-            return;
-        }
-
-        if (nonHarmfulProjectiles(projectile)) {
-            return;
-        }
+        if (nonHarmfulProjectiles(projectile)) return;
+        if (projectile.getTags().contains("sky_slowed") || projectile.getOwner() == player) return;
 
         if (projectile.level() instanceof ServerLevel serverLevel) {
-            Vec3 velocity = projectile.getDeltaMovement();
-            if (Math.abs(velocity.x) > 0.01 || Math.abs(velocity.z) > 0.01) {
-                projectile.setDeltaMovement(velocity.scale(0.5));
-            }
-            serverLevel.getChunkSource().sendToTrackingPlayers(projectile,
-                    new ClientboundSetEntityMotionPacket(projectile));
+            // Demigods: arrows hit normally — no velocity change, only visual feedback.
             serverLevel.sendParticles(
                     net.minecraft.core.particles.ParticleTypes.GLOW,
                     projectile.getX(), projectile.getY(), projectile.getZ(),
-                    10, // count
-                    0.1, 0.1, 0.1, // offset
-                    0.01 // speed
-            );
-            projectile.addTag("sky_slowed");
+                    5,
+                    0.1, 0.1, 0.1,
+                    0.01);
+            projectile.addTag("sky_slowed"); // prevent particle spam on subsequent ticks
         }
     }
 

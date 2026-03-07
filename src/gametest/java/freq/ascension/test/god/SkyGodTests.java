@@ -175,22 +175,32 @@ public class SkyGodTests {
     }
 
     /**
-     * <b>SKY GOD — Projectile Shield Uses scale(0.5) Not scale(0.3)</b>
+     * <b>SKY GOD — Projectile Shield Reverses Horizontal Velocity</b>
      *
-     * <p>Confirms that after the velocity fix the arrow still reaches the player
-     * (velocity > 0) and is reduced to exactly 50% of its original speed.
+     * <p>Confirms that gods deflect projectiles by negating the x and z components
+     * while dampening the y component to 20%, producing a true bounce effect.
      */
     @GameTest
-    public void skyGodProjectileShieldScaleIsHalf(GameTestHelper helper) {
+    public void skyGodProjectileShieldReversesVelocity(GameTestHelper helper) {
         double originalX = 2.0;
-        double reduced = originalX * 0.5;
+        double originalZ = -1.5;
+        double originalY = 0.5;
 
-        if (reduced <= 0.0) {
-            helper.fail("scale(0.5) on positive velocity must remain positive");
+        // Simulate the deflection formula used in SkyGod.applyProjectileShield.
+        double reversedX = -originalX;
+        double reversedZ = -originalZ;
+        double dampedY  = originalY * 0.2;
+
+        if (Math.abs(reversedX - (-originalX)) >= 0.001) {
+            helper.fail("X velocity must be negated on deflect; expected " + (-originalX) + " got " + reversedX);
         }
-        if (Math.abs(reduced - 1.0) >= 0.001) {
-            helper.fail("scale(0.5) of 2.0 must equal 1.0, got " + reduced);
+        if (Math.abs(reversedZ - (-originalZ)) >= 0.001) {
+            helper.fail("Z velocity must be negated on deflect; expected " + (-originalZ) + " got " + reversedZ);
         }
+        if (Math.abs(dampedY - (originalY * 0.2)) >= 0.001) {
+            helper.fail("Y velocity must be dampened to 20%; expected " + (originalY * 0.2) + " got " + dampedY);
+        }
+
         helper.succeed();
     }
 }

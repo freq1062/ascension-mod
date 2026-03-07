@@ -43,23 +43,23 @@ public class SkyGod extends Sky {
 
     @Override
     public void applyProjectileShield(ServerPlayer player, Projectile projectile) {
-        if (nonHarmfulProjectiles(projectile)) {
-            return;
-        }
+        if (nonHarmfulProjectiles(projectile)) return;
+        if (projectile.getTags().contains("sky_slowed") || projectile.getOwner() == player) return;
+
         if (projectile.level() instanceof ServerLevel serverLevel) {
+            // Gods: deflect projectiles by reversing horizontal velocity.
+            Vec3 velocity = projectile.getDeltaMovement();
+            Vec3 reversed = new Vec3(-velocity.x, velocity.y * 0.2, -velocity.z);
+            projectile.setDeltaMovement(reversed);
             serverLevel.getChunkSource().sendToTrackingPlayers(projectile,
                     new ClientboundSetEntityMotionPacket(projectile));
-            Vec3 velocity = projectile.getDeltaMovement();
-            if (Math.abs(velocity.x) > 0.01 || Math.abs(velocity.z) > 0.01) {
-                projectile.setDeltaMovement(velocity.scale(0.5));
-            }
             serverLevel.sendParticles(
                     net.minecraft.core.particles.ParticleTypes.GLOW,
                     projectile.getX(), projectile.getY(), projectile.getZ(),
-                    2, // count
-                    0.1, 0.1, 0.1, // offset
-                    0.01 // speed
-            );
+                    10,
+                    0.2, 0.2, 0.2,
+                    0.02);
+            projectile.addTag("sky_slowed");
         }
     }
 }

@@ -42,9 +42,9 @@ import freq.ascension.orders.Order.DamageContext;
  * 50% reduction for dripstone (stalagmite) damage.</li>
  * <li><b>PASSIVE (Breeze Neutrality):</b> Breeze entities treat Sky players
  * as neutral/passive targets.</li>
- * <li><b>PASSIVE (Projectile Shield):</b> Hostile projectiles have their
- * velocity reduced by 50% (scale to 0.5x); beneficial projectiles pass through
- * unaffected.</li>
+ * <li><b>PASSIVE (Projectile Shield):</b> Hostile projectiles pass through
+ * unaffected (no velocity change); only a brief particle effect is spawned.
+ * Beneficial projectiles are filtered and also pass through unaffected.</li>
  * <li><b>DOUBLE JUMP:</b> Mid-air jump with 8-second cooldown to prevent
  * spam.</li>
  * <li><b>DASH (Utility):</b> High-speed horizontal dash in the player's look
@@ -443,132 +443,111 @@ public class SkyDemigodTests {
     }
 
     /**
-     * <b>SKY PASSIVE — Hostile Projectile Velocity Reduction (50%)</b>
-     * 
+     * <b>SKY PASSIVE — Arrow Passes Through Without Velocity Change</b>
+     *
      * <p>
-     * <b>Intention:</b> Sky demigods create an invisible wind shield that slows
-     * incoming hostile projectiles to 50% of their original speed.
-     * This makes arrows, snowballs, and harmful potions easier to dodge,
-     * reinforcing Sky's dominance in ranged combat scenarios.
-     * 
+     * <b>Intention:</b> Sky demigods no longer slow incoming projectiles; arrows
+     * hit at full speed so damage is not suppressed. The shield only adds a
+     * "sky_slowed" tag (to avoid spamming particles on subsequent ticks) and
+     * spawns a brief visual effect. Velocity is left completely untouched.
+     *
      * <p>
-     * <b>Implementation:</b> Sky.applyProjectileShield() is called when a
-     * projectile enters the player's vicinity. The method:
+     * <b>Implementation:</b> Sky.applyProjectileShield() now:
      * <ol>
-     * <li>Checks if the projectile is tagged "sky_slowed" (prevents double-slowing)</li>
      * <li>Calls nonHarmfulProjectiles() to filter beneficial projectiles</li>
-     * <li>Scales velocity by 0.5:
-     * {@code projectile.setDeltaMovement(velocity.scale(0.5))}</li>
-     * <li>Adds "sky_slowed" tag to prevent re-application</li>
-     * <li>Spawns GLOW particles around the projectile for visual feedback</li>
+     * <li>Checks if the projectile is tagged "sky_slowed" (prevents particle spam)</li>
+     * <li>Spawns GLOW particles for visual feedback</li>
+     * <li>Adds "sky_slowed" tag — does NOT modify getDeltaMovement()</li>
      * </ol>
-     * 
-     * <p>
-     * <b>Root Cause Note:</b> Changed from 0.3x to 0.5x — 0.3x was too strong
-     * and caused arrows to barely move, preventing them from ever reaching the player.
-     * 0.5x preserves meaningful deceleration while keeping projectile physics realistic.
      */
     @GameTest
-    public void skyPassiveReducesHostileProjectileVelocity(GameTestHelper helper) {
+    public void skyPassiveArrowPassesThroughWithoutVelocityChange(GameTestHelper helper) {
         BlockPos spawnPos = new BlockPos(2, 3, 2);
 
-        // Spawn an arrow (hostile projectile)
         Arrow arrow = helper.spawn(EntityType.ARROW, spawnPos);
 
-        // Set initial velocity (simulating a fired arrow)
-        Vec3 initialVelocity = new Vec3(2.0, 0.0, 0.0); // Fast horizontal flight
+        Vec3 initialVelocity = new Vec3(2.0, 0.0, 0.0);
         arrow.setDeltaMovement(initialVelocity);
 
-        // Simulate Sky.applyProjectileShield() logic
+        // Simulate Sky.applyProjectileShield() — new demigod behaviour: no velocity change.
         if (!arrow.getTags().contains("sky_slowed") && arrow.getOwner() == null) {
-            // Check if projectile is harmful (arrow is harmful by default)
             boolean isHarmful = true; // Arrows are always harmful
-
             if (isHarmful) {
-                Vec3 velocity = arrow.getDeltaMovement();
-                Vec3 reducedVelocity = velocity.scale(0.5); // 50% reduction
-                arrow.setDeltaMovement(reducedVelocity);
+                // Demigod: only add tag for particle spam prevention, no setDeltaMovement.
                 arrow.addTag("sky_slowed");
             }
         }
 
-        // Verify velocity was reduced to exactly 50% (0.5x) of original
+        // Velocity must be UNCHANGED.
         Vec3 finalVelocity = arrow.getDeltaMovement();
-        Vec3 expectedVelocity = initialVelocity.scale(0.5);
 
-        if (Math.abs(finalVelocity.x - expectedVelocity.x) >= 0.01) {
-            helper.fail("Arrow X velocity should be reduced to " + expectedVelocity.x
-                    + " (50% of original), got " + finalVelocity.x);
+        if (Math.abs(finalVelocity.x - initialVelocity.x) >= 0.01) {
+            helper.fail("Demigod shield must NOT change arrow velocity. Expected x=" + initialVelocity.x
+                    + ", got " + finalVelocity.x);
         }
 
-        // Verify tag was added to prevent double-slowing
+        // Tag must be present to prevent particle spam.
         if (!arrow.getTags().contains("sky_slowed")) {
-            helper.fail("Arrow must be tagged 'sky_slowed' to prevent re-slowing");
+            helper.fail("Arrow must be tagged 'sky_slowed' to prevent particle spam");
         }
 
         helper.succeed();
     }
 
     /**
-     * <b>SKY PASSIVE — Arrow Velocity Is Positive After Shield (Not Stopped)</b>
+     * <b>SKY PASSIVE — Arrow Can Still Hit Player (Velocity Is Positive and Unchanged)</b>
      *
-     * <p>Verifies that scale(0.5) leaves the arrow with positive velocity so it
-     * continues travelling toward the player.  A scale of 0.3 would also pass
-     * this check; the real guard is that the arrow is <em>never</em> stopped
-     * outright (velocity == 0) by the shield.
+     * <p>Confirms that the demigod projectile shield leaves arrow velocity
+     * completely intact. The arrow must still travel at full speed toward the
+     * player; no reduction is applied.
      */
     @GameTest
-    public void skyPassiveArrowVelocityIsPositiveAfterShield(GameTestHelper helper) {
+    public void skyPassiveArrowCanStillHitPlayer(GameTestHelper helper) {
         Arrow arrow = helper.spawn(EntityType.ARROW, new BlockPos(2, 3, 2));
         Vec3 initialVelocity = new Vec3(1.5, 0.0, 0.0);
         arrow.setDeltaMovement(initialVelocity);
 
-        // Apply shield logic (50% reduction via scale(0.5))
-        Vec3 velocity = arrow.getDeltaMovement();
-        if (Math.abs(velocity.x) > 0.01 || Math.abs(velocity.z) > 0.01) {
-            arrow.setDeltaMovement(velocity.scale(0.5));
-        }
+        // Demigod shield: tag only, no velocity modification.
+        arrow.addTag("sky_slowed");
 
         Vec3 finalVelocity = arrow.getDeltaMovement();
         if (finalVelocity.length() <= 0.0) {
             helper.fail("Arrow must still have positive velocity after shield; got " + finalVelocity);
         }
-        if (finalVelocity.x <= 0.0) {
-            helper.fail("Arrow X velocity must remain positive after 50% shield reduction, got " + finalVelocity.x);
+        if (Math.abs(finalVelocity.x - initialVelocity.x) >= 0.01) {
+            helper.fail("Demigod shield must not alter arrow velocity. Expected x=" + initialVelocity.x
+                    + ", got " + finalVelocity.x);
         }
 
         helper.succeed();
     }
 
     /**
-     * <b>SKY PASSIVE — Snowball Velocity Reduction (50%)</b>
+     * <b>SKY PASSIVE — Snowball Velocity Unchanged (Demigod)</b>
      *
-     * <p>Snowballs are hostile projectiles; the shield reduces their speed to 50%.
+     * <p>Snowballs are hostile projectiles; the demigod shield no longer slows them.
+     * Only the "sky_slowed" tag is added for particle spam prevention.
      */
     @GameTest
     public void skyPassiveReducesSnowballVelocity(GameTestHelper helper) {
         BlockPos spawnPos = new BlockPos(2, 3, 2);
 
-        // Spawn a snowball
         Snowball snowball = helper.spawn(EntityType.SNOWBALL, spawnPos);
 
         Vec3 initialVelocity = new Vec3(1.5, 0.2, 1.5);
         snowball.setDeltaMovement(initialVelocity);
 
-        // Apply Sky projectile shield logic
+        // Demigod shield: only add tag, no velocity modification.
         if (!snowball.getTags().contains("sky_slowed")) {
-            Vec3 velocity = snowball.getDeltaMovement();
-            Vec3 reducedVelocity = velocity.scale(0.5);
-            snowball.setDeltaMovement(reducedVelocity);
             snowball.addTag("sky_slowed");
         }
 
         Vec3 finalVelocity = snowball.getDeltaMovement();
-        Vec3 expectedVelocity = initialVelocity.scale(0.5);
 
-        if (Math.abs(finalVelocity.x - expectedVelocity.x) >= 0.01
-                || Math.abs(finalVelocity.z - expectedVelocity.z) >= 0.01) {
-            helper.fail("Snowball velocity should be reduced to 50% of original");
+        if (Math.abs(finalVelocity.x - initialVelocity.x) >= 0.01
+                || Math.abs(finalVelocity.z - initialVelocity.z) >= 0.01) {
+            helper.fail("Demigod shield must NOT change snowball velocity. Expected x=" + initialVelocity.x
+                    + " z=" + initialVelocity.z + ", got x=" + finalVelocity.x + " z=" + finalVelocity.z);
         }
 
         helper.succeed();
