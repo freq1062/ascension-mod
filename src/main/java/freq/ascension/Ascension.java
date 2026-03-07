@@ -94,9 +94,9 @@ public class Ascension implements ModInitializer {
 			try {
 				xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) handler
 						.getPlayer();
-				// Reset to player's normal form on join
-				disguise.disguiseAs(net.minecraft.world.entity.EntityType.PLAYER);
-				disguise.setTrueSight(false);
+				// Belt-and-suspenders: DisguiseLoadMixin strips NBT at load time,
+				// but call removeDisguise() here too in case any state slipped through.
+				disguise.removeDisguise();
 				LOGGER.debug("Cleared disguise for player on join: " + handler.getPlayer().getName().getString());
 			} catch (Exception e) {
 				// Log but don't crash - player can still join
@@ -111,9 +111,9 @@ public class Ascension implements ModInitializer {
 			try {
 				xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) handler
 						.getPlayer();
-				// Reset to player's normal form
-				disguise.disguiseAs(net.minecraft.world.entity.EntityType.PLAYER);
-				disguise.setTrueSight(false);
+				// removeDisguise() clears all DisguiseLib NBT fields entirely,
+				// preventing the null-serverPlayer NPE in fromTag on next login.
+				disguise.removeDisguise();
 			} catch (Exception e) {
 				// Silently ignore if disguise clear fails - player is already disconnecting
 				LOGGER.debug("Failed to clear disguise on disconnect: " + e.getMessage());
@@ -126,8 +126,7 @@ public class Ascension implements ModInitializer {
 				stoppingServer.getPlayerList().getPlayers().forEach(player -> {
 					try {
 						xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
-						disguise.disguiseAs(net.minecraft.world.entity.EntityType.PLAYER);
-						disguise.setTrueSight(false);
+						disguise.removeDisguise();
 					} catch (Exception e) {
 						// Silently ignore per-player failures
 					}

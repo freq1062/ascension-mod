@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.DoubleUnaryOperator;
 
 import org.joml.Vector3f;
@@ -13,6 +14,7 @@ import org.joml.Vector3f;
 import freq.ascension.Utils;
 import freq.ascension.animation.Dash;
 import freq.ascension.animation.Drown;
+import freq.ascension.animation.DragonCurve;
 import freq.ascension.animation.MagmaBubble;
 import freq.ascension.animation.StarStrike;
 import freq.ascension.animation.Thorns;
@@ -20,6 +22,7 @@ import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
+import freq.ascension.managers.SpellStats;
 import freq.ascension.orders.*;
 import freq.ascension.Ascension;
 import freq.ascension.api.*;
@@ -32,6 +35,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.HappyGhast;
@@ -763,7 +768,7 @@ public class SpellRegistry {
 
             // Check distance between player and ghast
             double distance = player.position().distanceTo(ghast.position());
-            if (distance > 5.0 && !player.isPassenger()) {
+            if (distance > 3.0 && !player.isPassenger()) {
                 // Player is too far from ghast and not riding it
                 player.sendSystemMessage(Component.literal("§cYour ghast vanished as you strayed too far!"));
                 cleanupGhast(player, ghast, as);
@@ -873,5 +878,160 @@ public class SpellRegistry {
             if (as != null)
                 as.setInUse(false);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // END — Teleport
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Teleport spell for the End Order.
+     *
+     * <p><b>Intent:</b> The player fires a ray from their eye position along their
+     * look direction, up to 10 blocks. The ray stops after intersecting 2 solid
+     * blocks. The player teleports to the <em>farthest valid</em> non-solid block
+     * position along the path (a position where they would not suffocate). If no
+     * valid destination exists, a chat message is sent and the cooldown still
+     * starts. Enderman teleport particles are spawned at both origin and
+     * destination on success.
+     */
+    public static void teleport(ServerPlayer player) {
+        ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("teleport"));
+
+        ServerLevel level = (ServerLevel) player.level();
+        Vec3 eyePos = player.getEyePosition();
+        Vec3 lookDir = player.getLookAngle();
+
+        final int MAX_BLOCKS = 10;
+        int solidCount = 0;
+        BlockPos lastValid = null;
+
+        for (int i = 1; i <= MAX_BLOCKS; i++) {
+            Vec3 checkPos = eyePos.add(lookDir.scale(i));
+            BlockPos bp = BlockPos.containing(checkPos);
+            boolean solid = level.getBlockState(bp).isSolid();
+
+            if (!solid) {
+                // Non-solid: check player would not suffocate (need 2-block tall gap)
+                BlockPos head = bp.above();
+                if (!level.getBlockState(head).isSolid()) {
+                    lastValid = bp;
+                }
+            } else {
+                solidCount++;
+                if (solidCount >= 2) break; // Stop checking beyond 2nd solid
+            }
+        }
+
+        if (lastValid == null) {
+            player.sendSystemMessage(Component.literal("§cTeleport failed — no clear destination!"));
+            as.setInUse(false);
+            return;
+        }
+
+        // Spawn enderman particles at origin
+        Vec3 origin = player.position();
+        level.sendParticles(ParticleTypes.PORTAL,
+                origin.x, origin.y + 1, origin.z, 30, 0.3, 0.5, 0.3, 0.1);
+        level.playSound(null, BlockPos.containing(origin),
+                SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0f, 1.0f);
+
+        // Teleport
+        BlockPos dest = lastValid;
+        player.teleportTo(level, dest.getX() + 0.5, dest.getY(), dest.getZ() + 0.5,
+                java.util.Set.of(), player.getYRot(), player.getXRot(), true);
+
+        // Spawn enderman particles at destination
+        level.sendParticles(ParticleTypes.PORTAL,
+                dest.getX() + 0.5, dest.getY() + 1, dest.getZ() + 0.5,
+                30, 0.3, 0.5, 0.3, 0.1);
+        level.playSound(null, dest, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0f, 1.0f);
+
+        as.setInUse(false);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // END — Desolation of Time
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Track active desolation VFX by caster UUID for cleanup. */
+    private static final Map<UUID, DragonCurve> ACTIVE_DESOLATIONS = new ConcurrentHashMap<>();
+
+    /**
+     * Desolation of Time combat spell for the End Order.
+     *
+     * <p><b>Intent:</b> Within a 7-block radius of the caster, all players (except
+     * the caster) have their combat abilities disabled for 5 seconds (100 ticks)
+     * and receive Weakness I for 10 seconds (200 ticks). New players who enter the
+     * radius during the spell are also affected. Players already affected cannot
+     * have their timer reset. The caster is always exempt. A DragonCurve VFX is
+     * animated during the spell duration.
+     *
+     * @param player the caster
+     * @param stats  the spell's stat block (extra[0]=disable ticks, extra[1]=weakness ticks)
+     */
+    public static void desolationOfTime(ServerPlayer player, SpellStats stats) {
+        ActiveSpell as = SpellCooldownManager.addToActiveSpells(
+                player, SpellCooldownManager.get("desolation_of_time"));
+
+        int disableTicks = stats.extra().length > 0 ? stats.getInt(0) : 100;
+        int weaknessTicks = stats.extra().length > 1 ? stats.getInt(1) : 200;
+
+        ServerLevel level = (ServerLevel) player.level();
+        Vec3 castPos = player.position();
+
+        // Start DragonCurve VFX
+        DragonCurve curve = new DragonCurve(level,
+                new Vector3f((float) castPos.x, (float) castPos.y, (float) castPos.z), 8);
+        ACTIVE_DESOLATIONS.put(player.getUUID(), curve);
+
+        // Track affected players for this activation to prevent double-disable
+        Set<UUID> affectedThisActivation = ConcurrentHashMap.newKeySet();
+
+        // Helper to apply desolation to a single target
+        java.util.function.Consumer<ServerPlayer> applyDesolation = (target) -> {
+            if (affectedThisActivation.contains(target.getUUID())) return;
+            affectedThisActivation.add(target.getUUID());
+            End.DESOLATED_PLAYERS.add(target.getUUID());
+            target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, weaknessTicks, 0, false, true, true));
+            target.sendSystemMessage(Component.literal(
+                    "§5Your combat abilities have been disabled for " + (disableTicks / 20) + " seconds!"));
+
+            // Schedule removal of combat disable
+            Ascension.scheduler.schedule(new DelayedTask(disableTicks, () ->
+                    End.DESOLATED_PLAYERS.remove(target.getUUID())));
+        };
+
+        // Initial sweep: affect all nearby players (excluding caster)
+        AABB searchBox = new AABB(castPos.x - 7, castPos.y - 7, castPos.z - 7,
+                castPos.x + 7, castPos.y + 7, castPos.z + 7);
+        for (ServerPlayer nearby : level.getEntitiesOfClass(ServerPlayer.class, searchBox)) {
+            if (nearby.getUUID().equals(player.getUUID())) continue;
+            if (nearby.position().distanceTo(castPos) <= 7.0) {
+                applyDesolation.accept(nearby);
+            }
+        }
+
+        // Recurring scan for new entrants every 5 ticks
+        final int[] elapsed = {0};
+        ContinuousTask scanTask = new ContinuousTask(5, () -> {
+            elapsed[0] += 5;
+            if (elapsed[0] >= disableTicks) return;
+            for (ServerPlayer nearby : level.getEntitiesOfClass(ServerPlayer.class, searchBox)) {
+                if (nearby.getUUID().equals(player.getUUID())) continue;
+                if (nearby.position().distanceTo(castPos) <= 7.0) {
+                    applyDesolation.accept(nearby);
+                }
+            }
+        });
+        Ascension.scheduler.schedule(scanTask);
+
+        // Teardown: stop scan + VFX after disableTicks
+        Ascension.scheduler.schedule(new DelayedTask(disableTicks, () -> {
+            scanTask.stop();
+            DragonCurve activeCurve = ACTIVE_DESOLATIONS.remove(player.getUUID());
+            if (activeCurve != null) activeCurve.teardown();
+            as.setInUse(false);
+        }));
     }
 }

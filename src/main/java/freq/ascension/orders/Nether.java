@@ -10,8 +10,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
@@ -63,8 +62,20 @@ public class Nether implements Order {
 
     @Override
     public void applyEffect(ServerPlayer player) {
-        if (hasCapability(player, "passive"))
-            player.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 60, 0));
+        // Fire immunity is implemented via DamageContext cancellation in onEntityDamage().
+        // We intentionally do NOT apply MobEffects.FIRE_RESISTANCE here because vanilla
+        // LivingEntity.aiStep() calls clearFire() whenever FIRE_RESISTANCE is present,
+        // which would extinguish fire ticks early and break the autocrit-on-fire mechanic.
+    }
+
+    @Override
+    public void onEntityDamage(ServerPlayer player, DamageContext context) {
+        // Cancel all fire-type damage when the Nether passive is equipped.
+        // The player remains visually on fire (fire ticks drain normally) so the
+        // autocrit condition in onEntityDamageByEntity() can still trigger.
+        if (hasCapability(player, "passive") && context.getSource().is(DamageTypeTags.IS_FIRE)) {
+            context.setCancelled(true);
+        }
     }
 
     @Override
@@ -77,12 +88,18 @@ public class Nether implements Order {
         // Soul Drain healing effect
         ActiveSpell soulDrain = SpellCooldownManager.getActiveSpell(attacker, SpellCooldownManager.get("soul_drain"));
         if (soulDrain != null && soulDrain.isInUse() && hasCapability(attacker, "combat")) {
-            attacker.getFoodData().eat(0, damage / 3.0f); // Also restore saturation
+            float saturation = damage / 3.0f;
+            attacker.getFoodData().eat(0, saturation); // Restore saturation
 
-            // Spawn soul particles
-            attacker.level().addParticle(ParticleTypes.SOUL,
-                    victim.getX(), victim.getY() + 1, victim.getZ(),
-                    0.0, 0.1, 0.0);
+            // One SOUL particle per half-saturation bar healed (spec: damage/3/0.5)
+            int soulPieces = (int) (saturation / 0.5f);
+            for (int i = 0; i < soulPieces; i++) {
+                attacker.level().addParticle(ParticleTypes.SOUL,
+                        victim.getX() + (attacker.level().getRandom().nextFloat() - 0.5f),
+                        victim.getY() + 1 + (attacker.level().getRandom().nextFloat() * 0.5f),
+                        victim.getZ() + (attacker.level().getRandom().nextFloat() - 0.5f),
+                        0.0, 0.1, 0.0);
+            }
         }
 
         // Autocrit when on fire

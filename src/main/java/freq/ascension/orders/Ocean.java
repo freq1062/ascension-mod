@@ -102,10 +102,6 @@ public class Ocean implements Order {
     @Override
     public void applyEffect(ServerPlayer player) {
         if (hasCapability(player, "passive"))
-            // ambient=true → no dot-particles; showParticles=false → fully hidden;
-            // showIcon=true → HUD icon still visible so the player knows it's active.
-            // 80 ticks > 40-tick refresh interval, ensuring the effect never expires
-            // between applyEffect calls (gives a 40-tick safety buffer).
             player.addEffect(new MobEffectInstance(MobEffects.WATER_BREATHING, 80, 0, true, false, true));
     }
 

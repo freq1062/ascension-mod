@@ -9,6 +9,7 @@
 		"CraftingEligibilityMixin",
 		"CraftingRestorationMixin",
 		"DamageMixin",
+		"DisguiseLoadMixin",
 		"EnchantmentMixin",
 		"FarmBlockMixin",
 		"FlightMixin",

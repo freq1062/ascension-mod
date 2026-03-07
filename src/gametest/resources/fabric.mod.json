@@ -6,8 +6,12 @@
 	"environment": "*",
 	"entrypoints": {
 		"fabric-gametest": [
-			"freq.ascension.test.OceanPassiveTests",
-			"freq.ascension.test.StarStrikeTests"
+			"freq.ascension.test.demigod.OceanDemigodTests",
+			"freq.ascension.test.demigod.SkyDemigodTests",
+			"freq.ascension.test.demigod.EarthDemigodTests",
+			"freq.ascension.test.demigod.MagicDemigodTests",
+			"freq.ascension.test.demigod.NetherDemigodTests",
+			"freq.ascension.test.demigod.EndDemigodTests"
 		]
 	},
 	"depends": {

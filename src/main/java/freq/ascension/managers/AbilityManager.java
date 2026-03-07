@@ -10,11 +10,14 @@ import net.minecraft.server.level.ServerPlayer;
 
 import freq.ascension.Ascension;
 import freq.ascension.api.ContinuousTask;
+import freq.ascension.api.DelayedTask;
+import freq.ascension.orders.End;
 import freq.ascension.orders.Order;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.Items;
 
 public class AbilityManager {
 
@@ -84,6 +87,21 @@ public class AbilityManager {
             }
         }));
 
+        // Ender pearl cooldown reduction: End passive halves the 20-tick vanilla cooldown
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            if (player instanceof ServerPlayer sp) {
+                if (sp.getItemInHand(hand).is(Items.ENDER_PEARL)
+                        && anyMatch(sp, o -> o instanceof End && o.hasCapability(sp, "passive"))) {
+                    // Schedule 1 tick after use so vanilla's addCooldown(20) has already run
+                    Ascension.scheduler.schedule(new DelayedTask(1, () -> {
+                        // In 1.21.10 addCooldown takes (ItemStack, int) or (ResourceLocation, int)
+                        sp.getCooldowns().addCooldown(Items.ENDER_PEARL.getDefaultInstance(), 10);
+                    }));
+                }
+            }
+            return InteractionResult.PASS;
+        });
+
         // Spell activations
         UseItemCallback.EVENT.register((player, world, hand) -> {
             if (player instanceof ServerPlayer serverPlayer) {
@@ -102,12 +120,11 @@ public class AbilityManager {
                     return InteractionResult.PASS; // unknown spell
 
                 // Check if player is affected by Desolation of Time
-                // if (End.isAffectedByDesolation(player) && "combat".equals(spell.getType())) {
-                // player.sendMessage("§cYour combat abilities are disabled by Desolation of
-                // Time!");
-                // event.setCancelled(true);
-                // return;
-                // }
+                if (End.isAffectedByDesolation(serverPlayer) && "combat".equals(spell.getType())) {
+                    serverPlayer.sendSystemMessage(Component.literal(
+                            "§cYour combat abilities are disabled by Desolation of Time!"));
+                    return InteractionResult.FAIL;
+                }
 
                 // If on cooldown, cancel and inform
                 if (SpellCooldownManager.isSpellOnCooldown(serverPlayer, spell)) {
