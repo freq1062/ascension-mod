@@ -51,14 +51,23 @@ public class GodManager extends SavedData {
     // player UUID as string → System.currentTimeMillis() when cooldown expires
     private final Map<String, Long> demotionCooldowns = new HashMap<>();
 
+    // orderName (lowercase) → number of challenger wins against this god
+    private final Map<String, Integer> lossCounters = new HashMap<>();
+
+    // orderName (lowercase) → epoch ms of last offline-loss increment
+    private final Map<String, Long> lastDailyLossMs = new HashMap<>();
+
     // ─── Constructors ─────────────────────────────────────────────────────────
 
     private GodManager() {}
 
-    private static GodManager fromMaps(Map<String, String> gods, Map<String, Long> cooldowns) {
+    private static GodManager fromMaps(Map<String, String> gods, Map<String, Long> cooldowns,
+            Map<String, Integer> losses, Map<String, Long> dailyLoss) {
         GodManager m = new GodManager();
         m.godsByOrder.putAll(gods);
         m.demotionCooldowns.putAll(cooldowns);
+        m.lossCounters.putAll(losses);
+        m.lastDailyLossMs.putAll(dailyLoss);
         return m;
     }
 
@@ -71,7 +80,13 @@ public class GodManager extends SavedData {
                             .forGetter(m -> Map.copyOf(m.godsByOrder)),
                     Codec.unboundedMap(Codec.STRING, Codec.LONG)
                             .optionalFieldOf("cooldowns", Map.of())
-                            .forGetter(m -> Map.copyOf(m.demotionCooldowns))
+                            .forGetter(m -> Map.copyOf(m.demotionCooldowns)),
+                    Codec.unboundedMap(Codec.STRING, Codec.INT)
+                            .optionalFieldOf("loss_counters", Map.of())
+                            .forGetter(m -> Map.copyOf(m.lossCounters)),
+                    Codec.unboundedMap(Codec.STRING, Codec.LONG)
+                            .optionalFieldOf("daily_loss_timestamps", Map.of())
+                            .forGetter(m -> Map.copyOf(m.lastDailyLossMs))
             ).apply(instance, GodManager::fromMaps)
     );
 
@@ -186,6 +201,54 @@ public class GodManager extends SavedData {
         return Collections.unmodifiableMap(godsByOrder);
     }
 
+    // ─── Loss Counter ─────────────────────────────────────────────────────────
+
+    /** Returns the current loss counter for the god of the given order. */
+    public int getLossCounter(String orderName) {
+        if (orderName == null) return 0;
+        return lossCounters.getOrDefault(orderName.toLowerCase(), 0);
+    }
+
+    /** Sets the loss counter for the given order and marks dirty. */
+    public void setLossCounter(String orderName, int count) {
+        if (orderName == null) return;
+        lossCounters.put(orderName.toLowerCase(), count);
+        setDirty();
+    }
+
+    /** Increments the loss counter for the given order by 1 and marks dirty. */
+    public void incrementLossCounter(String orderName) {
+        if (orderName == null) return;
+        lossCounters.merge(orderName.toLowerCase(), 1, Integer::sum);
+        setDirty();
+    }
+
+    /** Decrements the loss counter for the given order by 1 (minimum 0) and marks dirty. */
+    public void decrementLossCounter(String orderName) {
+        if (orderName == null) return;
+        String key = orderName.toLowerCase();
+        lossCounters.put(key, Math.max(0, lossCounters.getOrDefault(key, 0) - 1));
+        setDirty();
+    }
+
+    /**
+     * Increments the loss counter only if the last daily-loss increment was more than 24 real
+     * hours ago. Returns true if the increment occurred, false if on cooldown.
+     */
+    public boolean tryIncrementDailyLoss(String orderName) {
+        if (orderName == null) return false;
+        String key = orderName.toLowerCase();
+        long now = System.currentTimeMillis();
+        long last = lastDailyLossMs.getOrDefault(key, 0L);
+        if (now - last > 86_400_000L) {
+            lastDailyLossMs.put(key, now);
+            lossCounters.merge(key, 1, Integer::sum);
+            setDirty();
+            return true;
+        }
+        return false;
+    }
+
     // ─── Promotion ───────────────────────────────────────────────────────────
 
     /**
@@ -240,6 +303,9 @@ public class GodManager extends SavedData {
                     capitalize(oldOrder != null ? oldOrder : "?") + "."));
         }
 
+        // Before step 3: save current slots so they can be restored on demotion
+        savePreviousSlots(player);
+
         // Step 3: update AscensionData
         AscensionData data = (AscensionData) player;
         data.setRank("god");
@@ -253,6 +319,11 @@ public class GodManager extends SavedData {
 
         // Step 5: record in persistent map
         godsByOrder.put(orderName, player.getStringUUID());
+
+        // Reset loss counter now that a new god has risen
+        lossCounters.remove(orderName);
+        lastDailyLossMs.remove(orderName);
+
         setDirty();
 
         // Step 6: give mythical weapon
@@ -294,13 +365,11 @@ public class GodManager extends SavedData {
         // Step 2: remove all mythical weapons
         removeAllMythicalWeapons(player);
 
-        // Step 3: reset AscensionData
+        // Step 3: reset AscensionData — restore pre-god slots
         AscensionData data = (AscensionData) player;
         data.setRank("demigod");
         data.setGodOrder(null);
-        data.setPassive(null);
-        data.setUtility(null);
-        data.setCombat(null);
+        restorePreviousSlots(player);
 
         // Step 4: record demotion cooldown
         demotionCooldowns.put(player.getStringUUID(),
@@ -356,6 +425,39 @@ public class GodManager extends SavedData {
     public void setDemotionCooldownForTesting(UUID uuid, long expiresAtMillis) {
         demotionCooldowns.put(uuid.toString(), expiresAtMillis);
         setDirty();
+    }
+
+    // ─── Slot Save/Restore Helpers ────────────────────────────────────────────
+
+    /**
+     * Saves the player's current passive/utility/combat order names into the
+     * previousPassive/Utility/Combat fields so they can be restored on demotion.
+     */
+    private void savePreviousSlots(ServerPlayer player) {
+        AscensionData data = (AscensionData) player;
+        Order passive = data.getPassive();
+        Order utility = data.getUtility();
+        Order combat = data.getCombat();
+        data.setPreviousPassive(passive != null ? passive.getOrderName() : "");
+        data.setPreviousUtility(utility != null ? utility.getOrderName() : "");
+        data.setPreviousCombat(combat != null ? combat.getOrderName() : "");
+    }
+
+    /**
+     * Restores the player's passive/utility/combat slots from the previously-saved
+     * values, then clears those saved values.
+     */
+    private void restorePreviousSlots(ServerPlayer player) {
+        AscensionData data = (AscensionData) player;
+        String pp = data.getPreviousPassive();
+        String pu = data.getPreviousUtility();
+        String pc = data.getPreviousCombat();
+        data.setPassive(!pp.isEmpty() ? pp : null);
+        data.setUtility(!pu.isEmpty() ? pu : null);
+        data.setCombat(!pc.isEmpty() ? pc : null);
+        data.setPreviousPassive("");
+        data.setPreviousUtility("");
+        data.setPreviousCombat("");
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────

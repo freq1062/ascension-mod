@@ -47,6 +47,12 @@ public class ServerPlayerMixin implements AscensionData {
     @Unique
     private String godOrder = null;
     @Unique
+    private String previousPassive = "";
+    @Unique
+    private String previousUtility = "";
+    @Unique
+    private String previousCombat = "";
+    @Unique
     private final Map<String, OrderUnlock> unlocked_orders = new HashMap<>();
     @Unique
     private final List<String> shapeshift_history = new ArrayList<>();
@@ -91,6 +97,9 @@ public class ServerPlayerMixin implements AscensionData {
             ascensionData.putString("combat", this.combat);
         if (this.godOrder != null)
             ascensionData.putString("godOrder", this.godOrder);
+        ascensionData.putString("previousPassive", this.previousPassive != null ? this.previousPassive : "");
+        ascensionData.putString("previousUtility", this.previousUtility != null ? this.previousUtility : "");
+        ascensionData.putString("previousCombat", this.previousCombat != null ? this.previousCombat : "");
 
         // Save the Map (Spell Bindings)
         StringBuilder bindings_sb = new StringBuilder();
@@ -177,6 +186,9 @@ public class ServerPlayerMixin implements AscensionData {
             this.utility = ascensionData.getStringOr("utility", null);
             this.combat = ascensionData.getStringOr("combat", null);
             this.godOrder = ascensionData.getStringOr("godOrder", null);
+            this.previousPassive = ascensionData.getStringOr("previousPassive", "");
+            this.previousUtility = ascensionData.getStringOr("previousUtility", "");
+            this.previousCombat = ascensionData.getStringOr("previousCombat", "");
 
             parseSpellBindings(ascensionData.getStringOr("spell_bindings", ""));
             parseUnlockedOrders(ascensionData.getStringOr("unlocked_orders", ""));
@@ -190,6 +202,9 @@ public class ServerPlayerMixin implements AscensionData {
             this.utility = input.getStringOr("utility", null);
             this.combat = input.getStringOr("combat", null);
             this.godOrder = input.getStringOr("godOrder", null);
+            this.previousPassive = input.getStringOr("previousPassive", "");
+            this.previousUtility = input.getStringOr("previousUtility", "");
+            this.previousCombat = input.getStringOr("previousCombat", "");
 
             parseSpellBindings(input.getStringOr("spell_bindings", ""));
             parseUnlockedOrders(input.getStringOr("unlocked_orders", ""));
@@ -425,6 +440,36 @@ public class ServerPlayerMixin implements AscensionData {
             return null;
         String id = this.shapeshift_history.remove(this.shapeshift_history.size() - 1);
         return BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(id)).map(Holder.Reference::value).orElse(null);
+    }
+
+    @Override
+    public String getPreviousPassive() {
+        return this.previousPassive != null ? this.previousPassive : "";
+    }
+
+    @Override
+    public void setPreviousPassive(String order) {
+        this.previousPassive = order != null ? order : "";
+    }
+
+    @Override
+    public String getPreviousUtility() {
+        return this.previousUtility != null ? this.previousUtility : "";
+    }
+
+    @Override
+    public void setPreviousUtility(String order) {
+        this.previousUtility = order != null ? order : "";
+    }
+
+    @Override
+    public String getPreviousCombat() {
+        return this.previousCombat != null ? this.previousCombat : "";
+    }
+
+    @Override
+    public void setPreviousCombat(String order) {
+        this.previousCombat = order != null ? order : "";
     }
 }
 

@@ -65,6 +65,18 @@ public interface AscensionData {
 
     void unbindAll();
 
+    String getPreviousPassive();
+
+    void setPreviousPassive(String order);
+
+    String getPreviousUtility();
+
+    void setPreviousUtility(String order);
+
+    String getPreviousCombat();
+
+    void setPreviousCombat(String order);
+
     String getGodOrder();
 
     void setGodOrder(String order);
