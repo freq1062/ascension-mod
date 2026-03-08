@@ -52,6 +52,11 @@ import freq.ascension.managers.PoiManager;
 import freq.ascension.managers.PromotionHandler;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.registry.OrderRegistry;
+import freq.ascension.weapons.HellfireCrossbow;
+import freq.ascension.registry.WeaponRegistry;
+import freq.ascension.weapons.ColossusHammer;
+import freq.ascension.weapons.RuinousScythe;
+import freq.ascension.weapons.VinewrathAxe;
 
 // import io.github.retrooper.packetevents.PacketEventsServerMod;
 // import io.github.retrooper.packetevents.factory.fabric.FabricPacketEventsAPI;
@@ -109,6 +114,11 @@ public class Ascension implements ModInitializer {
 		// });
 		SpellCooldownManager.updateActiveSpells();
 		OrderRegistry.registerAllSpells();
+		WeaponRegistry.register(new ColossusHammer());
+		WeaponRegistry.register(new VinewrathAxe());
+		// Register Ruinous Scythe and its cleanup event hooks.
+		RuinousScythe.register();
+		WeaponRegistry.register(RuinousScythe.INSTANCE);
 		AbilityManager.init();
 		InfluenceManager.init();
 		PlantProximityManager.init();

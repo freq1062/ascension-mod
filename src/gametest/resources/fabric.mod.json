@@ -26,7 +26,8 @@
 			"freq.ascension.test.challenger.ChallengerTrialTests",
 			"freq.ascension.test.misc.DataPersistenceTests",
 			"freq.ascension.test.misc.DragonCurveTests",
-			"freq.ascension.test.misc.GameplayTests"
+			"freq.ascension.test.misc.GameplayTests",
+			"freq.ascension.test.weapons.WeaponRuinousScytheTests"
 		]
 	},
 	"depends": {
