@@ -1,0 +1,481 @@
+package freq.ascension.weapons;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import freq.ascension.Ascension;
+import freq.ascension.Utils;
+import freq.ascension.api.ContinuousTask;
+import freq.ascension.orders.Ocean;
+import freq.ascension.orders.Order;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Unit;
+import net.minecraft.world.entity.Display;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.projectile.ThrownTrident;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomModelData;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.phys.Vec3;
+
+/**
+ * Tempest Trident — mythical weapon for the Ocean order.
+ *
+ * <p>Two modes toggled via shift+left-click:
+ * <ul>
+ *   <li><b>Loyalty mode</b> (default): Loyalty 3, tracks hits. Every 3rd projectile hit
+ *       triggers a cosmetic lightning strike + 20% max-HP spell damage.</li>
+ *   <li><b>Riptide mode</b>: Riptide 3, disables hit counter.</li>
+ * </ul>
+ *
+ * <p>The custom model data strings are {@code "tempest_trident_loyalty"} and
+ * {@code "tempest_trident_riptide"}, both sharing the {@code "tempest_trident"} prefix.
+ * {@link #isItem(ItemStack)} is overridden to use prefix matching rather than exact equality.
+ *
+ * <p>VFX: When thrown in loyalty mode, the ThrownTrident entity is made invisible and an
+ * {@code ItemDisplay} entity tracks its position every tick.
+ *
+ * <p>Pickup restriction: only the player who threw the trident may retrieve it.
+ * Enforced via {@code ThrownTridentPickupMixin}.
+ *
+ * <p>Recovery: if the thrown trident falls into the void or crosses dimensions, it is discarded
+ * and the owner receives a fresh Tempest Trident.
+ */
+public class TempestTrident implements MythicWeapon {
+
+    public static final TempestTrident INSTANCE = new TempestTrident();
+
+    /** Custom model data string for loyalty mode (default). */
+    public static final String MODEL_LOYALTY = "tempest_trident_loyalty";
+    /** Custom model data string for riptide mode. */
+    public static final String MODEL_RIPTIDE  = "tempest_trident_riptide";
+
+    // ─── Tracking maps ────────────────────────────────────────────────────────
+
+    /** Per-attacker hit counter (globally across targets). Resets to 0 after every 3rd trigger. */
+    public static final ConcurrentHashMap<UUID, Integer> hitCounters = new ConcurrentHashMap<>();
+
+    /** Maps thrown ThrownTrident entity UUID → thrower (player) UUID. */
+    public static final ConcurrentHashMap<UUID, UUID> tridentToThrower = new ConcurrentHashMap<>();
+
+    /** Maps thrown ThrownTrident entity UUID → ItemDisplay entity UUID for VFX. */
+    static final ConcurrentHashMap<UUID, UUID> tridentToDisplay = new ConcurrentHashMap<>();
+
+    /** Maps thrown ThrownTrident entity UUID → the running ContinuousTask so it can be stopped. */
+    static final ConcurrentHashMap<UUID, ContinuousTask> tridentTrackingTasks = new ConcurrentHashMap<>();
+
+    private static volatile boolean cleanupRegistered = false;
+
+    // ─── Identity ─────────────────────────────────────────────────────────────
+
+    @Override
+    public String getWeaponId() {
+        return "tempest_trident";
+    }
+
+    @Override
+    public Item getBaseItem() {
+        return Items.TRIDENT;
+    }
+
+    @Override
+    public Order getParentOrder() {
+        return Ocean.INSTANCE;
+    }
+
+    /**
+     * Overridden because the actual model strings are {@code "tempest_trident_loyalty"} and
+     * {@code "tempest_trident_riptide"} — both start with the weapon ID prefix but neither
+     * equals it exactly. Checks any string in the CustomModelData list that starts with
+     * {@code "tempest_trident"}.
+     */
+    @Override
+    public boolean isItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        CustomModelData cmd = stack.get(DataComponents.CUSTOM_MODEL_DATA);
+        if (cmd == null) return false;
+        return cmd.strings().stream().anyMatch(s -> s.startsWith("tempest_trident"));
+    }
+
+    // ─── Item creation ────────────────────────────────────────────────────────
+
+    @Override
+    public ItemStack createItem() {
+        ItemStack stack = new ItemStack(Items.TRIDENT);
+
+        // Custom model data — loyalty mode is the default
+        stack.set(DataComponents.CUSTOM_MODEL_DATA,
+                new CustomModelData(List.of(), List.of(), List.of(MODEL_LOYALTY), List.of()));
+
+        // Unbreakable
+        stack.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
+
+        // Display name: Ocean colour, bold, non-italic
+        stack.set(DataComponents.CUSTOM_NAME,
+                Component.literal("Tempest Trident")
+                        .withStyle(style -> style
+                                .withColor(Ocean.INSTANCE.getOrderColor())
+                                .withItalic(false)
+                                .withBold(true)));
+
+        // Override attribute modifiers to match a Sharpness 5 diamond sword:
+        //   +10.0 attack damage, -2.4 attack speed.
+        // Setting DataComponents.ATTRIBUTE_MODIFIERS fully replaces the trident's defaults.
+        ItemAttributeModifiers modifiers = ItemAttributeModifiers.builder()
+                .add(Attributes.ATTACK_DAMAGE,
+                        new AttributeModifier(
+                                ResourceLocation.fromNamespaceAndPath("ascension", "tempest_trident_damage"),
+                                10.0,
+                                AttributeModifier.Operation.ADD_VALUE),
+                        EquipmentSlotGroup.MAINHAND)
+                .add(Attributes.ATTACK_SPEED,
+                        new AttributeModifier(
+                                ResourceLocation.fromNamespaceAndPath("ascension", "tempest_trident_speed"),
+                                -2.4,
+                                AttributeModifier.Operation.ADD_VALUE),
+                        EquipmentSlotGroup.MAINHAND)
+                .build();
+        stack.set(DataComponents.ATTRIBUTE_MODIFIERS, modifiers);
+
+        // Enchantments require a live server registry
+        if (Ascension.getServer() != null) {
+            applyDefaultEnchantments(stack);
+        }
+
+        return stack;
+    }
+
+    /** Applies Loyalty 3, Impaling 5, Sharpness 5, and Curse of Vanishing. */
+    static void applyDefaultEnchantments(ItemStack stack) {
+        var enchReg = Ascension.getServer().registryAccess()
+                .lookupOrThrow(Registries.ENCHANTMENT);
+        stack.enchant(enchReg.getOrThrow(Enchantments.LOYALTY), 3);
+        stack.enchant(enchReg.getOrThrow(Enchantments.IMPALING), 5);
+        stack.enchant(enchReg.getOrThrow(Enchantments.SHARPNESS), 5);
+        stack.enchant(enchReg.getOrThrow(Enchantments.VANISHING_CURSE), 1);
+    }
+
+    // ─── Mode toggle ──────────────────────────────────────────────────────────
+
+    /**
+     * Shift+left-click: toggle between Loyalty 3 and Riptide 3 modes.
+     * Updates the custom model data string and plays the appropriate sound.
+     */
+    @Override
+    public void onShiftLeftClick(ServerPlayer player) {
+        ItemStack held = findTempestTrident(player);
+        if (held == null) return;
+
+        CustomModelData cmd = held.get(DataComponents.CUSTOM_MODEL_DATA);
+        if (cmd == null) return;
+
+        boolean currentlyLoyalty = cmd.strings().stream().anyMatch(s -> s.equals(MODEL_LOYALTY));
+
+        if (Ascension.getServer() == null) return;
+        var enchReg = Ascension.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        var loyaltyHolder = enchReg.getOrThrow(Enchantments.LOYALTY);
+        var riptideHolder  = enchReg.getOrThrow(Enchantments.RIPTIDE);
+
+        if (currentlyLoyalty) {
+            // Switch to riptide
+            held.set(DataComponents.CUSTOM_MODEL_DATA,
+                    new CustomModelData(List.of(), List.of(), List.of(MODEL_RIPTIDE), List.of()));
+            swapEnchantment(held, loyaltyHolder, 0, riptideHolder, 3);
+            player.level().playSound(null, player.blockPosition(),
+                    SoundEvents.TRIDENT_RIPTIDE_1.value(), SoundSource.PLAYERS, 1.0f, 1.0f);
+        } else {
+            // Switch to loyalty
+            held.set(DataComponents.CUSTOM_MODEL_DATA,
+                    new CustomModelData(List.of(), List.of(), List.of(MODEL_LOYALTY), List.of()));
+            swapEnchantment(held, riptideHolder, 0, loyaltyHolder, 3);
+            player.level().playSound(null, player.blockPosition(),
+                    SoundEvents.TRIDENT_RETURN, SoundSource.PLAYERS, 1.0f, 1.0f);
+        }
+    }
+
+    /** Removes {@code removeEnch} and sets {@code addEnch} at the specified level on the stack. */
+    private static void swapEnchantment(
+            ItemStack stack,
+            net.minecraft.core.Holder<net.minecraft.world.item.enchantment.Enchantment> removeEnch, int removeLevel,
+            net.minecraft.core.Holder<net.minecraft.world.item.enchantment.Enchantment> addEnch,   int addLevel) {
+        ItemEnchantments current = stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
+        ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(current);
+        mutable.set(removeEnch, removeLevel); // level 0 removes the enchantment
+        mutable.set(addEnch, addLevel);
+        stack.set(DataComponents.ENCHANTMENTS, mutable.toImmutable());
+    }
+
+    // ─── Hit counter ──────────────────────────────────────────────────────────
+
+    /**
+     * Called when a projectile owned by this player hits a living entity.
+     * Only increments the counter in loyalty mode. Every 3rd hit triggers a cosmetic lightning
+     * strike and 20% max-HP spell damage.
+     */
+    @Override
+    public void onProjectileHit(ServerPlayer owner, LivingEntity victim, Order.DamageContext ctx) {
+        ItemStack weapon = findTempestTrident(owner);
+        if (weapon == null || !isLoyaltyModeStack(weapon)) return;
+
+        boolean triggered = processHitCounter(owner.getUUID());
+        if (triggered) {
+            triggerLightningStrike(owner, victim);
+        } else {
+            // Charging sound: pitch increases as counter approaches 3
+            int count = hitCounters.getOrDefault(owner.getUUID(), 0);
+            float pitch = 0.6f + (count % 3) * 0.3f;
+            owner.level().playSound(null, owner.blockPosition(),
+                    SoundEvents.TRIDENT_HIT, SoundSource.PLAYERS, 0.7f, pitch);
+        }
+    }
+
+    /**
+     * Increments the hit counter for the given attacker and fires on every 3rd hit.
+     * Resets the counter to 0 after triggering. Not cumulative.
+     *
+     * @return {@code true} if the 3rd-hit threshold was reached and the counter was reset.
+     */
+    public static boolean processHitCounter(UUID attackerId) {
+        int count = hitCounters.merge(attackerId, 1, Integer::sum);
+        if (count % 3 == 0) {
+            hitCounters.put(attackerId, 0);
+            return true;
+        }
+        return false;
+    }
+
+    /** Spawns cosmetic lightning + plays thunder + applies 20% max-HP spell damage. */
+    private static void triggerLightningStrike(ServerPlayer attacker, LivingEntity victim) {
+        if (victim.level() instanceof ServerLevel serverLevel) {
+            // Cosmetic lightning bolt: effect=true means no fire or damage
+            var bolt = EntityType.LIGHTNING_BOLT.create(serverLevel, EntitySpawnReason.TRIGGERED);
+            if (bolt != null) {
+                bolt.setPos(Vec3.atCenterOf(victim.blockPosition()));
+                bolt.setVisualOnly(true);
+                serverLevel.addFreshEntity(bolt);
+            }
+            serverLevel.playSound(null, victim.blockPosition(),
+                    SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 1.0f, 0.8f);
+        }
+        Utils.spellDmg(victim, attacker, 20.0f);
+    }
+
+    // ─── VFX: thrown trident visual ───────────────────────────────────────────
+
+    /**
+     * Called when a ThrownTrident created from a TempestTrident is detected in the world.
+     * Registers the thrower, makes the trident invisible, and spawns an {@code ItemDisplay}
+     * entity that follows the trident every tick.
+     *
+     * <p>Invoked from {@code ThrownTridentPickupMixin} when the entity is added to the world.
+     */
+    public static void onTridentThrown(ThrownTrident tridentEntity, ServerPlayer thrower) {
+        UUID tridentId = tridentEntity.getUUID();
+        tridentToThrower.put(tridentId, thrower.getUUID());
+
+        if (!(thrower.level() instanceof ServerLevel serverLevel)) return;
+
+        // Only show VFX in loyalty mode
+        ItemStack tridentStack = tridentEntity.getWeaponItem();
+        if (!isLoyaltyModeStack(tridentStack)) return;
+
+        // Make the vanilla entity invisible so only our ItemDisplay is visible
+        tridentEntity.setInvisible(true);
+
+        // Spawn ItemDisplay at the trident's initial position
+        Display.ItemDisplay display = (Display.ItemDisplay) EntityType.ITEM_DISPLAY.create(
+                serverLevel, EntitySpawnReason.TRIGGERED);
+        if (display == null) return;
+
+        ItemStack displayStack = new ItemStack(Items.TRIDENT);
+        displayStack.set(DataComponents.CUSTOM_MODEL_DATA,
+                new CustomModelData(List.of(), List.of(), List.of(MODEL_LOYALTY), List.of()));
+        display.setItemStack(displayStack);
+        display.setPos(tridentEntity.getX(), tridentEntity.getY(), tridentEntity.getZ());
+        serverLevel.addFreshEntity(display);
+        tridentToDisplay.put(tridentId, display.getUUID());
+
+        // Tick task: sync display position/rotation to the trident every tick
+        ContinuousTask trackingTask = new ContinuousTask(1, () -> {
+            if (tridentEntity.isRemoved()) {
+                // Trident is gone — discard display and cancel task
+                if (!display.isRemoved()) display.discard();
+                tridentToDisplay.remove(tridentId);
+                ContinuousTask task = tridentTrackingTasks.remove(tridentId);
+                if (task != null) task.stop();
+                return;
+            }
+            display.setPos(tridentEntity.getX(), tridentEntity.getY(), tridentEntity.getZ());
+            display.setYRot(tridentEntity.getYRot());
+            display.setXRot(tridentEntity.getXRot());
+        });
+        tridentTrackingTasks.put(tridentId, trackingTask);
+        Ascension.scheduler.schedule(trackingTask);
+    }
+
+    // ─── Recovery ─────────────────────────────────────────────────────────────
+
+    /**
+     * Registers server-lifecycle and connection cleanup hooks.
+     * Safe to call multiple times — only the first call has any effect.
+     * Must be called from {@code Ascension.onInitialize()}.
+     */
+    public static void register() {
+        if (cleanupRegistered) return;
+        cleanupRegistered = true;
+
+        // Track thrown tridents via entity load event (fires when entity is added to the world)
+        ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            if (!(entity instanceof ThrownTrident trident)) return;
+            if (!(world instanceof ServerLevel)) return;
+
+            // Check if this trident is a TempestTrident
+            ItemStack stack = trident.getWeaponItem();
+            if (!INSTANCE.isItem(stack)) return;
+
+            // Find the owner (thrower)
+            var owner = trident.getOwner();
+            if (!(owner instanceof ServerPlayer player)) return;
+
+            onTridentThrown(trident, player);
+        });
+
+        // Dimension-change recovery: discard trident + ItemDisplay, give owner a new one
+        ServerEntityWorldChangeEvents.AFTER_ENTITY_CHANGE_WORLD.register(
+                (originalEntity, newEntity, origin, destination) -> {
+                    if (!(originalEntity instanceof ThrownTrident)) return;
+                    UUID tridentId = originalEntity.getUUID();
+                    UUID ownerId = tridentToThrower.remove(tridentId);
+                    if (ownerId == null) return;
+
+                    // Discard both the original and the new-world entity
+                    if (!originalEntity.isRemoved()) originalEntity.discard();
+                    if (!newEntity.isRemoved())      newEntity.discard();
+                    cleanupDisplay(tridentId, origin);
+
+                    ServerPlayer ownerPlayer = origin.getServer() != null
+                            ? origin.getServer().getPlayerList().getPlayer(ownerId) : null;
+                    if (ownerPlayer != null) {
+                        ownerPlayer.getInventory().add(INSTANCE.createItem());
+                        ownerPlayer.sendSystemMessage(
+                                Component.literal("§bYour Tempest Trident returned to you."));
+                    }
+                });
+
+        // Per-player cleanup on disconnect
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            UUID playerId = handler.getPlayer().getUUID();
+            hitCounters.remove(playerId);
+
+            // Clean up any tridents thrown by this player
+            List<UUID> ownedTridents = new ArrayList<>();
+            tridentToThrower.forEach((tid, uid) -> {
+                if (uid.equals(playerId)) ownedTridents.add(tid);
+            });
+            ownedTridents.forEach(tid -> {
+                tridentToThrower.remove(tid);
+                ContinuousTask task = tridentTrackingTasks.remove(tid);
+                if (task != null) task.stop();
+                tridentToDisplay.remove(tid);
+                // Entity discard handled by the world on player disconnect
+            });
+        });
+
+        // Full cleanup on server stop
+        ServerLifecycleEvents.SERVER_STOPPING.register(s -> {
+            hitCounters.clear();
+            tridentToThrower.clear();
+            tridentToDisplay.clear();
+            tridentTrackingTasks.values().forEach(ContinuousTask::stop);
+            tridentTrackingTasks.clear();
+        });
+
+        // Void recovery: check every 20 ticks for tridents that fell below min-Y
+        Ascension.scheduler.schedule(new ContinuousTask(20, () -> {
+            if (Ascension.getServer() == null) return;
+            Ascension.getServer().getAllLevels().forEach(level -> {
+                if (!(level instanceof ServerLevel serverLevel)) return;
+
+                List<UUID> fallen = new ArrayList<>();
+                tridentToThrower.forEach((tridentId, ownerId) -> {
+                    var entity = serverLevel.getEntity(tridentId);
+                    if (entity instanceof ThrownTrident trident
+                            && trident.getY() < serverLevel.getMinY()) {
+                        fallen.add(tridentId);
+                    }
+                });
+
+                fallen.forEach(tridentId -> {
+                    UUID ownerId = tridentToThrower.remove(tridentId);
+                    ContinuousTask task = tridentTrackingTasks.remove(tridentId);
+                    if (task != null) task.stop();
+                    cleanupDisplay(tridentId, serverLevel);
+
+                    var tridentEntity = serverLevel.getEntity(tridentId);
+                    if (tridentEntity != null && !tridentEntity.isRemoved()) tridentEntity.discard();
+
+                    if (ownerId != null && Ascension.getServer() != null) {
+                        ServerPlayer owner = Ascension.getServer().getPlayerList().getPlayer(ownerId);
+                        if (owner != null) {
+                            owner.getInventory().add(INSTANCE.createItem());
+                            owner.sendSystemMessage(
+                                    Component.literal("§bYour Tempest Trident was recovered from the void."));
+                        }
+                    }
+                });
+            });
+        }));
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    /**
+     * Returns {@code true} if the stack has model data string {@code "tempest_trident_loyalty"}.
+     * Used by the hit counter and VFX logic to gate loyalty-only behaviour.
+     */
+    public static boolean isLoyaltyModeStack(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        CustomModelData cmd = stack.get(DataComponents.CUSTOM_MODEL_DATA);
+        if (cmd == null) return false;
+        return cmd.strings().stream().anyMatch(s -> s.equals(MODEL_LOYALTY));
+    }
+
+    /** Discards the ItemDisplay entity tracked for the given trident UUID, if any. */
+    private static void cleanupDisplay(UUID tridentId, ServerLevel level) {
+        UUID displayId = tridentToDisplay.remove(tridentId);
+        if (displayId == null) return;
+        var displayEntity = level.getEntity(displayId);
+        if (displayEntity != null && !displayEntity.isRemoved()) displayEntity.discard();
+    }
+
+    /** Scans the player's full inventory for the first TempestTrident stack, or {@code null}. */
+    private ItemStack findTempestTrident(ServerPlayer player) {
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack s = player.getInventory().getItem(i);
+            if (isItem(s)) return s;
+        }
+        return null;
+    }
+}

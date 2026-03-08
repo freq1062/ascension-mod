@@ -131,10 +131,22 @@ public interface MythicWeapon {
     default void onShiftUse(ServerPlayer player) {}
 
     /**
+     * Called when the player shift+left-clicks while this weapon is in the active slot.
+     * Use for mode toggles that should NOT also activate a spell.
+     */
+    default void onShiftLeftClick(ServerPlayer player) {}
+
+    /**
      * Called when the god player who holds this weapon dies.
      * Runs before GodManager.demoteFromGod() removes the weapon.
      */
     default void onDeath(ServerPlayer player) {}
+
+    /**
+     * Called when a projectile owned by the god player (e.g. a thrown trident or fired firework)
+     * hits a living entity. Routed through broadcastWeapon in the projectile-hit handler.
+     */
+    default void onProjectileHit(ServerPlayer owner, LivingEntity victim, Order.DamageContext ctx) {}
 
     // ═══ HELPERS ═══
 

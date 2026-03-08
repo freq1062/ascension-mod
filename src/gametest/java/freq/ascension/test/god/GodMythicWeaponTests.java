@@ -328,14 +328,14 @@ public class GodMythicWeaponTests {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * {@link WeaponRegistry#getForOrder(String)} must return {@code null} for the End order,
-     * as no weapon is registered (and none should ever be, since there is no god of the End).
+     * {@link WeaponRegistry#getForOrder(String)} must return the {@link RuinousScythe} for
+     * the End order, since the Ruinous Scythe is registered for {@code End.INSTANCE}.
      */
     @GameTest
     public void weaponRegistryGetForOrderEndIsNull(GameTestHelper helper) {
         MythicWeapon weapon = WeaponRegistry.getForOrder("end");
-        if (weapon != null) {
-            helper.fail("WeaponRegistry.getForOrder(\"end\") must be null (End has no god tier)");
+        if (weapon == null) {
+            helper.fail("WeaponRegistry.getForOrder(\"end\") must return RuinousScythe (End now has a mythical weapon)");
         }
         helper.succeed();
     }
@@ -385,11 +385,17 @@ public class GodMythicWeaponTests {
      */
     @GameTest
     public void weaponRegistryGetByIdAfterRegistration(GameTestHelper helper) {
-        // Use a unique id to avoid collision with other tests in the same JVM run
+        // Use a unique id and a synthetic order to avoid colliding with any registered weapon.
+        final Order fakeOrder = new Order() {
+            @Override public String getOrderName()  { return "test_order_unique_xyz"; }
+            @Override public String getOrderIcon()  { return "?"; }
+            @Override public TextColor getOrderColor() { return TextColor.fromRgb(0xFFFFFF); }
+        };
+
         final class UniqueMockWeapon implements MythicWeapon {
             @Override public String getWeaponId()  { return "unique_test_dagger_xyz"; }
             @Override public Item   getBaseItem()  { return Items.GOLDEN_SWORD; }
-            @Override public Order  getParentOrder(){ return Earth.INSTANCE; }
+            @Override public Order  getParentOrder(){ return fakeOrder; }
             @Override public ItemStack createItem(){ return buildBaseItem(); }
         }
 
@@ -397,7 +403,7 @@ public class GodMythicWeaponTests {
         try {
             WeaponRegistry.register(mock);
         } catch (IllegalArgumentException e) {
-            // Already registered from a previous run — acceptable
+            // Already registered from a previous run in the same JVM — acceptable
         }
 
         MythicWeapon found = WeaponRegistry.get("unique_test_dagger_xyz");
@@ -413,20 +419,25 @@ public class GodMythicWeaponTests {
      */
     @GameTest
     public void weaponRegistryIsMythicalWeaponTrueAfterRegistration(GameTestHelper helper) {
-        // Use a unique id registered under Sky order to avoid colliding with the Earth
-        // weapon registered by the previous test (WeaponRegistry uses a static map).
-        final String WEAPON_ID = "sky_test_blade_xyz";
-        final class SkyMockWeapon implements MythicWeapon {
+        // Use a unique id and a synthetic order to avoid colliding with any registered weapon.
+        final String WEAPON_ID = "iso_test_blade_xyz_2";
+        final Order fakeOrder2 = new Order() {
+            @Override public String getOrderName()  { return "test_order_unique_xyz_2"; }
+            @Override public String getOrderIcon()  { return "?"; }
+            @Override public TextColor getOrderColor() { return TextColor.fromRgb(0xFFFFFF); }
+        };
+
+        final class IsoMockWeapon implements MythicWeapon {
             @Override public String getWeaponId()  { return WEAPON_ID; }
             @Override public Item   getBaseItem()  { return Items.IRON_SWORD; }
-            @Override public Order  getParentOrder(){ return Sky.INSTANCE; }
+            @Override public Order  getParentOrder(){ return fakeOrder2; }
             @Override public ItemStack createItem(){ return buildBaseItem(); }
         }
 
         try {
-            WeaponRegistry.register(new SkyMockWeapon());
+            WeaponRegistry.register(new IsoMockWeapon());
         } catch (IllegalArgumentException e) {
-            // Already registered from a prior run in the same JVM — acceptable
+            // Already registered from a previous run in the same JVM — acceptable
         }
 
         // Build a stack with the correct model data string and verify isMythicalWeapon recognises it
