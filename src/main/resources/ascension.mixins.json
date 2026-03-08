@@ -9,6 +9,7 @@
 		"BreezeTargetMixin",
 		"CraftingEligibilityMixin",
 		"CraftingRestorationMixin",
+		"CrossbowMixin",
 		"DamageMixin",
 		"GodProtectionMixin",
 		"DisguiseLoadMixin",
@@ -27,7 +28,8 @@
 		"ProjectileShieldMixin",
 		"SculkSensorMixin",
 		"SculkShriekerMixin",
-		"ServerPlayerMixin"
+		"ServerPlayerMixin",
+		"ThrownTridentPickupMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

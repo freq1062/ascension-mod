@@ -27,7 +27,13 @@
 			"freq.ascension.test.misc.DataPersistenceTests",
 			"freq.ascension.test.misc.DragonCurveTests",
 			"freq.ascension.test.misc.GameplayTests",
-			"freq.ascension.test.weapons.WeaponRuinousScytheTests"
+			"freq.ascension.test.weapons.WeaponColossusHammerTests",
+			"freq.ascension.test.weapons.WeaponTempestTridentTests",
+			"freq.ascension.test.weapons.WeaponRuinousScytheTests",
+			"freq.ascension.test.weapons.WeaponPrismWandTests",
+			"freq.ascension.test.weapons.WeaponHellfireCrossbowTests",
+			"freq.ascension.test.weapons.WeaponVinewrathAxeTests",
+			"freq.ascension.test.weapons.WeaponGravitonGauntletTests"
 		]
 	},
 	"depends": {

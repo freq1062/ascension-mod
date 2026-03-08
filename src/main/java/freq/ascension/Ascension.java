@@ -53,9 +53,12 @@ import freq.ascension.managers.PromotionHandler;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.registry.OrderRegistry;
 import freq.ascension.weapons.HellfireCrossbow;
+import freq.ascension.weapons.PrismWand;
+import freq.ascension.weapons.GravitonGauntlet;
 import freq.ascension.registry.WeaponRegistry;
 import freq.ascension.weapons.ColossusHammer;
 import freq.ascension.weapons.RuinousScythe;
+import freq.ascension.weapons.TempestTrident;
 import freq.ascension.weapons.VinewrathAxe;
 
 // import io.github.retrooper.packetevents.PacketEventsServerMod;
@@ -116,9 +119,20 @@ public class Ascension implements ModInitializer {
 		OrderRegistry.registerAllSpells();
 		WeaponRegistry.register(new ColossusHammer());
 		WeaponRegistry.register(new VinewrathAxe());
+		// Register GravitonGauntlet.
+		WeaponRegistry.register(GravitonGauntlet.INSTANCE);
 		// Register Ruinous Scythe and its cleanup event hooks.
 		RuinousScythe.register();
 		WeaponRegistry.register(RuinousScythe.INSTANCE);
+		// Register Tempest Trident and its cleanup/event hooks.
+		TempestTrident.register();
+		WeaponRegistry.register(TempestTrident.INSTANCE);
+		// Register Hellfire Crossbow and its cleanup/event hooks.
+		HellfireCrossbow.register();
+		WeaponRegistry.register(HellfireCrossbow.INSTANCE);
+		// Register Prism Wand and its bow-intercept/entity-load event hooks.
+		PrismWand.register();
+		WeaponRegistry.register(PrismWand.INSTANCE);
 		AbilityManager.init();
 		InfluenceManager.init();
 		PlantProximityManager.init();
