@@ -210,4 +210,14 @@ public interface Order {
         return true;
     }
 
+    /**
+     * Called when this order is removed from a slot (passive/utility/combat).
+     * Use this to clean up any persistent effects applied by {@link #applyEffect}.
+     *
+     * @param player   the player unequipping this order
+     * @param slotType "passive", "utility", or "combat"
+     */
+    default void onUnequip(ServerPlayer player, String slotType) {
+    }
+
 }

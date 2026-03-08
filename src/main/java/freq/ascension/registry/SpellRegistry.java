@@ -79,7 +79,11 @@ public class SpellRegistry {
     private static void addSpellsIfPresent(List<Spell> targetList, Order order, String type) {
         if (order == null)
             return;
-        Map<String, List<Spell>> orderSpells = BY_ORDER_AND_TYPE.get(order);
+        // God-tier order instances (e.g. EarthGod) are not used as keys in BY_ORDER_AND_TYPE
+        // because spells are registered via OrderRegistry.registerAllSpells() which only iterates
+        // base orders. Normalize to the base order so god players can look up their spells.
+        Order baseOrder = OrderRegistry.get(order.getOrderName());
+        Map<String, List<Spell>> orderSpells = BY_ORDER_AND_TYPE.get(baseOrder != null ? baseOrder : order);
         if (orderSpells == null)
             return;
         List<Spell> spells = orderSpells.get(type);

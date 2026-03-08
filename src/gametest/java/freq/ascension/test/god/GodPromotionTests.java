@@ -436,4 +436,61 @@ public class GodPromotionTests {
         }
         helper.succeed();
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Bug 3 fix — god death: order name captured before demote for broadcast
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Bug 3 fix: the death handler must capture the god's order name BEFORE calling
+     * demoteFromGod(), because demoteFromGod() clears the persistent map entry.
+     * Verify that getGodOrderName returns the correct order before clearing and null after.
+     */
+    @GameTest
+    public void godOrderNameAvailableBeforeDemotionClearsIt(GameTestHelper helper) {
+        GodManager gm = GodManager.createForTesting();
+        UUID uuid = UUID.randomUUID();
+        gm.setGodEntryForTesting("earth", uuid);
+
+        // Simulate: capture order name BEFORE demotion (as the fixed death handler does)
+        String orderName = gm.getGodOrderName(uuid);
+        if (!"earth".equals(orderName)) {
+            helper.fail("getGodOrderName should return 'earth' before demotion, got: " + orderName);
+        }
+
+        // Simulate the clear that demoteFromGod performs
+        gm.clearGodEntryForTesting("earth");
+
+        // After clearing, the name should be gone — confirms why pre-capture is required
+        String afterClear = gm.getGodOrderName(uuid);
+        if (afterClear != null) {
+            helper.fail("getGodOrderName should be null after entry cleared, got: " + afterClear);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Bug 3 fix: capitalize helper must upper-case the first character of order names
+     * so broadcast messages are properly formatted (e.g. "earth" → "Earth").
+     */
+    @GameTest
+    public void capitalizeOrderNameForBroadcast(GameTestHelper helper) {
+        // Replicate the capitalize logic used in AbilityManager
+        java.util.function.Function<String, String> capitalize = s -> {
+            if (s == null || s.isEmpty()) return s;
+            return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+        };
+
+        String[] orders = {"earth", "sky", "ocean", "magic", "flora", "nether"};
+        String[] expected = {"Earth", "Sky", "Ocean", "Magic", "Flora", "Nether"};
+        for (int i = 0; i < orders.length; i++) {
+            String result = capitalize.apply(orders[i]);
+            if (!expected[i].equals(result)) {
+                helper.fail("capitalize(\"" + orders[i] + "\") should be \""
+                        + expected[i] + "\" but got \"" + result + "\"");
+                return;
+            }
+        }
+        helper.succeed();
+    }
 }

@@ -260,6 +260,10 @@ public class ServerPlayerMixin implements AscensionData {
         // If changing away from a previously equipped order, unbind spells tied to it
         if (this.passive != null && !this.passive.equals(order)) {
             unbindSpellsFromOrderAndType(this.passive, "passive");
+            Order prevOrder = OrderRegistry.get(this.passive);
+            if (prevOrder != null) {
+                prevOrder.onUnequip((ServerPlayer) (Object) this, "passive");
+            }
         }
         this.passive = order;
     }
@@ -274,6 +278,10 @@ public class ServerPlayerMixin implements AscensionData {
     public void setUtility(String order) {
         if (this.utility != null && !this.utility.equals(order)) {
             unbindSpellsFromOrderAndType(this.utility, "utility");
+            Order prevOrder = OrderRegistry.get(this.utility);
+            if (prevOrder != null) {
+                prevOrder.onUnequip((ServerPlayer) (Object) this, "utility");
+            }
         }
         this.utility = order;
     }
@@ -288,6 +296,10 @@ public class ServerPlayerMixin implements AscensionData {
     public void setCombat(String order) {
         if (this.combat != null && !this.combat.equals(order)) {
             unbindSpellsFromOrderAndType(this.combat, "combat");
+            Order prevOrder = OrderRegistry.get(this.combat);
+            if (prevOrder != null) {
+                prevOrder.onUnequip((ServerPlayer) (Object) this, "combat");
+            }
         }
         this.combat = order;
     }

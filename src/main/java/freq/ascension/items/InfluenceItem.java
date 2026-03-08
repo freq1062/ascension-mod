@@ -47,11 +47,12 @@ public class InfluenceItem {
                 if (stack == null || stack.isEmpty())
                         return false;
 
-                DataComponentMap customData = stack.getComponents();
-                if (customData != null && customData.has(DataComponents.CUSTOM_DATA))
-                        return customData.get(DataComponents.CUSTOM_MODEL_DATA)
-                                        .getString(0) == CUSTOM_MODEL_DATA_STRING;
-                return false;
+                DataComponentMap components = stack.getComponents();
+                if (components == null || !components.has(DataComponents.CUSTOM_MODEL_DATA))
+                        return false;
+
+                CustomModelData cmd = components.get(DataComponents.CUSTOM_MODEL_DATA);
+                return cmd != null && CUSTOM_MODEL_DATA_STRING.equals(cmd.getString(0));
         }
 
         public static ItemStack getInfluenceDisplayItem(AscensionData data) {

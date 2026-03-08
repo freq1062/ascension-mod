@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 
 import java.util.function.BiConsumer;
 import freq.ascension.managers.AbilityManager;
+import freq.ascension.managers.AscensionData;
 import freq.ascension.orders.Order;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -44,12 +45,17 @@ public abstract class AnvilPrepareMixin {
         if (this.ascension$player instanceof ServerPlayer serverPlayer) {
             AbilityManager.broadcast(serverPlayer, (order) -> order.onAnvilPrepare((AnvilMenu) (Object) this));
 
-            // Earth passive: 50% cost reduction via direct DataSlot access (no reflection)
+            // Earth anvil cost reduction — god gets 90% off (10% of cost), demigod gets 50% off
             if (AbilityManager.anyMatch(serverPlayer,
                     order -> "earth".equals(order.getOrderName()) && order.hasCapability(serverPlayer, "passive"))) {
                 int current = this.cost.get();
                 if (current > 0) {
-                    this.cost.set(Math.max(1, current / 2));
+                    AscensionData data = (AscensionData) serverPlayer;
+                    boolean isGod = "god".equals(data.getRank())
+                            && "earth".equalsIgnoreCase(data.getGodOrder());
+                    this.cost.set(isGod
+                            ? (int) Math.max(1, Math.floor(current * 0.1))
+                            : Math.max(1, current / 2));
                 }
             }
         }

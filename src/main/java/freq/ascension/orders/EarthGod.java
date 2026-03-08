@@ -2,7 +2,6 @@ package freq.ascension.orders;
 
 import freq.ascension.managers.SpellStats;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.inventory.AnvilMenu;
 
 public class EarthGod extends Earth {
     public static final EarthGod INSTANCE = new EarthGod();
@@ -27,22 +26,6 @@ public class EarthGod extends Earth {
             case "combat" -> "Magma bubble spell, launches you";
             default -> "";
         };
-    }
-
-    @Override
-    public void onAnvilPrepare(AnvilMenu menu) {
-        int originalCost = menu.getCost();
-        if (originalCost <= 0)
-            return;
-
-        int reducedCost = (int) Math.floor(originalCost * 0.1);
-        try {
-            var costField = AnvilMenu.class.getDeclaredField("cost");
-            costField.setAccessible(true);
-            costField.setInt(menu, Math.max(1, reducedCost));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     @Override

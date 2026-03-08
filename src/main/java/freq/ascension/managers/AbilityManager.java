@@ -196,14 +196,31 @@ public class AbilityManager {
             if (entity instanceof ServerPlayer sp && Ascension.getServer() != null) {
                 GodManager gm = GodManager.get(Ascension.getServer());
                 if (gm.isGod(sp)) {
+                    // Capture order name BEFORE demoteFromGod clears the entry
+                    String orderName = gm.getGodOrderName(sp);
+
                     // Notify weapon of impending death before demotion removes it
                     broadcastWeapon(sp, (weapon) -> weapon.onDeath(sp));
 
                     gm.demoteFromGod(sp, Ascension.getServer());
                     sp.sendSystemMessage(Component.literal(
                             "§cYou died and lost your god status."));
+
+                    if (orderName != null) {
+                        Component broadcastMsg = Component.literal(
+                                "§6[Ascension] §e" + sp.getName().getString()
+                                + " §6has fallen from godhood as the God of §e"
+                                + capitalize(orderName) + "§6!");
+                        Ascension.getServer().getPlayerList()
+                                .broadcastSystemMessage(broadcastMsg, false);
+                    }
                 }
             }
         });
+    }
+
+    private static String capitalize(String s) {
+        if (s == null || s.isEmpty()) return s;
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 }

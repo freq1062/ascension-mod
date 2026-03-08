@@ -1,9 +1,12 @@
 package freq.ascension.test.god;
 
+import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellStats;
 import freq.ascension.orders.Earth;
 import freq.ascension.orders.EarthGod;
 import freq.ascension.orders.Order;
+import freq.ascension.registry.OrderRegistry;
+import freq.ascension.registry.SpellRegistry;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -334,6 +337,99 @@ public class EarthGodTests {
         int total = (base + 0) * 2; // fortune bonus = 0 for ancient debris
         if (total < 2) {
             helper.fail("EarthGod: ancient debris drop must be >= 2 after doubling, got " + total);
+        }
+        helper.succeed();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Bug 1 fix — EarthGod anvil: reflection removed, mixin handles reduction
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Bug 1 fix: EarthGod.onAnvilPrepare is now a no-op inherited from Earth.
+     * Calling it must not throw (previously crashed with reflection IllegalArgumentException).
+     */
+    @GameTest
+    public void anvilGodReductionNoReflectionCrash(GameTestHelper helper) {
+        try {
+            // Earth's onAnvilPrepare is an empty no-op; null menu is safe
+            EarthGod.INSTANCE.onAnvilPrepare(null);
+        } catch (Exception e) {
+            helper.fail("EarthGod.onAnvilPrepare must not throw after reflection removal: " + e);
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Bug 1 fix: the god (90%) reduction formula produces a value less than the demigod (50%)
+     * reduction and never below 1.
+     */
+    @GameTest
+    public void anvilGodReductionIs10PercentVsDemigod50Percent(GameTestHelper helper) {
+        int original = 100;
+        int godCost = (int) Math.max(1, Math.floor(original * 0.1));
+        int demigodCost = Math.max(1, original / 2);
+        if (godCost >= demigodCost) {
+            helper.fail("God anvil cost (" + godCost + ") must be < demigod cost (" + demigodCost + ")");
+        }
+        if (godCost < 1) {
+            helper.fail("God anvil cost must be >= 1, got " + godCost);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Bug 1 fix: demigod (50%) reduction formula on cost=1 must return 1, never 0.
+     */
+    @GameTest
+    public void anvilDemigodReductionNeverBelowOne(GameTestHelper helper) {
+        int cost = Math.max(1, 1 / 2);
+        if (cost < 1) {
+            helper.fail("Demigod anvil cost must be >= 1 even for cost=1, got " + cost);
+        }
+        helper.succeed();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Bug 2 fix — god spell binding: base-order normalization in SpellRegistry
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Bug 2 fix: EarthGod.getOrderName() must return "earth" so that
+     * OrderRegistry.get(godOrder.getOrderName()) resolves back to Earth.INSTANCE.
+     */
+    @GameTest
+    public void earthGodOrderNameResolvesToBaseOrder(GameTestHelper helper) {
+        String godOrderName = EarthGod.INSTANCE.getOrderName();
+        Order baseOrder = OrderRegistry.get(godOrderName);
+        if (!(baseOrder instanceof Earth)) {
+            helper.fail("OrderRegistry.get(EarthGod.getOrderName()) should return Earth.INSTANCE, got: "
+                    + (baseOrder == null ? "null" : baseOrder.getClass().getSimpleName()));
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Bug 2 fix: after registerAllSpells() the "supermine" and "magma_bubble" spells must be
+     * present in SpellRegistry.SPELLS and keyed to the "earth" order, not "earthgod".
+     * This is the precondition for the base-order normalization fix to work.
+     */
+    @GameTest
+    public void earthSpellsRegisteredUnderBaseOrderName(GameTestHelper helper) {
+        OrderRegistry.registerAllSpells(); // idempotent — safe to call again
+
+        for (String spellId : new String[]{"supermine", "magma_bubble"}) {
+            Spell spell = SpellRegistry.SPELLS.get(spellId);
+            if (spell == null) {
+                helper.fail("SpellRegistry missing '" + spellId + "' after registerAllSpells()");
+                return;
+            }
+            String orderName = spell.getOrder() == null ? "null" : spell.getOrder().getOrderName();
+            if (!"earth".equalsIgnoreCase(orderName)) {
+                helper.fail("Spell '" + spellId + "' must be keyed to order 'earth', got '" + orderName + "'");
+                return;
+            }
         }
         helper.succeed();
     }

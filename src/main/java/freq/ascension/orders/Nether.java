@@ -102,6 +102,16 @@ public class Nether implements Order {
     }
 
     @Override
+    public void onUnequip(ServerPlayer player, String slotType) {
+        // When the player removes Nether from their passive slot, immediately clear the
+        // ambient fire resistance so the immunity does not linger for the remaining
+        // effect duration (up to 80 ticks after the last applyEffect call).
+        if ("passive".equals(slotType)) {
+            player.removeEffect(MobEffects.FIRE_RESISTANCE);
+        }
+    }
+
+    @Override
     public void onEntityDamage(ServerPlayer player, DamageContext context) {
         // Cancel all fire-type damage when the Nether passive is equipped.
         // Record the contact time so wasRecentlyOnFire() can keep the autocrit

@@ -1,6 +1,7 @@
 package freq.ascension.managers;
 
 import freq.ascension.items.InfluenceItem;
+import freq.ascension.orders.Order;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
@@ -11,6 +12,8 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+
+import java.util.Map;
 
 public class InfluenceManager {
     private static final String GAIN_INFLUENCE_MSG = "§6✦Gained 1 influence!";
@@ -50,6 +53,31 @@ public class InfluenceManager {
 
             // Copy the Map (Spell Bindings)
             newData.getSpellBindings().putAll(oldData.getSpellBindings());
+
+            // Copy equipped ability slots (passive/utility/combat)
+            Order oldPassive = oldData.getPassive();
+            Order oldUtility = oldData.getUtility();
+            Order oldCombat = oldData.getCombat();
+            newData.setPassive(oldPassive != null ? oldPassive.getOrderName() : null);
+            newData.setUtility(oldUtility != null ? oldUtility.getOrderName() : null);
+            newData.setCombat(oldCombat != null ? oldCombat.getOrderName() : null);
+
+            // Copy previous god slots (used for demotion restore)
+            newData.setPreviousPassive(oldData.getPreviousPassive());
+            newData.setPreviousUtility(oldData.getPreviousUtility());
+            newData.setPreviousCombat(oldData.getPreviousCombat());
+
+            // Copy all unlocked orders progress
+            Map<String, AscensionData.OrderUnlock> oldUnlocked = oldData.getUnlocked();
+            if (oldUnlocked != null) {
+                for (Map.Entry<String, AscensionData.OrderUnlock> entry : oldUnlocked.entrySet()) {
+                    AscensionData.OrderUnlock u = entry.getValue();
+                    String orderName = entry.getKey();
+                    if (u.hasPassive()) newData.unlock(orderName, "passive");
+                    if (u.hasUtility()) newData.unlock(orderName, "utility");
+                    if (u.hasCombat()) newData.unlock(orderName, "combat");
+                }
+            }
 
             // Note: If 'alive' is false, it means they died.
             // If you want a "Death Penalty" (like losing influence), you do it here:
