@@ -5,6 +5,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.AbilityManager;
 import freq.ascension.managers.LavaFlightManager;
 import freq.ascension.orders.Nether;
@@ -62,9 +63,13 @@ public abstract class LavaSwimmingMixin {
             // override any vanilla reset that ran earlier in the same tick.
             flagSetter.invokeSetSharedFlag(7, true);
 
-            // Drive movement in the look direction at vanilla swimming speed.
+            // Drive movement in the look direction. Gods (nether rank) get Dolphin's
+            // Grace 1 speed (~0.20 b/t); Demigods get normal swimming speed (0.12 b/t).
             Vec3 look = serverPlayer.getLookAngle();
-            float speed = 0.12f;
+            AscensionData data = (AscensionData) serverPlayer;
+            boolean isGod = "god".equals(data.getRank())
+                    && "nether".equalsIgnoreCase(data.getGodOrder());
+            float speed = isGod ? 0.20f : 0.12f;
             serverPlayer.setDeltaMovement(look.x * speed, look.y * speed, look.z * speed);
 
             Nether.recordFireContact(serverPlayer);

@@ -103,3 +103,8 @@ For canonical usage examples of project-specific libraries, refer to `LibReferen
 
 - Always validate changes by running `./gradlew runGameTest`.
 - If the tests fail, analyze the stack trace in the terminal and propose a fix.
+
+## 11. External Reference
+- You have access to the Bukkit version of this project via the 'bukkit-reference' MCP.
+- Path: /home/minalex/ascension-smp
+- If a Fabric mapping or logic flow is unclear, search the Bukkit source to see how it was originally implemented in Spigot/Paper.

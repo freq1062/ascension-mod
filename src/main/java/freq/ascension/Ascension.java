@@ -155,7 +155,7 @@ public class Ascension implements ModInitializer {
 
 			// White glow flash on the cube for any successful right-click
 			PoiManager poi = PoiManager.get(level.getServer());
-			net.minecraft.world.entity.Display.BlockDisplay cubeDisplay =
+			net.minecraft.world.entity.Display.ItemDisplay cubeDisplay =
 					poi.getDisplayEntity(orderName, level.getServer());
 			if (cubeDisplay != null) {
 				cubeDisplay.setGlowingTag(true);

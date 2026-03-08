@@ -828,6 +828,14 @@ public class SpellRegistry {
                 task.cancel();
                 return;
             }
+
+            // Drive ghast velocity when player is riding it so it moves in the look direction
+            // at the correct speed: Demigod = 0.3 b/t (6 b/s), God = 0.5 b/t (10 b/s).
+            if (player.getVehicle() == ghast) {
+                Vec3 look = player.getLookAngle();
+                float targetSpeed = doubleHealth ? 0.5f : 0.3f;
+                ghast.setDeltaMovement(look.x * targetSpeed, look.y * targetSpeed, look.z * targetSpeed);
+            }
         }));
     }
 

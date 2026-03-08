@@ -82,8 +82,8 @@ public class ChallengerTrialManager {
         public ContinuousTask bossBarTask;
         public ContinuousTask leashTask;
         public ContinuousTask cooldownTask;
-        /** Reference to the POI cube BlockDisplay entity for applying glow / glow removal. */
-        public Display.BlockDisplay cubeDisplay;
+        /** Reference to the POI cube ItemDisplay entity for applying glow / glow removal. */
+        public Display.ItemDisplay cubeDisplay;
         /** Reference to the Interaction entity for damage detection. */
         public Interaction cubeInteraction;
         public long cooldownEndsMs = 0L;

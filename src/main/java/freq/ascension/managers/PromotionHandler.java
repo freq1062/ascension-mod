@@ -64,9 +64,11 @@ public class PromotionHandler {
                         "§c. You can only be the god of one order at a time."));
                 } else {
                     // A different player is the god of this order
+                    String godName = gm.getGodName(orderName);
                     player.sendSystemMessage(Component.literal(
                         "§cThe God of §e" + capitalize(orderName) +
-                        "§c is still ascended. You must challenge them to ascend."));
+                        "§c, §e" + godName +
+                        "§c, is still ascended. You must challenge them to ascend."));
                 }
             }
             return;

@@ -195,16 +195,29 @@ public class AbilityManager {
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof ServerPlayer sp && Ascension.getServer() != null) {
                 GodManager gm = GodManager.get(Ascension.getServer());
-                if (gm.isGod(sp)) {
-                    // Capture order name BEFORE demoteFromGod clears the entry
+                AscensionData data = (AscensionData) sp;
+
+                boolean isGodByManager = gm.isGod(sp);
+                boolean isGodByData = "god".equals(data.getRank());
+
+                if (isGodByManager || isGodByData) {
+                    // Capture order name BEFORE demotion clears the entry
                     String orderName = gm.getGodOrderName(sp);
+                    if (orderName == null) orderName = data.getGodOrder(); // data-mismatch fallback
 
                     // Notify weapon of impending death before demotion removes it
                     broadcastWeapon(sp, (weapon) -> weapon.onDeath(sp));
 
-                    gm.demoteFromGod(sp, Ascension.getServer());
-                    sp.sendSystemMessage(Component.literal(
-                            "§cYou died and lost your god status."));
+                    if (isGodByManager) {
+                        gm.demoteFromGod(sp, Ascension.getServer());
+                    } else {
+                        // Manager entry is missing but AscensionData still says "god" — clear manually
+                        data.setRank("demigod");
+                        data.setGodOrder(null);
+                        if (orderName != null) gm.clearGod(orderName);
+                    }
+
+                    sp.sendSystemMessage(Component.literal("§cYou died and lost your god status."));
 
                     if (orderName != null) {
                         Component broadcastMsg = Component.literal(

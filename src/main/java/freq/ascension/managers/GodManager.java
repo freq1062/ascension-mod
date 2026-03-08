@@ -57,17 +57,21 @@ public class GodManager extends SavedData {
     // orderName (lowercase) → epoch ms of last offline-loss increment
     private final Map<String, Long> lastDailyLossMs = new HashMap<>();
 
+    // orderName (lowercase) → display name of the current god
+    private final Map<String, String> godNamesByOrder = new HashMap<>();
+
     // ─── Constructors ─────────────────────────────────────────────────────────
 
     private GodManager() {}
 
     private static GodManager fromMaps(Map<String, String> gods, Map<String, Long> cooldowns,
-            Map<String, Integer> losses, Map<String, Long> dailyLoss) {
+            Map<String, Integer> losses, Map<String, Long> dailyLoss, Map<String, String> godNames) {
         GodManager m = new GodManager();
         m.godsByOrder.putAll(gods);
         m.demotionCooldowns.putAll(cooldowns);
         m.lossCounters.putAll(losses);
         m.lastDailyLossMs.putAll(dailyLoss);
+        m.godNamesByOrder.putAll(godNames);
         return m;
     }
 
@@ -86,7 +90,10 @@ public class GodManager extends SavedData {
                             .forGetter(m -> Map.copyOf(m.lossCounters)),
                     Codec.unboundedMap(Codec.STRING, Codec.LONG)
                             .optionalFieldOf("daily_loss_timestamps", Map.of())
-                            .forGetter(m -> Map.copyOf(m.lastDailyLossMs))
+                            .forGetter(m -> Map.copyOf(m.lastDailyLossMs)),
+                    Codec.unboundedMap(Codec.STRING, Codec.STRING)
+                            .optionalFieldOf("god_names", Map.of())
+                            .forGetter(m -> Map.copyOf(m.godNamesByOrder))
             ).apply(instance, GodManager::fromMaps)
     );
 
@@ -319,6 +326,7 @@ public class GodManager extends SavedData {
 
         // Step 5: record in persistent map
         godsByOrder.put(orderName, player.getStringUUID());
+        godNamesByOrder.put(orderName, player.getName().getString());
 
         // Reset loss counter now that a new god has risen
         lossCounters.remove(orderName);
@@ -442,6 +450,7 @@ public class GodManager extends SavedData {
         // Step 5: update persistent map
         if (orderName != null) {
             godsByOrder.remove(orderName);
+            godNamesByOrder.remove(orderName);
         }
         setDirty();
     }
@@ -453,7 +462,13 @@ public class GodManager extends SavedData {
     public void clearGod(String orderName) {
         if (orderName == null) return;
         godsByOrder.remove(orderName.toLowerCase());
+        godNamesByOrder.remove(orderName.toLowerCase());
         setDirty();
+    }
+
+    /** Returns the stored display name of the current god of the given order, or {@code "Unknown"}. */
+    public String getGodName(String orderName) {
+        return godNamesByOrder.getOrDefault(orderName.toLowerCase(), "Unknown");
     }
 
     // ─── Testing support ─────────────────────────────────────────────────────
@@ -472,6 +487,13 @@ public class GodManager extends SavedData {
      */
     public void setGodEntryForTesting(String orderName, UUID uuid) {
         godsByOrder.put(orderName.toLowerCase(), uuid.toString());
+        setDirty();
+    }
+
+    /** Overload that also stores the player name — for testing getGodName(). */
+    public void setGodEntryForTesting(String orderName, UUID uuid, String playerName) {
+        godsByOrder.put(orderName.toLowerCase(), uuid.toString());
+        godNamesByOrder.put(orderName.toLowerCase(), playerName);
         setDirty();
     }
 

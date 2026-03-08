@@ -1,5 +1,7 @@
 package freq.ascension.managers;
 
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
 import com.mojang.math.Transformation;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -7,6 +9,7 @@ import freq.ascension.Ascension;
 import freq.ascension.api.ContinuousTask;
 import freq.ascension.api.TaskScheduler;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Brightness;
@@ -15,6 +18,9 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Interaction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -185,11 +191,18 @@ public class PoiManager extends SavedData {
     // ─── Entity management ────────────────────────────────────────────────────
 
     /**
-     * Returns {@link Blocks#PLAYER_HEAD} for all orders. The skull texture is injected
-     * separately via NBT into the BlockDisplay entity after creation.
+     * Creates a {@link Items#PLAYER_HEAD} {@link ItemStack} with the order-specific base64 skull
+     * texture set via {@link DataComponents#PROFILE}.
      */
-    private static BlockState getOrderBlock(String orderName) {
-        return Blocks.PLAYER_HEAD.defaultBlockState();
+    private static ItemStack createOrderSkull(String key) {
+        ItemStack skull = new ItemStack(Items.PLAYER_HEAD);
+        String base64 = ORDER_HEAD_TEXTURES.get(key);
+        if (base64 != null) {
+            GameProfile profile = new GameProfile(java.util.UUID.randomUUID(), "AscensionPOI");
+            profile.properties().put("textures", new Property("textures", base64));
+            skull.set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile));
+        }
+        return skull;
     }
 
     /**
@@ -210,16 +223,14 @@ public class PoiManager extends SavedData {
         double cy = pos.getY() + 0.5;
         double cz = pos.getZ() + 0.5;
 
-        // Spawn BlockDisplay centered on the block, 0.5×0.5×0.5 scale
-        Display.BlockDisplay display = EntityType.BLOCK_DISPLAY.create(level, EntitySpawnReason.TRIGGERED);
+                // Spawn ItemDisplay showing the order's custom skull, centered on the block
+        Display.ItemDisplay display = EntityType.ITEM_DISPLAY.create(level, EntitySpawnReason.TRIGGERED);
         if (display == null) {
-            Ascension.LOGGER.warn("[PoiManager] Failed to create BlockDisplay for order: " + orderName);
+            Ascension.LOGGER.warn("[PoiManager] Failed to create ItemDisplay for order: " + orderName);
             return;
         }
-        display.setBlockState(getOrderBlock(key));
+        display.setItemStack(createOrderSkull(key));
         display.setPos(cx, cy, cz);
-        // Initial transformation: identity rotation — center (0.25,0.25,0.25) of the 0.5-scale
-        // block is already at (-0.25,-0.25,-0.25) translation so visual center sits at entity origin.
         display.setTransformation(new Transformation(
                 new Vector3f(-0.25f, -0.25f, -0.25f),
                 new Quaternionf(),
@@ -256,7 +267,7 @@ public class PoiManager extends SavedData {
         // We must translate by -(R*center) so the visual center stays at entity origin.
         ContinuousTask rotTask = new ContinuousTask(1, () -> {
             net.minecraft.world.entity.Entity ent = level.getEntity(displayEntityUUIDs.getOrDefault(key, new UUID(0, 0)));
-            if (!(ent instanceof Display.BlockDisplay disp) || disp.isRemoved()) return;
+            if (!(ent instanceof Display.ItemDisplay disp) || disp.isRemoved()) return;
 
             angles[0] = (angles[0] + 0.7f) % 360f; // X axis — slow
             angles[1] = (angles[1] + 1.5f) % 360f; // Y axis — medium
@@ -299,17 +310,17 @@ public class PoiManager extends SavedData {
     }
 
     /**
-     * Returns the {@link Display.BlockDisplay} entity associated with the given order's POI, or
+     * Returns the {@link Display.ItemDisplay} entity associated with the given order's POI, or
      * {@code null} if not tracked or not loaded.
      */
-    public Display.BlockDisplay getDisplayEntity(String orderName, MinecraftServer server) {
+    public Display.ItemDisplay getDisplayEntity(String orderName, MinecraftServer server) {
         String key = orderName.toLowerCase();
         UUID uuid = displayEntityUUIDs.get(key);
         if (uuid == null) return null;
         ServerLevel level = getPoiLevel(server, orderName);
         if (level == null) return null;
         net.minecraft.world.entity.Entity entity = level.getEntity(uuid);
-        return entity instanceof Display.BlockDisplay bd ? bd : null;
+        return entity instanceof Display.ItemDisplay id ? id : null;
     }
 
     /**

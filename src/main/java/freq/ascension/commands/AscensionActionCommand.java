@@ -76,6 +76,13 @@ public class AscensionActionCommand {
             };
 
             if (!alreadyEquipped) {
+                // Gods cannot swap ability slots — their slots are bound to their order
+                if ("god".equals(data.getRank())) {
+                    context.getSource().sendFailure(Component.literal(
+                        "§cAs a God, your abilities are bound to your order. " +
+                        "You cannot change your equipped abilities."));
+                    return 0;
+                }
                 // Check if the currently equipped order in this slot allows unequipping
                 Order currentOrder = switch (type) {
                     case "passive" -> data.getPassive();
@@ -158,6 +165,13 @@ public class AscensionActionCommand {
             };
 
             if (!alreadyEquipped) {
+                // Gods cannot swap ability slots — their slots are bound to their order
+                if ("god".equals(data.getRank())) {
+                    context.getSource().sendFailure(Component.literal(
+                        "§cAs a God, your abilities are bound to your order. " +
+                        "You cannot change your equipped abilities."));
+                    return 0;
+                }
                 // Check if the currently equipped order in this slot allows unequipping
                 Order currentOrder2 = switch (type) {
                     case "passive" -> data.getPassive();

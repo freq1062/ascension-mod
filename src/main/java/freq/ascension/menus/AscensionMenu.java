@@ -169,11 +169,14 @@ public class AscensionMenu {
 
                 List<Section> sections = new ArrayList<>();
                 sections.add(new Section("Passive", data.getUnlockedOrder(order.getOrderName()).hasPassive(),
-                                data.getPassive() == order));
+                                data.getPassive() != null && data.getPassive().getOrderName()
+                                                .equalsIgnoreCase(order.getOrderName())));
                 sections.add(new Section("Utility", data.getUnlockedOrder(order.getOrderName()).hasUtility(),
-                                data.getUtility() == order));
+                                data.getUtility() != null && data.getUtility().getOrderName()
+                                                .equalsIgnoreCase(order.getOrderName())));
                 sections.add(new Section("Combat", data.getUnlockedOrder(order.getOrderName()).hasCombat(),
-                                data.getCombat() == order));
+                                data.getCombat() != null && data.getCombat().getOrderName()
+                                                .equalsIgnoreCase(order.getOrderName())));
 
                 // ... (Section setup code same as before)
 

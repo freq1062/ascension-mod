@@ -99,13 +99,23 @@ public class InfluenceManager {
                         if (data.getInfluence() > 0) {
                             victim.sendSystemMessage(
                                     Component.literal(LOSE_INFLUENCE_MSG));
-                            // drop item
+                            // Spawn influence item at the player's death location
+                            ItemStack itemToDrop = InfluenceItem.createItem();
+                            net.minecraft.world.entity.item.ItemEntity itemEntity =
+                                    new net.minecraft.world.entity.item.ItemEntity(
+                                            victim.level(),
+                                            victim.getX(),
+                                            victim.getY(),
+                                            victim.getZ(),
+                                            itemToDrop);
+                            itemEntity.setDefaultPickUpDelay();
+                            victim.level().addFreshEntity(itemEntity);
+                            data.addInfluence(-1);
                         } else {
                             victim.sendSystemMessage(
                                     Component.literal(LOSE_INFLUENCE_MSG +
                                             " No items were dropped as you have no influence."));
                         }
-                        data.addInfluence(-1);
                     } catch (Throwable ignored) {
                     }
                 } else {
