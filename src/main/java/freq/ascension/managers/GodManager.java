@@ -338,6 +338,70 @@ public class GodManager extends SavedData {
                     "§6⚔ You received your mythical weapon: " +
                     MythicWeapon.formatWeaponName(weapon.getWeaponId()) + "!"));
         }
+
+        // Step 7: spawn promotion animation
+        playPromotionAnimation(player);
+    }
+
+    // ─── Promotion Animation ─────────────────────────────────────────────────
+
+    void playPromotionAnimation(ServerPlayer player) {
+        net.minecraft.server.level.ServerLevel level = (net.minecraft.server.level.ServerLevel) player.level();
+
+        // Create the sigil item stack (heart_of_the_sea with custom model data)
+        ItemStack sigilItem = new ItemStack(net.minecraft.world.item.Items.HEART_OF_THE_SEA);
+        sigilItem.set(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA,
+            new net.minecraft.world.item.component.CustomModelData(
+                java.util.List.of(), java.util.List.of(),
+                java.util.List.of("challengers_sigil"), java.util.List.of()));
+
+        // Spawn ItemDisplay at player's feet
+        net.minecraft.world.entity.Display.ItemDisplay display =
+            net.minecraft.world.entity.EntityType.ITEM_DISPLAY.create(level,
+                net.minecraft.world.entity.EntitySpawnReason.TRIGGERED);
+        if (display == null) return;
+
+        display.setPos(player.getX(), player.getY(), player.getZ());
+        display.setItemStack(sigilItem);
+        display.setTransformation(new com.mojang.math.Transformation(
+            new org.joml.Vector3f(0f, 0f, 0f),
+            new org.joml.Quaternionf(),
+            new org.joml.Vector3f(0.5f, 0.05f, 0.5f),
+            new org.joml.Quaternionf()));
+        display.setBrightnessOverride(new net.minecraft.util.Brightness(15, 15));
+        display.setTransformationInterpolationDuration(20);
+        level.addFreshEntity(display);
+
+        // Animate: spin and rise over 60 ticks, then discard
+        float[] tick = {0f};
+        freq.ascension.api.ContinuousTask animTask = new freq.ascension.api.ContinuousTask(1, () -> {
+            if (display.isRemoved()) return;
+            tick[0]++;
+            float progress = tick[0] / 60f;
+            float angle = tick[0] * 6f;
+            float height = tick[0] * 0.03f;
+            float scale = 0.5f + progress * 0.5f;
+
+            org.joml.Quaternionf rot = new org.joml.Quaternionf().rotateY((float) Math.toRadians(angle));
+            display.setPos(player.getX(), player.getY() + height, player.getZ());
+            display.setTransformation(new com.mojang.math.Transformation(
+                new org.joml.Vector3f(-scale / 2, 0, -scale / 2),
+                rot,
+                new org.joml.Vector3f(scale, 0.05f, scale),
+                new org.joml.Quaternionf()));
+            display.setTransformationInterpolationDuration(2);
+
+            if (tick[0] >= 60) {
+                display.discard();
+            }
+        }) {
+            @Override
+            public boolean isFinished() {
+                return display.isRemoved() || tick[0] >= 60;
+            }
+        };
+
+        freq.ascension.Ascension.scheduler.schedule(animTask);
     }
 
     // ─── Demotion ────────────────────────────────────────────────────────────

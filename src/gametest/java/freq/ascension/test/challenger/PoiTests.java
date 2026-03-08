@@ -245,4 +245,79 @@ public class PoiTests {
         }
         helper.succeed();
     }
+
+    // ─── ChallengerSigil ─────────────────────────────────────────────────────
+
+    /**
+     * {@link freq.ascension.items.ChallengerSigil#isSigil} must return {@code true} for a stack
+     * produced by {@link freq.ascension.items.ChallengerSigil#createSigil()}.
+     */
+    @GameTest
+    public void challengerSigilIsSigilWithCustomModelData(GameTestHelper helper) {
+        net.minecraft.world.item.ItemStack stack = freq.ascension.items.ChallengerSigil.createSigil();
+        if (!freq.ascension.items.ChallengerSigil.isSigil(stack)) {
+            helper.fail("isSigil must return true for a stack produced by createSigil()");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A plain {@code heart_of_the_sea} (no CustomModelData) must NOT be identified as a sigil.
+     */
+    @GameTest
+    public void challengerSigilNotIdentifiedWithWrongItem(GameTestHelper helper) {
+        net.minecraft.world.item.ItemStack plain =
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.HEART_OF_THE_SEA);
+        if (freq.ascension.items.ChallengerSigil.isSigil(plain)) {
+            helper.fail("isSigil must return false for a plain heart_of_the_sea with no CMData");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A {@code diamond} ItemStack must NOT be identified as a sigil.
+     */
+    @GameTest
+    public void challengerSigilNotIdentifiedWithDiamond(GameTestHelper helper) {
+        net.minecraft.world.item.ItemStack diamond =
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND);
+        if (freq.ascension.items.ChallengerSigil.isSigil(diamond)) {
+            helper.fail("isSigil must return false for a diamond ItemStack");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * {@link freq.ascension.items.ChallengerSigil#createSigil()} must produce a
+     * {@code heart_of_the_sea} base item with {@code maxStackSize == 1} (non-stackable,
+     * so each challenge consumes exactly one sigil).
+     */
+    @GameTest
+    public void challengerSigilCreatesHeartOfTheSeaBase(GameTestHelper helper) {
+        net.minecraft.world.item.ItemStack stack = freq.ascension.items.ChallengerSigil.createSigil();
+        if (!stack.is(net.minecraft.world.item.Items.HEART_OF_THE_SEA)) {
+            helper.fail("createSigil() must produce a heart_of_the_sea base item, got: " + stack);
+        }
+        if (stack.getMaxStackSize() != 1) {
+            helper.fail("createSigil() must produce a non-stackable item (maxStackSize=1), got: "
+                    + stack.getMaxStackSize());
+        }
+        helper.succeed();
+    }
+
+    // ─── Rotation task cleanup ────────────────────────────────────────────────
+
+    /**
+     * {@link PoiManager#stopAllRotationTasks} must leave no active rotation tasks and must
+     * complete without throwing even when no tasks are registered.
+     */
+    @GameTest
+    public void rotationTaskStopsOnServerStopCleanup(GameTestHelper helper) {
+        PoiManager poi = PoiManager.get(helper.getLevel().getServer());
+        poi.stopAllRotationTasks(helper.getLevel());
+        if (poi.hasActiveRotationTasks()) {
+            helper.fail("rotationTasks must be empty after stopAllRotationTasks()");
+        }
+        helper.succeed();
+    }
 }

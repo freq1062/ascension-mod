@@ -48,10 +48,27 @@ public class PromotionHandler {
         GodManager gm = GodManager.get(server);
 
         // Check 1: is there already a god of this order?
-        if (gm.getGodUUID(orderName) != null) {
-            player.sendSystemMessage(Component.literal(
-                    "§cThe God of " + capitalize(orderName) + " is still ascended. " +
-                    "You must challenge them to ascend."));
+        UUID existingGodUUID = gm.getGodUUID(orderName);
+        if (existingGodUUID != null) {
+            if (existingGodUUID.equals(player.getUUID())) {
+                // Player IS the god of this order
+                player.sendSystemMessage(Component.literal(
+                    "§6You are the God of §e" + capitalize(orderName) + "§6! " +
+                    "Protect your shrine from challengers to keep your title."));
+            } else {
+                // Check if the player is god of a DIFFERENT order
+                String playerGodOrder = gm.getGodOrderName(player.getUUID());
+                if (playerGodOrder != null) {
+                    player.sendSystemMessage(Component.literal(
+                        "§cYou are already the God of §e" + capitalize(playerGodOrder) +
+                        "§c. You can only be the god of one order at a time."));
+                } else {
+                    // A different player is the god of this order
+                    player.sendSystemMessage(Component.literal(
+                        "§cThe God of §e" + capitalize(orderName) +
+                        "§c is still ascended. You must challenge them to ascend."));
+                }
+            }
             return;
         }
 

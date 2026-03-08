@@ -1,56 +1,51 @@
 package freq.ascension.items;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomModelData;
+
+import java.util.List;
 
 /**
- * The Challenger's Sigil — an item that, when held, allows players to initiate a god challenge
- * by right-clicking an Order POI cube.
+ * The Challenger's Sigil — a {@code heart_of_the_sea} with CustomModelData string
+ * {@code "challengers_sigil"}.
  *
- * <p>Registered during {@code ModInitializer.onInitialize()} via {@link #register()}.
- * The crafting recipe is defined in {@code data/ascension/recipe/challenger_sigil.json}.
- *
- * <p>In 1.21.10, {@link Item.Properties} must have the resource key set before the
- * {@link Item} constructor is invoked. ITEM is therefore initialised lazily inside
- * {@link #register()} (after KEY is available) rather than as a static field.
+ * <p>Uses the same vanilla-item + CustomModelData pattern as {@link InfluenceItem}, so zero
+ * client-side item registry requirements are needed. Sigils can be obtained via admin command
+ * (e.g. {@code /give @s heart_of_the_sea}) after the server sets the custom model data, or
+ * by using {@link #createSigil()} from server code.
  */
 public class ChallengerSigil {
 
-    public static final ResourceKey<Item> KEY = ResourceKey.create(
-            net.minecraft.core.registries.Registries.ITEM,
-            ResourceLocation.fromNamespaceAndPath("ascension", "challenger_sigil"));
+    private static final String CUSTOM_MODEL_DATA_STRING = "challengers_sigil";
 
-    // Non-final: set during register() to avoid the "Item id not set" error
-    // that occurs when Item is constructed before the resource key is available.
-    private static Item ITEM;
+    private ChallengerSigil() {}
 
-    public static void register() {
-        ITEM = new Item(new Item.Properties().stacksTo(1).setId(KEY));
-        Registry.register(BuiltInRegistries.ITEM, KEY, ITEM);
-    }
-
-    /** Returns true if the given item stack is a Challenger's Sigil. */
+    /** Returns {@code true} if this stack is a Challenger's Sigil (heart_of_the_sea + CMData). */
     public static boolean isSigil(ItemStack stack) {
-        return ITEM != null && stack != null && !stack.isEmpty() && stack.getItem() == ITEM;
+        if (stack == null || stack.isEmpty()) return false;
+        if (!stack.is(Items.HEART_OF_THE_SEA)) return false;
+        CustomModelData cmd = stack.get(DataComponents.CUSTOM_MODEL_DATA);
+        if (cmd == null) return false;
+        List<String> strings = cmd.strings();
+        return strings != null && strings.contains(CUSTOM_MODEL_DATA_STRING);
     }
 
     /** Creates a named, glowing Challenger's Sigil item stack. */
     public static ItemStack createSigil() {
-        if (ITEM == null) throw new IllegalStateException("ChallengerSigil not yet registered");
-        ItemStack stack = new ItemStack(ITEM);
-        stack.set(DataComponents.CUSTOM_NAME,
+        ItemStack stack = new ItemStack(Items.HEART_OF_THE_SEA);
+        stack.set(DataComponents.ITEM_NAME,
                 Component.literal("Challenger's Sigil")
-                        .withStyle(ChatFormatting.GOLD)
-                        .withStyle(ChatFormatting.BOLD));
-        // Enchantment-glow override to make it appear enchanted
+                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+        stack.set(DataComponents.CUSTOM_MODEL_DATA,
+                new CustomModelData(List.of(), List.of(), List.of(CUSTOM_MODEL_DATA_STRING), List.of()));
         stack.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+        // Intentionally non-stackable: each challenge must consume exactly one sigil
+        stack.set(DataComponents.MAX_STACK_SIZE, 1);
         return stack;
     }
 }
+

@@ -59,9 +59,13 @@ public class AscensionActionCommand {
         }
 
         if (!unlocked) {
-            // Unlock it
+            if (data.getInfluence() < 1) {
+                context.getSource().sendFailure(Component.literal("You need at least 1 influence to unlock this ability."));
+                return 0;
+            }
             data.unlock(orderName, type);
-            context.getSource().sendSuccess(() -> Component.literal("Unlocked " + orderName + " (" + type + ")"), true);
+            data.addInfluence(-1);
+            context.getSource().sendSuccess(() -> Component.literal("Unlocked " + orderName + " (" + type + ")"), false);
         } else {
             // If unlocked but not equipped, equip it
             boolean alreadyEquipped = switch (type) {
@@ -138,8 +142,13 @@ public class AscensionActionCommand {
         }
 
         if (!unlocked) {
+            if (data.getInfluence() < 1) {
+                context.getSource().sendFailure(Component.literal("You need at least 1 influence to unlock this ability."));
+                return 0;
+            }
             data.unlock(orderName, type);
-            context.getSource().sendSuccess(() -> Component.literal("Unlocked " + orderName + " (" + type + ")"), true);
+            data.addInfluence(-1);
+            context.getSource().sendSuccess(() -> Component.literal("Unlocked " + orderName + " (" + type + ")"), false);
         } else {
             boolean alreadyEquipped = switch (type) {
                 case "passive" -> data.getPassive() == order;

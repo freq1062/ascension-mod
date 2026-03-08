@@ -51,8 +51,19 @@ public class PoiManager extends SavedData {
     private final Map<String, UUID> interactionEntityUUIDs = new HashMap<>();
     private final Map<String, ContinuousTask> rotationTasks = new HashMap<>();
 
-    // Per-display accumulated rotation angle (Y axis), degrees
+    // Per-display accumulated rotation angles [x, y, z], degrees
     private final Map<String, float[]> rotationAngles = new HashMap<>();
+
+    /** Base64 skull textures for each order — injected into BlockDisplay NBT. */
+    private static final Map<String, String> ORDER_HEAD_TEXTURES = Map.of(
+        "sky",    "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWU1MmY3OTYwZmYzY2VjMmY1MTlhNjM1MzY0OGM2ZTMzYmM1MWUxMzFjYzgwOTE3Y2YxMzA4MWRlY2JmZjI0ZCJ9fX0=",
+        "earth",  "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTlhNWExZTY5YjRmODEwNTYyNTc1MmJjZWUyNTM0MDY2NGIwODlmYTFiMmY1MjdmYTkxNDNkOTA2NmE3YWFkMiJ9fX0=",
+        "ocean",  "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzQxMzBjYTY5NzQ5MTRjYmFhYmFlYzJkYzRkMWVkNmMzM2EzMGIzOGQ3OTFjMWQwNTdhMjlhNWQ1MWI5OWZmOSJ9fX0=",
+        "magic",  "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZWYwYTY0ZGM3NmE2NTY3MDM3ZmQ5ZmUyZDQwYTk4MDNmMGZlYTg5MzFmMWM2NDI0ZWE0OGNhYjVmNjI5NTBlZSJ9fX0=",
+        "flora",  "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvM2JlOGRiNDhhNjNmMDliYjg1MDQ0ZDlkYmQzMjVjZmMzODgxYzAwOTEyZTllZGMzM2JmMjJmZGEzMjBiZWE2NiJ9fX0=",
+        "nether", "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNmI5NWRjMDBiZTQxOTIxOGRhM2VjMTY2ODVjZjA5OTAyYzE5M2YwMDRhMDlmNGY3M2VhYTJiOWRkMTA4MGM1ZSJ9fX0=",
+        "end",    "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzc2MzhjMzhkMzlhNjdkODk2MjY3NDNmMDZiOWM3YmU1YzUwY2Y4MzM1ZDJlOGYzOWViMWRhZDBkZjBmNzNkNiJ9fX0="
+    );
 
     /** A single captured block from a terrain snapshot (relative offsets + original state). */
     public record SnapshotEntry(int dx, int dy, int dz, BlockState state) {}
@@ -174,20 +185,11 @@ public class PoiManager extends SavedData {
     // ─── Entity management ────────────────────────────────────────────────────
 
     /**
-     * Returns a {@link BlockState} representing the given order — one colored stained glass
-     * per order for a distinctive visual without requiring skull NBT injection.
+     * Returns {@link Blocks#PLAYER_HEAD} for all orders. The skull texture is injected
+     * separately via NBT into the BlockDisplay entity after creation.
      */
     private static BlockState getOrderBlock(String orderName) {
-        return switch (orderName.toLowerCase()) {
-            case "sky"    -> Blocks.LIGHT_BLUE_STAINED_GLASS.defaultBlockState();
-            case "earth"  -> Blocks.BROWN_STAINED_GLASS.defaultBlockState();
-            case "ocean"  -> Blocks.CYAN_STAINED_GLASS.defaultBlockState();
-            case "magic"  -> Blocks.PURPLE_STAINED_GLASS.defaultBlockState();
-            case "flora"  -> Blocks.GREEN_STAINED_GLASS.defaultBlockState();
-            case "nether" -> Blocks.RED_STAINED_GLASS.defaultBlockState();
-            case "end"    -> Blocks.BLACK_STAINED_GLASS.defaultBlockState();
-            default       -> Blocks.WHITE_STAINED_GLASS.defaultBlockState();
-        };
+        return Blocks.PLAYER_HEAD.defaultBlockState();
     }
 
     /**
@@ -216,6 +218,8 @@ public class PoiManager extends SavedData {
         }
         display.setBlockState(getOrderBlock(key));
         display.setPos(cx, cy, cz);
+        // Initial transformation: identity rotation — center (0.25,0.25,0.25) of the 0.5-scale
+        // block is already at (-0.25,-0.25,-0.25) translation so visual center sits at entity origin.
         display.setTransformation(new Transformation(
                 new Vector3f(-0.25f, -0.25f, -0.25f),
                 new Quaternionf(),
@@ -223,6 +227,7 @@ public class PoiManager extends SavedData {
                 new Quaternionf()));
         display.setBrightnessOverride(Brightness.FULL_BRIGHT);
         display.setTransformationInterpolationDuration(2);
+
         level.addFreshEntity(display);
         displayEntityUUIDs.put(key, display.getUUID());
 
@@ -237,25 +242,37 @@ public class PoiManager extends SavedData {
         level.addFreshEntity(interaction);
         interactionEntityUUIDs.put(key, interaction.getUUID());
 
-        // Schedule rotation task
-        float[] angle = {0f};
-        rotationAngles.put(key, angle);
-
-        // Stop any existing rotation task
+        // Stop any existing rotation task before scheduling a new one
         ContinuousTask old = rotationTasks.get(key);
         if (old != null) old.stop();
 
+        // 3-axis accumulated angles in degrees: [x, y, z]
+        float[] angles = {0f, 0f, 0f};
+        rotationAngles.put(key, angles);
+
+        // Fix 1: rotate around the visual center of the 0.5×0.5×0.5 cube on all 3 axes.
+        // The cube occupies local-space [0,0.5]³ so its center is at (0.25,0.25,0.25).
+        // After applying leftRotation R, that center moves to R*(0.25,0.25,0.25).
+        // We must translate by -(R*center) so the visual center stays at entity origin.
         ContinuousTask rotTask = new ContinuousTask(1, () -> {
             net.minecraft.world.entity.Entity ent = level.getEntity(displayEntityUUIDs.getOrDefault(key, new UUID(0, 0)));
-            if (!(ent instanceof Display.BlockDisplay disp)) return;
-            if (disp.isRemoved()) return;
-            angle[0] = (angle[0] + 1.5f) % 360f;
-            Quaternionf rot = new Quaternionf().rotateY((float) Math.toRadians(angle[0]));
-            disp.setTransformation(new Transformation(
-                    new Vector3f(-0.25f, -0.25f, -0.25f),
-                    rot,
-                    new Vector3f(0.5f, 0.5f, 0.5f),
-                    new Quaternionf()));
+            if (!(ent instanceof Display.BlockDisplay disp) || disp.isRemoved()) return;
+
+            angles[0] = (angles[0] + 0.7f) % 360f; // X axis — slow
+            angles[1] = (angles[1] + 1.5f) % 360f; // Y axis — medium
+            angles[2] = (angles[2] + 0.4f) % 360f; // Z axis — slowest
+
+            Quaternionf rot = new Quaternionf()
+                    .rotateX((float) Math.toRadians(angles[0]))
+                    .rotateY((float) Math.toRadians(angles[1]))
+                    .rotateZ((float) Math.toRadians(angles[2]));
+
+            // Pivot-corrected translation: keep visual center at entity origin
+            Vector3f center = new Vector3f(0.25f, 0.25f, 0.25f);
+            Vector3f rotatedCenter = rot.transform(center, new Vector3f());
+            Vector3f translation = new Vector3f(-rotatedCenter.x, -rotatedCenter.y, -rotatedCenter.z);
+
+            disp.setTransformation(new Transformation(translation, rot, new Vector3f(0.5f, 0.5f, 0.5f), new Quaternionf()));
             disp.setTransformationInterpolationDuration(2);
             disp.setTransformationInterpolationDelay(0);
         });
@@ -308,12 +325,40 @@ public class PoiManager extends SavedData {
         return level != null ? level : server.overworld();
     }
 
-    /** Stops all active rotation tasks. Called on server shutdown. */
-    public void stopAllRotationTasks() {
+    /** Stops all active rotation tasks and discards all spawned display + interaction entities. */
+    public void stopAllRotationTasks(ServerLevel... levels) {
         for (ContinuousTask task : rotationTasks.values()) {
-            task.stop();
+            if (task != null) task.stop();
         }
         rotationTasks.clear();
+        rotationAngles.clear();
+
+        // Discard all BlockDisplay entities across the provided levels
+        for (String key : new HashSet<>(displayEntityUUIDs.keySet())) {
+            UUID uuid = displayEntityUUIDs.get(key);
+            if (uuid == null) continue;
+            for (ServerLevel level : levels) {
+                net.minecraft.world.entity.Entity e = level.getEntity(uuid);
+                if (e != null) e.discard();
+            }
+        }
+        displayEntityUUIDs.clear();
+
+        // Discard all Interaction entities
+        for (String key : new HashSet<>(interactionEntityUUIDs.keySet())) {
+            UUID uuid = interactionEntityUUIDs.get(key);
+            if (uuid == null) continue;
+            for (ServerLevel level : levels) {
+                net.minecraft.world.entity.Entity e = level.getEntity(uuid);
+                if (e != null) e.discard();
+            }
+        }
+        interactionEntityUUIDs.clear();
+    }
+
+    /** Returns {@code true} if there are any active rotation {@link ContinuousTask}s. */
+    public boolean hasActiveRotationTasks() {
+        return !rotationTasks.isEmpty();
     }
 
     // ─── Snapshot Capture ─────────────────────────────────────────────────────

@@ -1,5 +1,7 @@
 package freq.ascension;
 
+import java.util.Map;
+
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -57,13 +59,13 @@ import freq.ascension.registry.OrderRegistry;
 public class Ascension implements ModInitializer {
 	public static final String MOD_ID = "ascension";
 
-	// This logger is used to write text to the console and the log file.
-	// It is considered best practice to use your mod id as the logger's name.
-	// That way, it's clear which mod wrote info, warnings, and errors.
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 	public static final TaskScheduler scheduler = new TaskScheduler();
 	// public static FabricPacketEventsAPI api; // PacketEvents temporarily disabled
 	private static MinecraftServer server;
+
+	/** Per-player last POI interact tick — used to debounce UseEntityCallback spam. */
+	private static final Map<java.util.UUID, Integer> lastPoiInteractTick = new java.util.HashMap<>();
 
 	@Override
 	public void onInitialize() {
@@ -73,8 +75,8 @@ public class Ascension implements ModInitializer {
 
 		Config.load();
 
-		// Register new items
-		ChallengerSigil.register();
+		// NOTE: ChallengerSigil no longer registers a custom item — it uses heart_of_the_sea
+		// with CustomModelData "challengers_sigil" (same pattern as InfluenceItem).
 
 		// PacketEvents temporarily disabled due to Adventure API dependency issues
 		// TODO: Fix PacketEvents dependencies - requires compatible Adventure API
@@ -140,7 +142,31 @@ public class Ascension implements ModInitializer {
 			String nameStr = name.getString();
 			if (!nameStr.startsWith("ascension_poi_")) return InteractionResult.PASS;
 			String orderName = nameStr.substring("ascension_poi_".length());
+
+			// Debounce: suppress repeated fires while holding right-click (10-tick window)
+			int currentTick = level.getServer().getTickCount();
+			Integer lastTick = lastPoiInteractTick.get(sp.getUUID());
+			if (lastTick != null && currentTick - lastTick < 10) {
+				return InteractionResult.SUCCESS;
+			}
+			lastPoiInteractTick.put(sp.getUUID(), currentTick);
+
 			handlePoiRightClick(sp, orderName, level, hand);
+
+			// White glow flash on the cube for any successful right-click
+			PoiManager poi = PoiManager.get(level.getServer());
+			net.minecraft.world.entity.Display.BlockDisplay cubeDisplay =
+					poi.getDisplayEntity(orderName, level.getServer());
+			if (cubeDisplay != null) {
+				cubeDisplay.setGlowingTag(true);
+				cubeDisplay.setGlowColorOverride(0xFFFFFF);
+				scheduler.schedule(new freq.ascension.api.DelayedTask(5, () -> {
+					if (!cubeDisplay.isRemoved()) {
+						cubeDisplay.setGlowingTag(false);
+					}
+				}));
+			}
+
 			return InteractionResult.SUCCESS;
 		});
 
@@ -174,17 +200,23 @@ public class Ascension implements ModInitializer {
 				LOGGER.debug("Failed to clear disguise on disconnect: " + e.getMessage());
 			}
 
+			java.util.UUID disconnectedUUID = handler.getPlayer().getUUID();
 			// Clean up lava flight state so the next login doesn't inherit stale ability flags
-			freq.ascension.managers.LavaFlightManager.cleanup(handler.getPlayer().getUUID());
+			freq.ascension.managers.LavaFlightManager.cleanup(disconnectedUUID);
 			// Clean up fire-contact tracking for autocrit
-			freq.ascension.orders.Nether.clearFireTracking(handler.getPlayer().getUUID());
+			freq.ascension.orders.Nether.clearFireTracking(disconnectedUUID);
+			// Clean up POI interact debounce map
+			lastPoiInteractTick.remove(disconnectedUUID);
 		});
 
 		// Clear all disguises on server shutdown
 		ServerLifecycleEvents.SERVER_STOPPING.register((stoppingServer) -> {
-			// Stop all POI rotation tasks to prevent orphaned scheduled tasks
+			// Stop all POI rotation tasks and discard their entities across all dimensions
 			try {
-				PoiManager.get(stoppingServer).stopAllRotationTasks();
+				PoiManager poi = PoiManager.get(stoppingServer);
+				java.util.List<ServerLevel> allLevels = new java.util.ArrayList<>();
+				stoppingServer.getAllLevels().forEach(allLevels::add);
+				poi.stopAllRotationTasks(allLevels.toArray(new ServerLevel[0]));
 			} catch (Exception e) {
 				LOGGER.warn("Failed to stop POI rotation tasks on shutdown: " + e.getMessage());
 			}
@@ -241,6 +273,11 @@ public class Ascension implements ModInitializer {
 		return server;
 	}
 
+	/** Returns the shared {@link TaskScheduler} for scheduling delayed or continuous tasks. */
+	public static TaskScheduler getScheduler() {
+		return scheduler;
+	}
+
 	/**
 	 * Handles a right-click on an Order POI interaction entity.
 	 * Routes to the challenger trial system if a Challenger's Sigil is held, heals the cube
@@ -250,7 +287,7 @@ public class Ascension implements ModInitializer {
 	private static void handlePoiRightClick(ServerPlayer player, String orderName,
 			ServerLevel level, net.minecraft.world.InteractionHand hand) {
 		net.minecraft.world.item.ItemStack held = player.getItemInHand(hand);
-		if (freq.ascension.items.ChallengerSigil.isSigil(held)) {
+		if (ChallengerSigil.isSigil(held)) {
 			// Route to challenger trial
 			ChallengerTrialManager.get().initiateTrial(player, orderName, level);
 		} else if (held.is(net.minecraft.world.item.Items.DIAMOND_BLOCK)) {
