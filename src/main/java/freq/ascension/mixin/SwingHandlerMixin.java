@@ -1,7 +1,9 @@
 package freq.ascension.mixin;
 
+import freq.ascension.Ascension;
 import freq.ascension.managers.AbilityManager;
 import net.minecraft.network.protocol.game.ServerboundSwingPacket;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.InteractionHand;
@@ -33,6 +35,12 @@ public class SwingHandlerMixin {
     private void ascension$onHandleAnimate(ServerboundSwingPacket packet, CallbackInfo ci) {
         if (packet.getHand() != InteractionHand.MAIN_HAND) return;
         if (!player.isCrouching()) return;
-        AbilityManager.broadcastWeapon(player, w -> w.onShiftLeftClick(player));
+
+        // Dispatch to server thread: weapon callbacks (e.g. TempestTrident) access
+        // Ascension.getServer().getTickCount() and other server-thread-only state.
+        // handleAnimate fires on the Netty I/O thread, so we must re-dispatch.
+        MinecraftServer srv = Ascension.getServer();
+        if (srv == null) return;
+        srv.executeIfPossible(() -> AbilityManager.broadcastWeapon(player, w -> w.onShiftLeftClick(player)));
     }
 }
