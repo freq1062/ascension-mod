@@ -1,14 +1,18 @@
 package freq.ascension.managers;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
-
+import com.mojang.math.Transformation;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
+import freq.ascension.api.ContinuousTask;
 import freq.ascension.orders.Order;
 import freq.ascension.registry.OrderRegistry;
 import freq.ascension.registry.WeaponRegistry;
@@ -16,9 +20,16 @@ import freq.ascension.weapons.MythicWeapon;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Brightness;
+import net.minecraft.world.entity.Display.BlockDisplay;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.item.ItemStack;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 /**
  * Server-wide persistent store that tracks which player is currently the god of each order.
@@ -362,33 +373,65 @@ public class GodManager extends SavedData {
         level.playSound(null, px, py, pz, net.minecraft.sounds.SoundEvents.BEACON_ACTIVATE,
                 net.minecraft.sounds.SoundSource.PLAYERS, 1.2f, 0.9f);
 
-        // Beam dimensions: 1×1 block wide, 8 blocks tall, centered on player
-        float beamH = 8.0f;
-        org.joml.Vector3f beamPos = new org.joml.Vector3f((float) px, (float) py, (float) pz);
-        // Translation to center a 1×1 block horizontally on the entity origin
-        org.joml.Vector3f centerXZ = new org.joml.Vector3f(-0.5f, 0f, -0.5f);
+        // Spawn 12 OCHRE_FROGLIGHT block displays orbiting the player in random circles
+        List<BlockDisplay> orbiters = new ArrayList<>();
+        List<double[]> orbitParams = new ArrayList<>(); // [radius, heightOffset, speed, angle]
 
-        // Spawn the VFXBuilder beam using OCHRE_FROGLIGHT (golden/yellow column)
-        freq.ascension.animation.VFXBuilder beam = new freq.ascension.animation.VFXBuilder(
-                level, beamPos,
-                net.minecraft.world.level.block.Blocks.OCHRE_FROGLIGHT.defaultBlockState(),
-                freq.ascension.animation.VFXBuilder.instant(
-                        centerXZ, new org.joml.Quaternionf(), new org.joml.Vector3f(1f, 0f, 1f)));
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
+        for (int i = 0; i < 12; i++) {
+            double radius = 1.5 + rng.nextDouble() * 2.0;       // 1.5 to 3.5
+            double heightOffset = -1.0 + rng.nextDouble() * 3.0; // -1 to +2
+            double speed = 0.05 + rng.nextDouble() * 0.10;       // 0.05 to 0.15 rad/tick
+            double startAngle = rng.nextDouble() * 2 * Math.PI;
 
-        // Keyframe 1: grow beam to full height in 5 ticks, play thunder when it appears
-        beam.addKeyframeS(centerXZ, null, new org.joml.Vector3f(1f, beamH, 1f), 5)
-                .withAction(() -> level.playSound(null, px, py, pz,
-                        net.minecraft.sounds.SoundEvents.LIGHTNING_BOLT_THUNDER,
-                        net.minecraft.sounds.SoundSource.PLAYERS, 0.8f, 0.7f));
+            double bx = px + radius * Math.cos(startAngle);
+            double by = py + heightOffset;
+            double bz = pz + radius * Math.sin(startAngle);
 
-        // Keyframe 2: hold at full beam for ~2.5 seconds (50 ticks)
-        beam.addKeyframeS(null, null, null, 50);
+            BlockDisplay bd = EntityType.BLOCK_DISPLAY.create(level, EntitySpawnReason.TRIGGERED);
+            if (bd != null) {
+                bd.setPos(bx, by, bz);
+                bd.setBlockState(Blocks.OCHRE_FROGLIGHT.defaultBlockState());
+                bd.setTransformation(new Transformation(
+                        new Vector3f(-0.15f, -0.15f, -0.15f),
+                        new Quaternionf(),
+                        new Vector3f(0.3f, 0.3f, 0.3f),
+                        new Quaternionf()));
+                bd.setBrightnessOverride(Brightness.FULL_BRIGHT);
+                level.addFreshEntity(bd);
+                orbiters.add(bd);
+                orbitParams.add(new double[]{radius, heightOffset, speed, startAngle});
+            }
+        }
 
-        // Keyframe 3: shrink width to zero over 15 ticks (fade out)
-        beam.addKeyframeS(new org.joml.Vector3f(0f, 0f, 0f), null,
-                new org.joml.Vector3f(0f, beamH, 0f), 15);
+        // Orbit task: runs for 70 ticks, then discards all block displays
+        int[] orbitTick = {0};
+        ContinuousTask orbitTask = new ContinuousTask(1, () -> {
+            orbitTick[0]++;
+            for (int i = 0; i < orbiters.size(); i++) {
+                BlockDisplay bd = orbiters.get(i);
+                if (bd.isRemoved()) continue;
+                double[] p = orbitParams.get(i);
+                p[3] += p[2]; // increment angle by speed
+                double nx = px + p[0] * Math.cos(p[3]);
+                double ny = py + p[1];
+                double nz = pz + p[0] * Math.sin(p[3]);
+                bd.setPos(nx, ny, nz);
+            }
+            if (orbitTick[0] >= 70) {
+                for (BlockDisplay bd : orbiters) {
+                    if (!bd.isRemoved()) bd.discard();
+                }
+            }
+        }) {
+            @Override
+            public boolean isFinished() {
+                return orbitTick[0] >= 70;
+            }
+        };
+        freq.ascension.Ascension.scheduler.schedule(orbitTask);
 
-        // Total animation = 5 + 50 + 15 = 70 ticks
+        // Totem particle ring task — unchanged, runs for 70 ticks
         int[] particleTick = {0};
         freq.ascension.api.ContinuousTask particleTask = new freq.ascension.api.ContinuousTask(1, () -> {
             particleTick[0]++;

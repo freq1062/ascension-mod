@@ -122,7 +122,8 @@ public class Ascension implements ModInitializer {
 		OrderRegistry.registerAllSpells();
 		WeaponRegistry.register(new ColossusHammer());
 		WeaponRegistry.register(new VinewrathAxe());
-		// Register GravitonGauntlet.
+		// Register GravitonGauntlet and its cleanup/debounce event hooks.
+		GravitonGauntlet.register();
 		WeaponRegistry.register(GravitonGauntlet.INSTANCE);
 		// Register Ruinous Scythe and its cleanup event hooks.
 		RuinousScythe.register();

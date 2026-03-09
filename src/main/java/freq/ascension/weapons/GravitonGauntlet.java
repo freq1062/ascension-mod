@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.core.particles.DustParticleOptions;
 
 import freq.ascension.Ascension;
@@ -46,8 +48,13 @@ public class GravitonGauntlet implements MythicWeapon {
     /** Per-player cooldown map: stores the server tick at which the cooldown expires. */
     private static final ConcurrentHashMap<UUID, Long> COOLDOWN_ENDS = new ConcurrentHashMap<>();
 
+    /** Debounce map: stores the last server tick on which the mode-switch fired per player. */
+    private static final ConcurrentHashMap<UUID, Long> LAST_MODE_SWITCH_TICK = new ConcurrentHashMap<>();
+
     /** Cooldown duration in ticks (20 seconds). */
     public static final int COOLDOWN_TICKS = 400;
+
+    private static volatile boolean cleanupRegistered = false;
 
     @Override
     public String getWeaponId() {
@@ -140,12 +147,32 @@ public class GravitonGauntlet implements MythicWeapon {
 
     // ═══ EVENT HOOKS ═══
 
+    /** Registers disconnect/server-stop cleanup for per-player debounce state. */
+    public static void register() {
+        if (cleanupRegistered) return;
+        cleanupRegistered = true;
+
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            UUID playerId = handler.getPlayer().getUUID();
+            LAST_MODE_SWITCH_TICK.remove(playerId);
+        });
+
+        ServerLifecycleEvents.SERVER_STOPPING.register(s -> {
+            LAST_MODE_SWITCH_TICK.clear();
+        });
+    }
+
     /**
      * Shift+left-click: unbind any spell occupying the active hotbar slot (to avoid conflict),
      * then toggle between PULL and PUSH mode.
      */
     @Override
     public void onShiftLeftClick(ServerPlayer player) {
+        UUID pid = player.getUUID();
+        long currentTick = Ascension.getServer().getTickCount();
+        if (currentTick == LAST_MODE_SWITCH_TICK.getOrDefault(pid, -1L)) return;
+        LAST_MODE_SWITCH_TICK.put(pid, currentTick);
+
         AscensionData data = (AscensionData) player;
         int slot = player.getInventory().getSelectedSlot();
         Map<Integer, String> bindings = data.getSpellBindings();
@@ -185,7 +212,10 @@ public class GravitonGauntlet implements MythicWeapon {
 
         long currentTick = Ascension.getServer().getTickCount();
         if (isOnCooldown(player.getUUID(), currentTick)) {
-            player.sendSystemMessage(Component.literal("§cGraviton Gauntlet is cooling down!"));
+            long ticksLeft = Math.max(0L, COOLDOWN_ENDS.getOrDefault(player.getUUID(), 0L) - currentTick);
+            long secsLeft = (long) Math.ceil(ticksLeft / 20.0);
+            player.sendSystemMessage(Component.literal(
+                    "§cGraviton Gauntlet is cooling down! §7(" + secsLeft + "s left)"));
             return;
         }
         startCooldown(player.getUUID(), currentTick);

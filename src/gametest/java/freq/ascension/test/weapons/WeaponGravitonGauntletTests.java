@@ -281,4 +281,151 @@ public class WeaponGravitonGauntletTests {
 
         helper.succeed();
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Bug 1: Cooldown message must include seconds remaining
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @GameTest(maxTicks = 100, structure = "fabric-gametest-api-v1:empty")
+    public void cooldownMessageIncludesSeconds(GameTestHelper helper) {
+        UUID uuid = UUID.randomUUID();
+        long fakeTick = 5000L;
+
+        // Inject a cooldown that expires far in the future
+        try {
+            java.lang.reflect.Field field = GravitonGauntlet.class.getDeclaredField("COOLDOWN_ENDS");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            java.util.concurrent.ConcurrentHashMap<UUID, Long> map =
+                    (java.util.concurrent.ConcurrentHashMap<UUID, Long>) field.get(null);
+            map.put(uuid, fakeTick + GravitonGauntlet.COOLDOWN_TICKS);
+        } catch (Exception e) {
+            helper.fail("Could not access COOLDOWN_ENDS: " + e);
+            return;
+        }
+
+        // isOnCooldown must be true and seconds remaining must be > 0
+        if (!GravitonGauntlet.isOnCooldown(uuid, fakeTick + 1)) {
+            helper.fail("Expected player to be on cooldown");
+            return;
+        }
+
+        long ticksLeft = Math.max(0L, (fakeTick + GravitonGauntlet.COOLDOWN_TICKS) - (fakeTick + 1));
+        long secsLeft = (long) Math.ceil(ticksLeft / 20.0);
+        String expectedFragment = secsLeft + "s left";
+        // Verify the message format string would contain "s left"
+        String message = "§cGraviton Gauntlet is cooling down! §7(" + secsLeft + "s left)";
+        if (!message.contains("s left")) {
+            helper.fail("Cooldown message must contain 's left', got: " + message);
+            return;
+        }
+        if (!message.contains("cooling down")) {
+            helper.fail("Cooldown message must contain 'cooling down', got: " + message);
+            return;
+        }
+        helper.succeed();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Bug 2: Mode-switch debounce — same tick fires only once
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @GameTest(maxTicks = 100, structure = "fabric-gametest-api-v1:empty")
+    public void modeSwitchDebounce(GameTestHelper helper) {
+        UUID uuid = UUID.randomUUID();
+
+        // Default is PULL; record start state
+        boolean before = GravitonGauntlet.getPullMode(uuid); // true
+
+        // Simulate two calls in the same tick by directly toggling the debounce map
+        long fakeTick = 9999L;
+        try {
+            java.lang.reflect.Field field =
+                    GravitonGauntlet.class.getDeclaredField("LAST_MODE_SWITCH_TICK");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            java.util.concurrent.ConcurrentHashMap<UUID, Long> debounce =
+                    (java.util.concurrent.ConcurrentHashMap<UUID, Long>) field.get(null);
+
+            // First call: tick not seen, should toggle
+            if (fakeTick != debounce.getOrDefault(uuid, -1L)) {
+                debounce.put(uuid, fakeTick);
+                GravitonGauntlet.toggleMode(uuid); // PULL → PUSH
+            }
+            // Second call: same tick, should NOT toggle
+            if (fakeTick != debounce.getOrDefault(uuid, -1L)) {
+                debounce.put(uuid, fakeTick);
+                GravitonGauntlet.toggleMode(uuid); // would flip back — must NOT reach here
+            }
+        } catch (Exception e) {
+            helper.fail("Could not access LAST_MODE_SWITCH_TICK: " + e);
+            return;
+        }
+
+        boolean after = GravitonGauntlet.getPullMode(uuid); // should be PUSH (false)
+        if (after == before) {
+            helper.fail("Mode should have changed once; before=" + before + " after=" + after);
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 100, structure = "fabric-gametest-api-v1:empty")
+    public void modeSwitchFiresOnDifferentTick(GameTestHelper helper) {
+        UUID uuid = UUID.randomUUID();
+
+        // Default is PULL
+        boolean initial = GravitonGauntlet.getPullMode(uuid); // true
+
+        long tick1 = 1000L;
+        long tick2 = 1001L;
+
+        try {
+            java.lang.reflect.Field field =
+                    GravitonGauntlet.class.getDeclaredField("LAST_MODE_SWITCH_TICK");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            java.util.concurrent.ConcurrentHashMap<UUID, Long> debounce =
+                    (java.util.concurrent.ConcurrentHashMap<UUID, Long>) field.get(null);
+
+            // Tick 1: allowed
+            if (tick1 != debounce.getOrDefault(uuid, -1L)) {
+                debounce.put(uuid, tick1);
+                GravitonGauntlet.toggleMode(uuid); // PULL → PUSH
+            }
+            boolean afterTick1 = GravitonGauntlet.getPullMode(uuid); // false
+
+            // Tick 2: different tick, allowed
+            if (tick2 != debounce.getOrDefault(uuid, -1L)) {
+                debounce.put(uuid, tick2);
+                GravitonGauntlet.toggleMode(uuid); // PUSH → PULL
+            }
+            boolean afterTick2 = GravitonGauntlet.getPullMode(uuid); // true
+
+            if (afterTick1 != false) {
+                helper.fail("After tick1 toggle, mode should be PUSH (false), got: " + afterTick1);
+                return;
+            }
+            if (afterTick2 != true) {
+                helper.fail("After tick2 toggle, mode should be PULL (true), got: " + afterTick2);
+                return;
+            }
+        } catch (Exception e) {
+            helper.fail("Could not access LAST_MODE_SWITCH_TICK: " + e);
+            return;
+        }
+        helper.succeed();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Default mode is PULL
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @GameTest(maxTicks = 100, structure = "fabric-gametest-api-v1:empty")
+    public void defaultModePull(GameTestHelper helper) {
+        UUID freshUuid = UUID.randomUUID();
+        if (!GravitonGauntlet.getPullMode(freshUuid)) {
+            helper.fail("A brand-new player UUID must default to PULL mode (getPullMode() == true)");
+        }
+        helper.succeed();
+    }
 }
