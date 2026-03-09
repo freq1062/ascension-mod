@@ -330,7 +330,7 @@ public class PrismWand implements MythicWeapon {
     // ─── Fallback: normal Power-5 Flame arrow ────────────────────────────────
 
     private static void fireNormalArrow(ServerPlayer player, ServerLevel level) {
-        Arrow arrow = new Arrow(level, player, new ItemStack(Items.ARROW), ItemStack.EMPTY);
+        Arrow arrow = new Arrow(level, player, new ItemStack(Items.ARROW), new ItemStack(Items.BOW));
         arrow.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, 3.0F, 1.0F);
         arrow.setCritArrow(true);
         // Power 5: base 2.0 + 5*0.5+0.5 = 5.0

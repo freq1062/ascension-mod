@@ -84,6 +84,13 @@ public class TempestTrident implements MythicWeapon {
     /** Per-player last-toggle-tick for mode switch deduplication (prevents double-fire from Swing + hit events). */
     public static final ConcurrentHashMap<UUID, Long> lastToggleTick = new ConcurrentHashMap<>();
 
+    /**
+     * Per-player last-mode-switch tick enforcing a minimum 10-tick gap between toggles.
+     * Supersedes {@link #lastToggleTick} for the actual gate check, but both are kept for
+     * test backward-compatibility.
+     */
+    public static final ConcurrentHashMap<UUID, Long> lastModeSwitchTick = new ConcurrentHashMap<>();
+
     /** Maps thrown ThrownTrident entity UUID → thrower (player) UUID. */
     public static final ConcurrentHashMap<UUID, UUID> tridentToThrower = new ConcurrentHashMap<>();
 
@@ -192,11 +199,16 @@ public class TempestTrident implements MythicWeapon {
      */
     @Override
     public void onShiftLeftClick(ServerPlayer player) {
-        // Deduplicate: only toggle once per game tick so the Swing mixin and hit callbacks
-        // don't both fire onShiftLeftClick in the same tick when the player hits an entity.
-        long currentTick = ((ServerLevel) player.level()).getGameTime();
+        if (Ascension.getServer() == null) return;
         UUID pid = player.getUUID();
-        if (lastToggleTick.getOrDefault(pid, -1L) == currentTick) return;
+        long currentTick = Ascension.getServer().getTickCount();
+
+        // Enforce a minimum 10-tick gap between mode switches to avoid double-fire from
+        // Swing mixin + hit callbacks both dispatching onShiftLeftClick in the same window.
+        if (currentTick - lastModeSwitchTick.getOrDefault(pid, -100L) < 10) return;
+        lastModeSwitchTick.put(pid, currentTick);
+
+        // Also keep the old exact-tick map updated for backward-compat with existing tests.
         lastToggleTick.put(pid, currentTick);
 
         ItemStack held = findTempestTrident(player);
@@ -207,7 +219,6 @@ public class TempestTrident implements MythicWeapon {
 
         boolean currentlyLoyalty = cmd.strings().stream().anyMatch(s -> s.equals(MODEL_LOYALTY));
 
-        if (Ascension.getServer() == null) return;
         var enchReg = Ascension.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
         var loyaltyHolder = enchReg.getOrThrow(Enchantments.LOYALTY);
         var riptideHolder  = enchReg.getOrThrow(Enchantments.RIPTIDE);
@@ -217,15 +228,19 @@ public class TempestTrident implements MythicWeapon {
             held.set(DataComponents.CUSTOM_MODEL_DATA,
                     new CustomModelData(List.of(), List.of(), List.of(MODEL_RIPTIDE), List.of()));
             swapEnchantment(held, loyaltyHolder, 0, riptideHolder, 3);
-            player.level().playSound(null, player.blockPosition(),
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.TRIDENT_RIPTIDE_1.value(), SoundSource.PLAYERS, 1.0f, 1.0f);
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.STONE_BUTTON_CLICK_ON, SoundSource.PLAYERS, 1.0f, 1.2f);
         } else {
             // Switch to loyalty
             held.set(DataComponents.CUSTOM_MODEL_DATA,
                     new CustomModelData(List.of(), List.of(), List.of(MODEL_LOYALTY), List.of()));
             swapEnchantment(held, riptideHolder, 0, loyaltyHolder, 3);
-            player.level().playSound(null, player.blockPosition(),
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.TRIDENT_RETURN, SoundSource.PLAYERS, 1.0f, 1.0f);
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.STONE_BUTTON_CLICK_ON, SoundSource.PLAYERS, 1.0f, 1.2f);
         }
     }
 
@@ -344,6 +359,14 @@ public class TempestTrident implements MythicWeapon {
         serverLevel.addFreshEntity(display);
         tridentToDisplay.put(tridentId, display.getUUID());
 
+        // Re-apply invisibility after 1 tick (entity tracking init) and 2 ticks (chunk-load delay).
+        Ascension.scheduler.schedule(new DelayedTask(1, () -> {
+            if (!tridentEntity.isRemoved()) tridentEntity.setInvisible(true);
+        }));
+        Ascension.scheduler.schedule(new DelayedTask(2, () -> {
+            if (!tridentEntity.isRemoved()) tridentEntity.setInvisible(true);
+        }));
+
         // Tick task: sync display position/rotation to the trident every tick
         ContinuousTask trackingTask = new ContinuousTask(1, () -> {
             if (tridentEntity.isRemoved()) {
@@ -367,7 +390,7 @@ public class TempestTrident implements MythicWeapon {
             Vec3 vel = tridentEntity.getDeltaMovement();
             if (vel.lengthSqr() > 0.0001) {
                 Vec3 dir = vel.normalize();
-                org.joml.Vector3f from = new org.joml.Vector3f(0, 1, 0); // trident model's up axis
+                org.joml.Vector3f from = new org.joml.Vector3f(0, 0, 1); // trident model forward = Z axis
                 org.joml.Vector3f to   = new org.joml.Vector3f((float) dir.x, (float) dir.y, (float) dir.z);
                 org.joml.Quaternionf rotation = new org.joml.Quaternionf().rotationTo(from, to);
                 display.setTransformation(new com.mojang.math.Transformation(
@@ -447,6 +470,7 @@ public class TempestTrident implements MythicWeapon {
             UUID playerId = handler.getPlayer().getUUID();
             hitCounters.remove(playerId);
             lastToggleTick.remove(playerId);
+            lastModeSwitchTick.remove(playerId);
 
             // Clean up any tridents thrown by this player
             List<UUID> ownedTridents = new ArrayList<>();
@@ -472,6 +496,7 @@ public class TempestTrident implements MythicWeapon {
             hitCounters.clear();
             hitTimestamps.clear();
             lastToggleTick.clear();
+            lastModeSwitchTick.clear();
             tridentToThrower.clear();
             tridentToDisplay.clear();
             tridentTrackingTasks.values().forEach(ContinuousTask::stop);

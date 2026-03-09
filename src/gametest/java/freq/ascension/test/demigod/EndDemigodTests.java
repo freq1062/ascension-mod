@@ -951,14 +951,12 @@ public class EndDemigodTests {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Validates that DragonCurve.SEGMENT_LENGTH is exactly 0.5f.
-     * The correct dragon curve algorithm keeps all segments at a constant 0.5-block
-     * length;
-     * any other value indicates the old (broken) subdividing algorithm.
+     * Validates that DragonCurve.SEGMENT_LENGTH is exactly 1.0f.
+     * The segment length was updated from 0.5f to 1.0f as part of Bug 9 (DragonCurve animation size fix).
      */
     @GameTest
     public void dragonCurveSegmentsAreHalfBlock(GameTestHelper helper) {
-        float expected = 0.5f;
+        float expected = 1.0f;
         try {
             Class<?> cls = Class.forName("freq.ascension.animation.DragonCurve");
             java.lang.reflect.Field field = cls.getDeclaredField("SEGMENT_LENGTH");

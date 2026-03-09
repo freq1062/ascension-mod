@@ -34,12 +34,14 @@
 			"freq.ascension.test.weapons.WeaponHellfireCrossbowTests",
 			"freq.ascension.test.weapons.WeaponVinewrathAxeTests",
 			"freq.ascension.test.weapons.WeaponGravitonGauntletTests",
+			"freq.ascension.test.weapons.WeaponInventoryPreventionTests",
 			"freq.ascension.test.god.EndGodTests"
 		]
 	},
 	"depends": {
-		"ascension": "*",
-		"fabricloader": ">=0.18.4",
+		"fabricloader": ">=0.17.3",
+		"minecraft": "~1.21.10",
+		"java": ">=21",
 		"fabric-api": "*"
 	}
 }

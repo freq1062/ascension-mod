@@ -14,7 +14,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 
 /**
@@ -65,52 +64,39 @@ public class VinewrathAxe implements MythicWeapon {
     }
 
     /**
-     * Shield-disable ability: triggers when a blocking ServerPlayer is hit.
+     * Shield-disable ability: triggers on any ServerPlayer victim.
      *
      * <p>Axes in vanilla always disable a blocking player's shield, applying a 100-tick cooldown.
-     * We schedule a 1-tick-delayed task so vanilla processes the disable first, then override the
-     * cooldown and layer on vine freeze + spell damage.
+     * We capture the blocking state before a 1-tick delay (by tick+1, isBlocking() may have
+     * already changed), then override the cooldown and layer vine freeze + spell damage.
      *
-     * <p>The vine freeze (Slowness 255 for 40 ticks) is only applied when the victim is wearing
-     * armor with the Thorns enchantment.
+     * <p>Vine freeze (Slowness 255 for 60 ticks) is applied to blocking victims regardless of
+     * armor enchantments.  Spell damage (15% max HP) applies to all victims.
      */
     @Override
     public void onAttack(ServerPlayer attacker, LivingEntity victim, Order.DamageContext ctx) {
         if (!(victim instanceof ServerPlayer victimPlayer)) return;
-        if (!victimPlayer.isBlocking()) return;
+        // Capture blocking state NOW (before the 1-tick delay)
+        boolean wasBlocking = victimPlayer.isBlocking();
 
         Ascension.scheduler.schedule(new DelayedTask(1, () -> {
             if (!victimPlayer.isAlive()) return;
 
-            // Extend shield disable from vanilla 100 ticks to 200 ticks (10 seconds).
+            // Extend shield disable from vanilla 100 ticks to 200 ticks (10 seconds)
+            // This applies whether or not they were blocking — the axe always disables shield
             victimPlayer.getCooldowns().addCooldown(Items.SHIELD.getDefaultInstance(), 200);
 
-            // Vine freeze: only applies when victim has thorns-enchanted armor
-            boolean hasThorns = false;
-            var enchReg = victimPlayer.level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
-            for (net.minecraft.world.entity.EquipmentSlot slot : new net.minecraft.world.entity.EquipmentSlot[]{
-                    net.minecraft.world.entity.EquipmentSlot.HEAD,
-                    net.minecraft.world.entity.EquipmentSlot.CHEST,
-                    net.minecraft.world.entity.EquipmentSlot.LEGS,
-                    net.minecraft.world.entity.EquipmentSlot.FEET}) {
-                ItemStack armorSlot = victimPlayer.getItemBySlot(slot);
-                if (EnchantmentHelper.getItemEnchantmentLevel(
-                        enchReg.getOrThrow(Enchantments.THORNS), armorSlot) > 0) {
-                    hasThorns = true;
-                    break;
-                }
-            }
-
-            if (hasThorns) {
-                Thorns.spawnThorns(attacker, victimPlayer, 6, 40);
-                victimPlayer.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 40, 255, false, false));
+            if (wasBlocking) {
+                // Vine freeze: Slowness 255 for 60 ticks (3 seconds)
+                Thorns.spawnThorns(attacker, victimPlayer, 6, 60);
+                victimPlayer.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 60, 255, false, false));
                 victimPlayer.setDeltaMovement(0, 0, 0);
 
-                Ascension.scheduler.schedule(new DelayedTask(40, () ->
+                Ascension.scheduler.schedule(new DelayedTask(60, () ->
                         victimPlayer.removeEffect(MobEffects.SLOWNESS)));
             }
 
-            // 15% max HP spell damage regardless of thorns.
+            // 15% max HP spell damage regardless of blocking
             Utils.spellDmg(victimPlayer, attacker, 15.0f);
         }));
     }

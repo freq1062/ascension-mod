@@ -32,6 +32,9 @@ public abstract class DamageMixin {
             AbilityManager.broadcast(attacker,
                     (ability) -> ability.onEntityDamageByEntity(attacker, victim, ascension$currentDamageContext));
 
+            // Route to weapon-specific onAttack handler
+            AbilityManager.broadcastWeapon(attacker, w -> w.onAttack(attacker, victim, ascension$currentDamageContext));
+
             // Check if attacker has thorns active and trigger on victim
             if (SpellRegistry.isThornsActive(attacker)) {
                 SpellRegistry.executeThorns(attacker, victim);

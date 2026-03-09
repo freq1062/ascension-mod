@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Prevents mythical weapons from being moved out of the player's inventory
- * into another container (chest, hopper, ender chest, etc.) via inventory click.
+ * into another container (chest, hopper, ender chest, etc.) via any inventory click.
  *
  * No Fabric API event exists for per-slot inventory manipulation; this Mixin targets
  * AbstractContainerMenu.doClick which is the unified click handler.
@@ -28,28 +28,54 @@ public class ContainerWeaponMixin {
         if (sp.hasPermissions(2)) return;
 
         AbstractContainerMenu menu = (AbstractContainerMenu) (Object) this;
+        boolean isPlayerInventory = menu instanceof net.minecraft.world.inventory.InventoryMenu;
 
-        // Check the slot being clicked
+        // Block if the clicked slot contains a mythical weapon in a non-player container
         if (slotId >= 0 && slotId < menu.slots.size()) {
             ItemStack clicked = menu.slots.get(slotId).getItem();
             if (WeaponRegistry.isMythicalWeapon(clicked)) {
+                if (!isPlayerInventory) {
+                    // In any external container (chest, etc.) block ALL interactions with the weapon slot
+                    sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon!"));
+                    ci.cancel();
+                    return;
+                }
+                // In own inventory: block shift-click that would move it elsewhere
                 if (clickType == ClickType.QUICK_MOVE) {
-                    // Shift-click: block moving weapon out of player inventory
-                    if (!(menu instanceof net.minecraft.world.inventory.InventoryMenu)) {
-                        sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon!"));
-                        ci.cancel();
-                        return;
-                    }
+                    sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon!"));
+                    ci.cancel();
+                    return;
                 }
             }
         }
 
-        // Also check the cursor item being placed into a non-player inventory
+        // Block placing a cursor-held weapon into any slot in a non-player container
         ItemStack cursor = player.containerMenu.getCarried();
-        if (WeaponRegistry.isMythicalWeapon(cursor) && slotId >= 0 && slotId < menu.slots.size()) {
-            if (!(menu instanceof net.minecraft.world.inventory.InventoryMenu)) {
+        if (WeaponRegistry.isMythicalWeapon(cursor)) {
+            if (!isPlayerInventory) {
                 sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon!"));
                 ci.cancel();
+                return;
+            }
+        }
+
+        // Block THROW (drop outside window, slotId == -999 with PICKUP click type)
+        if (slotId == -999 && clickType == ClickType.PICKUP) {
+            if (WeaponRegistry.isMythicalWeapon(player.containerMenu.getCarried())) {
+                ci.cancel();
+                return;
+            }
+        }
+
+        // Block SWAP via hotbar number keys — prevents using 1–9 hotkeys to swap weapon into chest slots
+        if (clickType == ClickType.SWAP && !isPlayerInventory) {
+            int hotbarSlot = button; // for SWAP, button is the hotbar slot index (0–8)
+            if (hotbarSlot >= 0 && hotbarSlot <= 8) {
+                ItemStack hotbarItem = sp.getInventory().getItem(hotbarSlot);
+                if (WeaponRegistry.isMythicalWeapon(hotbarItem)) {
+                    ci.cancel();
+                    return;
+                }
             }
         }
     }

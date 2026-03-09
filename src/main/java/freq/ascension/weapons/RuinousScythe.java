@@ -44,7 +44,7 @@ public class RuinousScythe implements MythicWeapon {
     // Generation counter: incremented every time a reset task is scheduled for (attacker, target).
     // The reset Runnable only fires if the generation it captured is still current, i.e. no newer
     // hit landed in the meantime (which would have incremented the generation again).
-    static final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, Integer>> RESET_GENERATIONS =
+    public static final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, Integer>> RESET_GENERATIONS =
             new ConcurrentHashMap<>();
 
     private static volatile boolean cleanupRegistered = false;
@@ -119,8 +119,8 @@ public class RuinousScythe implements MythicWeapon {
 
     @Override
     public void onAttack(ServerPlayer attacker, LivingEntity victim, Order.DamageContext ctx) {
-        // Skip blocked/cancelled hits — shield absorbed the damage.
-        if (ctx.isCancelled()) return;
+        // Don't count hits that were blocked by a shield
+        if (victim instanceof ServerPlayer victimPlayer && victimPlayer.isBlocking()) return;
 
         UUID attackerId = attacker.getUUID();
         UUID targetId = victim.getUUID();
@@ -142,8 +142,24 @@ public class RuinousScythe implements MythicWeapon {
             if (currentGen != null && currentGen == myGen) {
                 COMBO_COUNTERS.getOrDefault(attackerId, new ConcurrentHashMap<>()).remove(targetId);
                 RESET_GENERATIONS.getOrDefault(attackerId, new ConcurrentHashMap<>()).remove(targetId);
+                // Play combo-broken sound at attacker's last known position
+                if (Ascension.getServer() != null) {
+                    net.minecraft.server.level.ServerPlayer atk =
+                            Ascension.getServer().getPlayerList().getPlayer(attackerId);
+                    if (atk != null && atk.level() instanceof ServerLevel sl) {
+                        sl.playSound(null, atk.blockPosition(),
+                                SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 1.0f, 0.5f);
+                    }
+                }
             }
         }));
+
+        // Play charge-up sound for each hit in the combo (not when triggering)
+        if (newCount < 4 && victim.level() instanceof ServerLevel sl) {
+            float pitch = newCount == 1 ? 0.8f : (newCount == 2 ? 1.0f : 1.2f);
+            sl.playSound(null, victim.blockPosition(),
+                    SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 1.0f, pitch);
+        }
 
         if (newCount >= 4) {
             // Reset the counter first to avoid double-trigger on rapid hits.
