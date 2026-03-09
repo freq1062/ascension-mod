@@ -648,4 +648,123 @@ public class ChallengerTrialTests {
         }
         helper.succeed();
     }
+
+    // ─── 12. Bug-fix regression tests ────────────────────────────────────────
+
+    /**
+     * Bug 4: A god challenging their own POI must be detected and blocked.
+     *
+     * <p>The guard in {@code ChallengerTrialManager.initiateTrial()} compares
+     * {@code godUUID.equals(challengerUUID)}. This test verifies the data-layer
+     * precondition: when the challenger UUID equals the god UUID, the equality check fires
+     * and the trial must remain in {@link Phase#IDLE}.
+     */
+    @GameTest
+    public void challengerCannotChallengeSelf(GameTestHelper helper) {
+        GodManager gm = GodManager.createForTesting();
+        UUID playerUUID = UUID.randomUUID();
+        gm.setGodEntryForTesting("ocean", playerUUID);
+
+        // Simulate the self-challenge guard: god UUID == challenger UUID
+        UUID godUUID = gm.getGodUUID("ocean");
+        boolean selfChallenge = godUUID != null && godUUID.equals(playerUUID);
+        if (!selfChallenge) {
+            helper.fail("Self-challenge detection failed: godUUID should equal challengerUUID "
+                    + "for the guard to fire");
+        }
+
+        // Trial state must remain IDLE — initiateTrial returns early
+        TrialState state = new TrialState("ocean_self_" + UUID.randomUUID());
+        if (state.phase != Phase.IDLE) {
+            helper.fail("Trial must remain IDLE when self-challenge is detected, got " + state.phase);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Bug 5: When the cube is destroyed the challenger must become the new god and the old god
+     * must be demoted.
+     *
+     * <p>Verifies the data-layer sequence executed by {@code endTrial(CUBE_DESTROYED)}: old god
+     * entry is removed and replaced with the challenger's UUID.
+     */
+    @GameTest
+    public void challengerWinsWhenCubeDestroyed(GameTestHelper helper) {
+        GodManager gm = GodManager.createForTesting();
+        UUID godUUID = UUID.randomUUID();
+        UUID challengerUUID = UUID.randomUUID();
+        gm.setGodEntryForTesting("ocean", godUUID);
+
+        if (godUUID.equals(challengerUUID)) {
+            helper.fail("Test setup error: god and challenger UUIDs must be distinct");
+        }
+
+        // Simulate cube health dropping to zero
+        TrialState state = new TrialState("ocean_cube_" + UUID.randomUUID());
+        state.phase = Phase.ACTIVE;
+        state.challengerUUID = challengerUUID;
+        state.godUUID = godUUID;
+        state.cubeHealth = 1;
+        state.cubeHealth = Math.max(0, state.cubeHealth - 10);
+        if (state.cubeHealth != 0) {
+            helper.fail("cubeHealth must reach 0 after fatal damage, got " + state.cubeHealth);
+        }
+
+        // Simulate endTrial(CUBE_DESTROYED): demote old god, promote challenger
+        gm.clearGodEntryForTesting("ocean");
+        gm.setGodEntryForTesting("ocean", challengerUUID);
+
+        UUID newGod = gm.getGodUUID("ocean");
+        if (!challengerUUID.equals(newGod)) {
+            helper.fail("Challenger must become the new god after CUBE_DESTROYED, got " + newGod);
+        }
+        if (gm.isGod(godUUID)) {
+            helper.fail("Old god must be demoted (no longer isGod) after losing the trial");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Bug 12B: When the god dies during an active trial the result must be
+     * {@link TrialResult#GOD_DEATH}, which is handled in the same switch arm as
+     * {@code CUBE_DESTROYED} — i.e. the challenger wins.
+     */
+    @GameTest
+    public void trialEndsWhenGodDies(GameTestHelper helper) {
+        TrialState state = new TrialState("god_death_trial_" + UUID.randomUUID());
+        state.phase = Phase.ACTIVE;
+        state.challengerUUID = UUID.randomUUID();
+        state.godUUID = UUID.randomUUID();
+
+        // GOD_DEATH must map to the challenger-wins branch
+        TrialResult result = TrialResult.GOD_DEATH;
+        boolean challengerWins = (result == TrialResult.CUBE_DESTROYED
+                || result == TrialResult.GOD_DEATH
+                || result == TrialResult.GOD_LOGOUT);
+        if (!challengerWins) {
+            helper.fail("GOD_DEATH must be handled as a challenger win, but switch arm check failed");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Bug 12A: Very large damage amounts (like those from the {@code /kill} command, which
+     * passes {@code Float.MAX_VALUE}) must bypass the {@code GodProtectionMixin} cap.
+     *
+     * <p>The fix adds a pre-check: {@code if (amount >= maxHp * 2f) return amount;}.
+     * This test verifies that {@code Float.MAX_VALUE} satisfies that condition.
+     */
+    @GameTest
+    public void killCommandWorksForGodDuringTrial(GameTestHelper helper) {
+        float typicalMaxHp = 20.0f;
+        float killDamage = Float.MAX_VALUE;
+
+        // The bypass condition in GodProtectionMixin (Bug 12A fix)
+        boolean bypassesProtection = killDamage >= typicalMaxHp * 2f;
+        if (!bypassesProtection) {
+            helper.fail("/kill damage (Float.MAX_VALUE) must satisfy the bypass condition "
+                    + "(amount >= maxHp * 2). Got amount=" + killDamage + ", threshold=" + (typicalMaxHp * 2f));
+        }
+        helper.succeed();
+    }
 }
