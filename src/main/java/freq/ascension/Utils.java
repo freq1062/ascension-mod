@@ -2,9 +2,6 @@ package freq.ascension;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
-
-import com.mojang.authlib.GameProfile;
 
 import freq.ascension.managers.AscensionData;
 import net.minecraft.ChatFormatting;
@@ -226,16 +223,29 @@ public class Utils {
     public static void applyTexture(ItemStack skull, String textureString) {
         if (skull.getItem() instanceof net.minecraft.world.item.PlayerHeadItem) {
             try {
-                // Create a GameProfile with a random UUID
-                GameProfile profile = new GameProfile(UUID.randomUUID(),
-                        "OrderHead");
+                // The Minecraft-bundled authlib creates GameProfile.properties backed by
+                // ImmutableMultimap, so getProperties().put() always throws, and
+                // ResolvableProfile is abstract so it can't be instantiated directly.
+                // The safest approach: build the profile NBT and decode it through
+                // ResolvableProfile.CODEC — this is the same path MC uses for skull
+                // serialization.
+                net.minecraft.nbt.CompoundTag nbt = new net.minecraft.nbt.CompoundTag();
+                nbt.putString("name", "");
+                net.minecraft.nbt.ListTag propertiesList = new net.minecraft.nbt.ListTag();
+                net.minecraft.nbt.CompoundTag textureEntry = new net.minecraft.nbt.CompoundTag();
+                textureEntry.putString("name", "textures");
+                textureEntry.putString("value", textureString);
+                propertiesList.add(textureEntry);
+                nbt.put("properties", propertiesList);
 
-                // Add the texture property
-                profile.properties().put("textures",
-                        new com.mojang.authlib.properties.Property("textures", textureString));
-
-                skull.set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile));
-            } catch (Throwable ignored) {
+                ResolvableProfile.CODEC
+                        .parse(net.minecraft.nbt.NbtOps.INSTANCE, nbt)
+                        .result()
+                        .ifPresentOrElse(
+                                profile -> skull.set(DataComponents.PROFILE, profile),
+                                () -> Ascension.LOGGER.warn("Failed to parse skull profile NBT"));
+            } catch (Throwable e) {
+                Ascension.LOGGER.warn("Failed to apply skull texture", e);
             }
         }
     }

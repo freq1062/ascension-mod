@@ -6,7 +6,9 @@
 	"mixins": [
 		"ActionBarPacketMixin",
 		"AnvilPrepareMixin",
+		"BowReleaseMixin",
 		"BreezeTargetMixin",
+		"ContainerWeaponMixin",
 		"CraftingEligibilityMixin",
 		"CraftingRestorationMixin",
 		"CrossbowMixin",
@@ -29,7 +31,9 @@
 		"SculkSensorMixin",
 		"SculkShriekerMixin",
 		"ServerPlayerMixin",
-		"ThrownTridentPickupMixin"
+		"SwingHandlerMixin",
+		"ThrownTridentPickupMixin",
+		"WeaponInventoryMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

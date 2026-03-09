@@ -3,7 +3,7 @@ package freq.ascension.mixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import freq.ascension.managers.AbilityManager;
 import freq.ascension.weapons.MythicWeapon;
@@ -44,7 +44,7 @@ public class BowReleaseMixin {
      */
     @Inject(method = "releaseUsing", at = @At("HEAD"))
     private void ascension$onBowRelease(ItemStack stack, Level level, LivingEntity entity,
-            int timeCharged, CallbackInfo ci) {
+            int timeCharged, CallbackInfoReturnable<?> cir) {
         if (!(entity instanceof ServerPlayer player)) return;
         if (!(level instanceof ServerLevel)) return;
 

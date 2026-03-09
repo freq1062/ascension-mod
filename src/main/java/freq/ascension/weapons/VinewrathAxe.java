@@ -14,6 +14,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 
 /**
@@ -69,6 +70,9 @@ public class VinewrathAxe implements MythicWeapon {
      * <p>Axes in vanilla always disable a blocking player's shield, applying a 100-tick cooldown.
      * We schedule a 1-tick-delayed task so vanilla processes the disable first, then override the
      * cooldown and layer on vine freeze + spell damage.
+     *
+     * <p>The vine freeze (Slowness 255 for 40 ticks) is only applied when the victim is wearing
+     * armor with the Thorns enchantment.
      */
     @Override
     public void onAttack(ServerPlayer attacker, LivingEntity victim, Order.DamageContext ctx) {
@@ -81,16 +85,32 @@ public class VinewrathAxe implements MythicWeapon {
             // Extend shield disable from vanilla 100 ticks to 200 ticks (10 seconds).
             victimPlayer.getCooldowns().addCooldown(Items.SHIELD.getDefaultInstance(), 200);
 
-            // Vine freeze: spawn thorns animation then apply Slowness 255 for 60 ticks.
-            Thorns.spawnThorns(attacker, victimPlayer, 6, 60);
-            victimPlayer.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 60, 255, false, false));
-            victimPlayer.setDeltaMovement(0, 0, 0);
+            // Vine freeze: only applies when victim has thorns-enchanted armor
+            boolean hasThorns = false;
+            var enchReg = victimPlayer.level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+            for (net.minecraft.world.entity.EquipmentSlot slot : new net.minecraft.world.entity.EquipmentSlot[]{
+                    net.minecraft.world.entity.EquipmentSlot.HEAD,
+                    net.minecraft.world.entity.EquipmentSlot.CHEST,
+                    net.minecraft.world.entity.EquipmentSlot.LEGS,
+                    net.minecraft.world.entity.EquipmentSlot.FEET}) {
+                ItemStack armorSlot = victimPlayer.getItemBySlot(slot);
+                if (EnchantmentHelper.getItemEnchantmentLevel(
+                        enchReg.getOrThrow(Enchantments.THORNS), armorSlot) > 0) {
+                    hasThorns = true;
+                    break;
+                }
+            }
 
-            // Remove the slowness when the freeze ends (mirrors executeThorns cleanup).
-            Ascension.scheduler.schedule(new DelayedTask(60, () ->
-                    victimPlayer.removeEffect(MobEffects.SLOWNESS)));
+            if (hasThorns) {
+                Thorns.spawnThorns(attacker, victimPlayer, 6, 40);
+                victimPlayer.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 40, 255, false, false));
+                victimPlayer.setDeltaMovement(0, 0, 0);
 
-            // 15% max HP spell damage.
+                Ascension.scheduler.schedule(new DelayedTask(40, () ->
+                        victimPlayer.removeEffect(MobEffects.SLOWNESS)));
+            }
+
+            // 15% max HP spell damage regardless of thorns.
             Utils.spellDmg(victimPlayer, attacker, 15.0f);
         }));
     }

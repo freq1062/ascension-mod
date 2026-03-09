@@ -6,6 +6,7 @@ import freq.ascension.managers.GodManager;
 import freq.ascension.orders.Earth;
 import freq.ascension.orders.EarthGod;
 import freq.ascension.orders.End;
+import freq.ascension.orders.EndGod;
 import freq.ascension.orders.Ocean;
 import freq.ascension.orders.OceanGod;
 import freq.ascension.orders.Order;
@@ -292,13 +293,12 @@ public class GodPromotionTests {
     }
 
     /**
-     * All registered orders except End must return a different instance for "god" vs "demigod".
-     * End returns itself for both (no god class) — verified separately.
+     * All registered orders must return a different instance for "god" vs "demigod".
+     * End now has EndGod as its god tier, so it is included in this check.
      */
     @GameTest
     public void allNonEndOrdersHaveDistinctGodVersion(GameTestHelper helper) {
         for (Order order : OrderRegistry.iterable()) {
-            if (order instanceof End) continue;
             Order demigodVersion = order.getVersion("demigod");
             Order godVersion     = order.getVersion("god");
             if (demigodVersion == godVersion) {
@@ -310,44 +310,43 @@ public class GodPromotionTests {
     }
 
     /**
-     * {@link End#getVersion(String)} must return the End instance itself for both "demigod"
-     * and "god" — confirming there is no EndGod class.
+     * {@link End#getVersion(String)} with rank "god" must return {@link EndGod#INSTANCE}.
      */
     @GameTest
     public void endGetVersionReturnsSelfForGodRank(GameTestHelper helper) {
-        // End has no god tier — getVersion("god") must return itself.
         Order resolved = End.INSTANCE.getVersion("god");
-        if (resolved != End.INSTANCE) {
-            helper.fail("End.getVersion(\"god\") should return self (no EndGod) but got "
+        if (!(resolved instanceof EndGod)) {
+            helper.fail("End.getVersion(\"god\") should return EndGod but got "
                     + resolved.getClass().getSimpleName());
         }
         helper.succeed();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // SetRankCommand validation — End order rejection
+    // End order registry presence
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * The End order must be identifiable as an instance of {@link End} so that command-layer
-     * validation ({@code order instanceof End}) can block god promotion for it.
-     * End is registered in OrderRegistry so its passive/utility/combat abilities work,
-     * but god promotion is still blocked by the {@code order instanceof End} guard.
+     * The End order must be registered in {@link OrderRegistry} for ability routing to work,
+     * and god promotion via {@link EndGod} is now supported.
      */
     @GameTest
     public void endOrderCanBeDetectedByInstanceOf(GameTestHelper helper) {
-        // Verify that the command-layer guard (order instanceof End) works on the singleton.
         if (!(End.INSTANCE instanceof End)) {
             helper.fail("End.INSTANCE must be instanceof End — sanity check failed");
         }
-        // End is now registered in OrderRegistry so its abilities function correctly.
-        // God promotion is prevented by the instanceof End check in SetRankCommand, not by registry absence.
         Order fromRegistry = OrderRegistry.get("end");
         if (fromRegistry == null) {
             helper.fail("End must be present in OrderRegistry for ability routing to work");
         }
         if (!(fromRegistry instanceof End)) {
             helper.fail("OrderRegistry.get(\"end\") must return an End instance, got: " + fromRegistry);
+        }
+        // EndGod is now the god-tier for End
+        Order godVersion = fromRegistry.getVersion("god");
+        if (!(godVersion instanceof EndGod)) {
+            helper.fail("End.getVersion(\"god\") must return EndGod, got: "
+                    + (godVersion != null ? godVersion.getClass().getSimpleName() : "null"));
         }
         helper.succeed();
     }

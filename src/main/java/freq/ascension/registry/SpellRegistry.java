@@ -959,13 +959,21 @@ public class SpellRegistry {
      * destination on success.
      */
     public static void teleport(ServerPlayer player) {
+        teleport(player, 10);
+    }
+
+    public static void teleport(ServerPlayer player, int maxBlocks) {
+        teleport(player, maxBlocks, 2);
+    }
+
+    public static void teleport(ServerPlayer player, int maxBlocks, int maxSolidBlocks) {
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("teleport"));
 
         ServerLevel level = (ServerLevel) player.level();
         Vec3 eyePos = player.getEyePosition();
         Vec3 lookDir = player.getLookAngle();
 
-        final int MAX_BLOCKS = 10;
+        final int MAX_BLOCKS = maxBlocks;
         int solidCount = 0;
         BlockPos lastValid = null;
 
@@ -982,8 +990,8 @@ public class SpellRegistry {
                 }
             } else {
                 solidCount++;
-                if (solidCount >= 2)
-                    break; // Stop checking beyond 2nd solid
+                if (solidCount >= maxSolidBlocks)
+                    break; // Stop checking beyond maxSolidBlocks solid blocks
             }
         }
 

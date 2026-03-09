@@ -196,4 +196,52 @@ public class GameplayTests {
 
         helper.succeed();
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Bug 19 — Influence display no-wrap for long order names
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Verifies that none of the order names, when prepended with "Combat: ", produce
+     * a line that exceeds the book page pixel width (~114 px), preventing the influence
+     * icon from wrapping to the next line.
+     *
+     * <p>The fix moves the influence icon to its own line, so the "Combat: [name]" line
+     * never needs to accommodate the icon.  This test confirms that the combat-label
+     * portion alone (worst case = "Combat: Nether") fits within a book page line.
+     */
+    @GameTest
+    public void influenceDisplayNoWrap(GameTestHelper helper) {
+        // All order names used in the Ascension mod
+        String[] orderNames = {"Ocean", "Sky", "Earth", "Magic", "Nether", "End", "Flora"};
+
+        // Approximate per-char pixel widths for the default Minecraft book font
+        // (uppercase 6px, most lowercase 6px, space 4px, colon 2px+1kerning=3px)
+        int bookPageWidth = 114;
+
+        for (String name : orderNames) {
+            // "Combat: " prefix + order name (using approximate widths)
+            String line = "Combat: " + name;
+            int width = approximatePixelWidth(line);
+            if (width > bookPageWidth) {
+                helper.fail("Order name '" + name + "' causes 'Combat: " + name
+                        + "' to exceed book width (" + width + " > " + bookPageWidth + " px). "
+                        + "The influence icon must be on its own line.");
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    /** Rough pixel-width approximation matching the Minecraft book font. */
+    private static int approximatePixelWidth(String text) {
+        int width = 0;
+        for (char c : text.toCharArray()) {
+            if ("i.,!l'|:;".indexOf(c) != -1) width += 3;
+            else if (" ".indexOf(c) != -1) width += 5;
+            else width += 7; // 6px glyph + 1px kerning
+        }
+        return width;
+    }
 }

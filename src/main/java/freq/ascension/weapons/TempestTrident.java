@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import freq.ascension.Ascension;
 import freq.ascension.Utils;
 import freq.ascension.api.ContinuousTask;
+import freq.ascension.api.DelayedTask;
 import freq.ascension.orders.Ocean;
 import freq.ascension.orders.Order;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
@@ -74,17 +75,23 @@ public class TempestTrident implements MythicWeapon {
 
     // ─── Tracking maps ────────────────────────────────────────────────────────
 
-    /** Per-attacker hit counter (globally across targets). Resets to 0 after every 3rd trigger. */
+    /** Per-target hit counter (keyed by victim UUID). Resets to 0 after every 3rd trigger. */
     public static final ConcurrentHashMap<UUID, Integer> hitCounters = new ConcurrentHashMap<>();
+
+    /** Timestamp (game tick) of the last hit on each target UUID. Used to expire stale counters after 60 ticks. */
+    public static final ConcurrentHashMap<UUID, Long> hitTimestamps = new ConcurrentHashMap<>();
+
+    /** Per-player last-toggle-tick for mode switch deduplication (prevents double-fire from Swing + hit events). */
+    private static final ConcurrentHashMap<UUID, Long> lastToggleTick = new ConcurrentHashMap<>();
 
     /** Maps thrown ThrownTrident entity UUID → thrower (player) UUID. */
     public static final ConcurrentHashMap<UUID, UUID> tridentToThrower = new ConcurrentHashMap<>();
 
     /** Maps thrown ThrownTrident entity UUID → ItemDisplay entity UUID for VFX. */
-    static final ConcurrentHashMap<UUID, UUID> tridentToDisplay = new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<UUID, UUID> tridentToDisplay = new ConcurrentHashMap<>();
 
     /** Maps thrown ThrownTrident entity UUID → the running ContinuousTask so it can be stopped. */
-    static final ConcurrentHashMap<UUID, ContinuousTask> tridentTrackingTasks = new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<UUID, ContinuousTask> tridentTrackingTasks = new ConcurrentHashMap<>();
 
     private static volatile boolean cleanupRegistered = false;
 
@@ -185,6 +192,13 @@ public class TempestTrident implements MythicWeapon {
      */
     @Override
     public void onShiftLeftClick(ServerPlayer player) {
+        // Deduplicate: only toggle once per game tick so the Swing mixin and hit callbacks
+        // don't both fire onShiftLeftClick in the same tick when the player hits an entity.
+        long currentTick = ((ServerLevel) player.level()).getGameTime();
+        UUID pid = player.getUUID();
+        if (lastToggleTick.getOrDefault(pid, -1L) == currentTick) return;
+        lastToggleTick.put(pid, currentTick);
+
         ItemStack held = findTempestTrident(player);
         if (held == null) return;
 
@@ -239,15 +253,22 @@ public class TempestTrident implements MythicWeapon {
         ItemStack weapon = findTempestTrident(owner);
         if (weapon == null || !isLoyaltyModeStack(weapon)) return;
 
-        boolean triggered = processHitCounter(owner.getUUID());
+        // Track hit timestamp per target for 60-tick expiry and count hits against this target.
+        UUID targetId = victim.getUUID();
+        hitTimestamps.put(targetId, ((ServerLevel) owner.level()).getGameTime());
+
+        boolean triggered = processHitCounter(targetId);
         if (triggered) {
+            // Play high-pitch charge sound before the thunder so players get clear feedback.
+            victim.level().playSound(null, victim.blockPosition(),
+                    SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 1.0f, 1.4f);
             triggerLightningStrike(owner, victim);
         } else {
-            // Charging sound: pitch increases as counter approaches 3
-            int count = hitCounters.getOrDefault(owner.getUUID(), 0);
-            float pitch = 0.6f + (count % 3) * 0.3f;
-            owner.level().playSound(null, owner.blockPosition(),
-                    SoundEvents.TRIDENT_HIT, SoundSource.PLAYERS, 0.7f, pitch);
+            // Charging sound: pitch rises from 0.8 → 1.0 as the counter approaches 3.
+            int count = hitCounters.getOrDefault(targetId, 0);
+            float pitch = count == 1 ? 0.8f : 1.0f;
+            victim.level().playSound(null, victim.blockPosition(),
+                    SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 1.0f, pitch);
         }
     }
 
@@ -303,6 +324,10 @@ public class TempestTrident implements MythicWeapon {
 
         // Make the vanilla entity invisible so only our ItemDisplay is visible
         tridentEntity.setInvisible(true);
+        // Re-apply after 1 tick to ensure invisibility is sent after entity tracking initializes
+        Ascension.scheduler.schedule(new DelayedTask(1, () -> {
+            if (!tridentEntity.isRemoved()) tridentEntity.setInvisible(true);
+        }));
 
         // Spawn ItemDisplay at the trident's initial position
         Display.ItemDisplay display = (Display.ItemDisplay) EntityType.ITEM_DISPLAY.create(
@@ -314,6 +339,8 @@ public class TempestTrident implements MythicWeapon {
                 new CustomModelData(List.of(), List.of(), List.of(MODEL_LOYALTY), List.of()));
         display.setItemStack(displayStack);
         display.setPos(tridentEntity.getX(), tridentEntity.getY(), tridentEntity.getZ());
+        display.setTransformationInterpolationDuration(1);
+        display.setTransformationInterpolationDelay(-1); // start interpolation immediately
         serverLevel.addFreshEntity(display);
         tridentToDisplay.put(tridentId, display.getUUID());
 
@@ -327,9 +354,40 @@ public class TempestTrident implements MythicWeapon {
                 if (task != null) task.stop();
                 return;
             }
+            // Re-enforce invisibility each tick — the entity-tracking packet can reset it.
+            tridentEntity.setInvisible(true);
+            // Ensure the trident's physics / hitbox remain active.
+            tridentEntity.noPhysics = false;
+
             display.setPos(tridentEntity.getX(), tridentEntity.getY(), tridentEntity.getZ());
-            display.setYRot(tridentEntity.getYRot());
-            display.setXRot(tridentEntity.getXRot());
+            display.setTransformationInterpolationDelay(0);
+            display.setTransformationInterpolationDuration(1);
+
+            // Rotate the item display to face the trident's travel direction.
+            Vec3 vel = tridentEntity.getDeltaMovement();
+            if (vel.lengthSqr() > 0.0001) {
+                Vec3 dir = vel.normalize();
+                org.joml.Vector3f from = new org.joml.Vector3f(0, 1, 0); // trident model's up axis
+                org.joml.Vector3f to   = new org.joml.Vector3f((float) dir.x, (float) dir.y, (float) dir.z);
+                org.joml.Quaternionf rotation = new org.joml.Quaternionf().rotationTo(from, to);
+                display.setTransformation(new com.mojang.math.Transformation(
+                        new org.joml.Vector3f(0, 0, 0),
+                        rotation,
+                        new org.joml.Vector3f(1, 1, 1),
+                        new org.joml.Quaternionf()));
+            }
+
+            // Expire stale per-target hit counters: no hit on this target for > 60 ticks resets it.
+            if (Ascension.getServer() != null) {
+                long now = Ascension.getServer().getTickCount();
+                hitTimestamps.entrySet().removeIf(e -> {
+                    if (now - e.getValue() > 60) {
+                        hitCounters.remove(e.getKey());
+                        return true;
+                    }
+                    return false;
+                });
+            }
         });
         tridentTrackingTasks.put(tridentId, trackingTask);
         Ascension.scheduler.schedule(trackingTask);
@@ -388,6 +446,7 @@ public class TempestTrident implements MythicWeapon {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             UUID playerId = handler.getPlayer().getUUID();
             hitCounters.remove(playerId);
+            lastToggleTick.remove(playerId);
 
             // Clean up any tridents thrown by this player
             List<UUID> ownedTridents = new ArrayList<>();
@@ -398,14 +457,21 @@ public class TempestTrident implements MythicWeapon {
                 tridentToThrower.remove(tid);
                 ContinuousTask task = tridentTrackingTasks.remove(tid);
                 if (task != null) task.stop();
-                tridentToDisplay.remove(tid);
-                // Entity discard handled by the world on player disconnect
+                UUID displayId = tridentToDisplay.remove(tid);
+                if (displayId != null) {
+                    for (var level : server.getAllLevels()) {
+                        var e = level.getEntity(displayId);
+                        if (e != null && !e.isRemoved()) { e.discard(); break; }
+                    }
+                }
             });
         });
 
         // Full cleanup on server stop
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> {
             hitCounters.clear();
+            hitTimestamps.clear();
+            lastToggleTick.clear();
             tridentToThrower.clear();
             tridentToDisplay.clear();
             tridentTrackingTasks.values().forEach(ContinuousTask::stop);
@@ -445,6 +511,20 @@ public class TempestTrident implements MythicWeapon {
                         }
                     }
                 });
+            });
+        }));
+
+        // Global cleanup: expire per-target hit counters that haven't been refreshed in 60 ticks.
+        // This runs even when no trident is in flight, covering hits made after the trident landed.
+        Ascension.scheduler.schedule(new ContinuousTask(20, () -> {
+            if (Ascension.getServer() == null) return;
+            long now = Ascension.getServer().getTickCount();
+            hitTimestamps.entrySet().removeIf(e -> {
+                if (now - e.getValue() > 60) {
+                    hitCounters.remove(e.getKey());
+                    return true;
+                }
+                return false;
             });
         }));
     }

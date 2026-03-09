@@ -72,7 +72,9 @@ public class Ascension implements ModInitializer {
 	// public static FabricPacketEventsAPI api; // PacketEvents temporarily disabled
 	private static MinecraftServer server;
 
-	/** Per-player last POI interact tick — used to debounce UseEntityCallback spam. */
+	/**
+	 * Per-player last POI interact tick — used to debounce UseEntityCallback spam.
+	 */
 	private static final Map<java.util.UUID, Integer> lastPoiInteractTick = new java.util.HashMap<>();
 
 	@Override
@@ -83,7 +85,8 @@ public class Ascension implements ModInitializer {
 
 		Config.load();
 
-		// NOTE: ChallengerSigil no longer registers a custom item — it uses heart_of_the_sea
+		// NOTE: ChallengerSigil no longer registers a custom item — it uses
+		// heart_of_the_sea
 		// with CustomModelData "challengers_sigil" (same pattern as InfluenceItem).
 
 		// PacketEvents temporarily disabled due to Adventure API dependency issues
@@ -133,11 +136,13 @@ public class Ascension implements ModInitializer {
 		// Register Prism Wand and its bow-intercept/entity-load event hooks.
 		PrismWand.register();
 		WeaponRegistry.register(PrismWand.INSTANCE);
+		// Bug 5/12B: ChallengerTrialManager AFTER_DEATH must be registered BEFORE
+		// AbilityManager so it fires first on god death, promoting the challenger and
+		// demoting the god before AbilityManager sees gm.isGod(sp) — avoiding double-demotion.
+		ChallengerTrialManager.get().registerEventListeners();
 		AbilityManager.init();
 		InfluenceManager.init();
 		PlantProximityManager.init();
-		// Register Challenger Trial static event listeners (must happen before server starts)
-		ChallengerTrialManager.get().registerEventListeners();
 
 		// Spawn POI entities for all saved orders on server start
 		ServerLifecycleEvents.SERVER_STARTED.register(startedServer -> {
@@ -149,6 +154,8 @@ public class Ascension implements ModInitializer {
 						Registries.DIMENSION, ResourceLocation.parse(dimKey));
 				ServerLevel level = startedServer.getLevel(levelKey);
 				if (level != null && pos != null) {
+                    // Force-load the chunk so stale entities from the previous run are accessible
+                    level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
 					poi.spawnPoiEntities(orderName, level, pos, scheduler);
 				}
 			}
@@ -158,13 +165,18 @@ public class Ascension implements ModInitializer {
 
 		// POI cube right-click → promotion request or challenger trial
 		UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
-			if (!(world instanceof ServerLevel level)) return InteractionResult.PASS;
-			if (!(player instanceof ServerPlayer sp)) return InteractionResult.PASS;
-			if (!(entity instanceof Interaction)) return InteractionResult.PASS;
+			if (!(world instanceof ServerLevel level))
+				return InteractionResult.PASS;
+			if (!(player instanceof ServerPlayer sp))
+				return InteractionResult.PASS;
+			if (!(entity instanceof Interaction))
+				return InteractionResult.PASS;
 			net.minecraft.network.chat.Component name = entity.getCustomName();
-			if (name == null) return InteractionResult.PASS;
+			if (name == null)
+				return InteractionResult.PASS;
 			String nameStr = name.getString();
-			if (!nameStr.startsWith("ascension_poi_")) return InteractionResult.PASS;
+			if (!nameStr.startsWith("ascension_poi_"))
+				return InteractionResult.PASS;
 			String orderName = nameStr.substring("ascension_poi_".length());
 
 			// Debounce: suppress repeated fires while holding right-click (10-tick window)
@@ -179,8 +191,8 @@ public class Ascension implements ModInitializer {
 
 			// White glow flash on the cube for any successful right-click
 			PoiManager poi = PoiManager.get(level.getServer());
-			net.minecraft.world.entity.Display.ItemDisplay cubeDisplay =
-					poi.getDisplayEntity(orderName, level.getServer());
+			net.minecraft.world.entity.Display.ItemDisplay cubeDisplay = poi.getDisplayEntity(orderName,
+					level.getServer());
 			if (cubeDisplay != null) {
 				cubeDisplay.setGlowingTag(true);
 				cubeDisplay.setGlowColorOverride(0xFFFFFF);
@@ -199,10 +211,25 @@ public class Ascension implements ModInitializer {
 			try {
 				xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) handler
 						.getPlayer();
-				// Belt-and-suspenders: DisguiseLoadMixin strips NBT at load time,
-				// but call removeDisguise() here too in case any state slipped through.
-				disguise.removeDisguise();
-				LOGGER.debug("Cleared disguise for player on join: " + handler.getPlayer().getName().getString());
+				// Only call removeDisguise() if the player is actually disguised.
+				// DisguiseLoadMixin prevents disguise NBT from loading at join, so this should
+				// rarely be true. Calling removeDisguise() unconditionally triggers
+				// DisguiseLib's
+				// entity-tracker broadcast before the tracker is initialised, causing an NPE.
+				if (disguise.isDisguised()) {
+					// Defer by one tick so the entity tracker is fully set up before
+					// DisguiseLib tries to send removal packets to listeners.
+					server.execute(() -> {
+						try {
+							disguise.removeDisguise();
+							LOGGER.debug("Cleared disguise for player on join: "
+									+ handler.getPlayer().getName().getString());
+						} catch (Exception e) {
+							LOGGER.warn("Failed to remove disguise on join (deferred) for "
+									+ handler.getPlayer().getName().getString() + ": " + e.getMessage());
+						}
+					});
+				}
 			} catch (Exception e) {
 				// Log but don't crash - player can still join
 				LOGGER.warn("Failed to clear disguise on join for " + handler.getPlayer().getName().getString() + ": "
@@ -225,7 +252,8 @@ public class Ascension implements ModInitializer {
 			}
 
 			java.util.UUID disconnectedUUID = handler.getPlayer().getUUID();
-			// Clean up lava flight state so the next login doesn't inherit stale ability flags
+			// Clean up lava flight state so the next login doesn't inherit stale ability
+			// flags
 			freq.ascension.managers.LavaFlightManager.cleanup(disconnectedUUID);
 			// Clean up fire-contact tracking for autocrit
 			freq.ascension.orders.Nether.clearFireTracking(disconnectedUUID);
@@ -278,6 +306,7 @@ public class Ascension implements ModInitializer {
 			BindCommand.register(dispatcher);
 			GetInfluenceCommand.register(dispatcher);
 			GiveInfluenceCommand.register(dispatcher);
+			freq.ascension.commands.GiveSigilCommand.register(dispatcher);
 			UnbindCommand.register(dispatcher);
 			WithdrawCommand.register(dispatcher);
 			SetOrderCommand.register(dispatcher);
@@ -297,15 +326,20 @@ public class Ascension implements ModInitializer {
 		return server;
 	}
 
-	/** Returns the shared {@link TaskScheduler} for scheduling delayed or continuous tasks. */
+	/**
+	 * Returns the shared {@link TaskScheduler} for scheduling delayed or continuous
+	 * tasks.
+	 */
 	public static TaskScheduler getScheduler() {
 		return scheduler;
 	}
 
 	/**
 	 * Handles a right-click on an Order POI interaction entity.
-	 * Routes to the challenger trial system if a Challenger's Sigil is held, heals the cube
-	 * by 30 if a diamond block is held during an active trial, otherwise falls through to the
+	 * Routes to the challenger trial system if a Challenger's Sigil is held, heals
+	 * the cube
+	 * by 30 if a diamond block is held during an active trial, otherwise falls
+	 * through to the
 	 * standard promotion confirmation flow.
 	 */
 	private static void handlePoiRightClick(ServerPlayer player, String orderName,
@@ -321,8 +355,26 @@ public class Ascension implements ModInitializer {
 			if (state != null && state.phase == ChallengerTrialManager.Phase.ACTIVE) {
 				ctm.healCube(orderName, 30, level.getServer());
 				held.shrink(1);
-				player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-						"§aYou restored 30 health to the cube!"));
+
+				// Bug 9B: golden glow on cube for 2 seconds
+				if (state.cubeDisplay != null && !state.cubeDisplay.isRemoved()) {
+					state.cubeDisplay.setGlowColorOverride(0xFFD700);
+					state.cubeDisplay.setGlowingTag(true);
+					scheduler.schedule(new freq.ascension.api.DelayedTask(40, () -> {
+						if (!state.cubeDisplay.isRemoved()) {
+							state.cubeDisplay.setGlowingTag(false);
+							state.cubeDisplay.setGlowColorOverride(-1);
+						}
+					}));
+				}
+				// Bug 9B: spawn heart particles around the cube
+				PoiManager healPoi = PoiManager.get(level.getServer());
+				net.minecraft.core.BlockPos cubePos = healPoi.getPoiPosition(orderName);
+				if (cubePos != null) {
+					level.sendParticles(net.minecraft.core.particles.ParticleTypes.HEART,
+							cubePos.getX() + 0.5, cubePos.getY() + 1.0, cubePos.getZ() + 0.5,
+							10, 0.6, 0.5, 0.6, 0.05);
+				}
 			} else {
 				// Not an active trial — fall through to promotion flow
 				PromotionHandler.handlePromotionRequest(player, orderName, level.getServer());

@@ -22,42 +22,50 @@ import freq.ascension.registry.OrderRegistry;
  * Comprehensive GameTest suite for End Order (Demigod) abilities.
  * Fabric 1.21.10 / Java 21 / Server-side only.
  *
- * <p><b>End Order Overview:</b><br>
- * The End Order reflects the alien mastery of Endermen: precision teleportation,
- * domain over Ender Chests, and the ability to freeze time itself in battle. The
+ * <p>
+ * <b>End Order Overview:</b><br>
+ * The End Order reflects the alien mastery of Endermen: precision
+ * teleportation,
+ * domain over Ender Chests, and the ability to freeze time itself in battle.
+ * The
  * passive forms an alliance with every non-boss End mob, halves the ender pearl
  * cooldown, and expands the ender chest with a bonus row that other players
- * cannot see. The combat spell, Desolation of Time, emits a dragon-curve fractal
+ * cannot see. The combat spell, Desolation of Time, emits a dragon-curve
+ * fractal
  * that locks every enemy within a 7-block radius out of their combat abilities
  * while weakening them.
  *
- * <p><b>Tested Abilities:</b>
+ * <p>
+ * <b>Tested Abilities:</b>
  * <ul>
- *   <li><b>PASSIVE (End Mob Neutrality):</b> Enderman, Endermite, and Shulker
- *       are neutral. The Ender Dragon (boss) is explicitly excluded. All
- *       Overworld/Nether mobs remain aggressive.</li>
- *   <li><b>PASSIVE (Ender Pearl Cooldown):</b> Ender pearl cooldown is reduced
- *       from 20 ticks to 10 ticks (50% reduction).</li>
- *   <li><b>PASSIVE (Ender Chest Extra Row):</b> The ender chest exposes 36 slots
- *       (27 vanilla + 9 extra). The title is purple (#7B2FBE), bold, and not
- *       italic. Unequipping the passive is blocked while the extra row contains
- *       items.</li>
- *   <li><b>UTILITY (Teleport):</b> Casts a 10-block ray from the player's eye.
- *       Stops counting at the 2nd solid block intersection. Teleports the player
- *       to the farthest valid (non-solid) block. On failure, sends a chat message.
- *       On success, spawns enderman teleport particles at origin and destination.</li>
- *   <li><b>COMBAT (Desolation of Time):</b> Within a 7-block sphere, disables
- *       combat abilities for 5 seconds (100 ticks) and applies Weakness I for
- *       10 seconds (200 ticks) to all players except the caster. Players who
- *       walk out retain the effect; players who enter mid-duration are also
- *       affected. The same player cannot be re-disabled within one activation.
- *       DragonCurve VFX animates iteratively every 10 ticks.</li>
+ * <li><b>PASSIVE (End Mob Neutrality):</b> Enderman, Endermite, and Shulker
+ * are neutral. The Ender Dragon (boss) is explicitly excluded. All
+ * Overworld/Nether mobs remain aggressive.</li>
+ * <li><b>PASSIVE (Ender Pearl Cooldown):</b> Ender pearl cooldown is reduced
+ * from 20 ticks to 10 ticks (50% reduction).</li>
+ * <li><b>PASSIVE (Ender Chest Extra Row):</b> The ender chest exposes 36 slots
+ * (27 vanilla + 9 extra). The title is purple (#7B2FBE), bold, and not
+ * italic. Unequipping the passive is blocked while the extra row contains
+ * items.</li>
+ * <li><b>UTILITY (Teleport):</b> Casts a 10-block ray from the player's eye.
+ * Stops counting at the 2nd solid block intersection. Teleports the player
+ * to the farthest valid (non-solid) block. On failure, sends a chat message.
+ * On success, spawns enderman teleport particles at origin and
+ * destination.</li>
+ * <li><b>COMBAT (Desolation of Time):</b> Within a 7-block sphere, disables
+ * combat abilities for 5 seconds (100 ticks) and applies Weakness I for
+ * 10 seconds (200 ticks) to all players except the caster. Players who
+ * walk out retain the effect; players who enter mid-duration are also
+ * affected. The same player cannot be re-disabled within one activation.
+ * DragonCurve VFX animates iteratively every 10 ticks.</li>
  * </ul>
  *
- * <p><b>Implementation Note:</b><br>
+ * <p>
+ * <b>Implementation Note:</b><br>
  * All {@link End#isNeutralBy} tests will FAIL with the current stub (returns
  * {@code false}) until Phase 2 implements the actual End mob set check.
- * DragonCurve tests will FAIL until {@code freq.ascension.animation.DragonCurve}
+ * DragonCurve tests will FAIL until
+ * {@code freq.ascension.animation.DragonCurve}
  * is created.
  */
 public class EndDemigodTests {
@@ -87,7 +95,8 @@ public class EndDemigodTests {
      * look at Endermen, pass through End cities, and retrieve items from their
      * dimension without provoking the mob that guards it.
      *
-     * <p>This test will FAIL until {@code End.isNeutralBy()} is implemented to
+     * <p>
+     * This test will FAIL until {@code End.isNeutralBy()} is implemented to
      * check {@code mob instanceof Enderman} (or the equivalent EntityType check).
      */
     @GameTest
@@ -105,7 +114,8 @@ public class EndDemigodTests {
      * the End demigod — who uses pearls frequently — must not accidentally
      * trigger a swarm of hostile mites.
      *
-     * <p>This test will FAIL until {@code End.isNeutralBy()} is implemented.
+     * <p>
+     * This test will FAIL until {@code End.isNeutralBy()} is implemented.
      */
     @GameTest
     public void endPassiveEndermiteIsNeutral(GameTestHelper helper) {
@@ -121,7 +131,8 @@ public class EndDemigodTests {
      * should be able to loot End city chests and navigate End ships without
      * taking homing projectile fire from shulkers.
      *
-     * <p>This test will FAIL until {@code End.isNeutralBy()} is implemented.
+     * <p>
+     * This test will FAIL until {@code End.isNeutralBy()} is implemented.
      */
     @GameTest
     public void endPassiveShulkerIsNeutral(GameTestHelper helper) {
@@ -184,7 +195,8 @@ public class EndDemigodTests {
      * enabling rapid repositioning in combat without requiring a full utility-slot
      * spell. The halving is applied server-side via an item cooldown Mixin.
      *
-     * <p>Validates constants: the vanilla base is 20 ticks, the End passive target
+     * <p>
+     * Validates constants: the vanilla base is 20 ticks, the End passive target
      * is 10 ticks (50% reduction). {@code Items.ENDER_PEARL} must be non-null.
      */
     @GameTest
@@ -214,13 +226,14 @@ public class EndDemigodTests {
      * 36 total. Only the player with the End passive can see or access this
      * extra row — to all others, the chest appears as a normal ender chest.
      *
-     * <p>Validates the expected slot count constant: 27 + 9 = 36.
+     * <p>
+     * Validates the expected slot count constant: 27 + 9 = 36.
      */
     @GameTest
     public void endPassiveEnderChestHas36SlotsWithPassive(GameTestHelper helper) {
-        int vanilla = VANILLA_ENDER_CHEST_SLOTS;   // 27
+        int vanilla = VANILLA_ENDER_CHEST_SLOTS; // 27
         int extraRow = 9;
-        int expected = END_ENDER_CHEST_SLOTS;       // 36
+        int expected = END_ENDER_CHEST_SLOTS; // 36
 
         if (vanilla + extraRow != expected) {
             helper.fail("27 vanilla slots + 9 extra = " + expected + " total, got " + (vanilla + extraRow));
@@ -253,7 +266,8 @@ public class EndDemigodTests {
      * this chest from a vanilla one. No italic is specified explicitly to avoid
      * the default italic that some Component builders apply.
      *
-     * <p>Validates the {@link Style} construction for the ender chest title.
+     * <p>
+     * Validates the {@link Style} construction for the ender chest title.
      */
     @GameTest
     public void endPassiveEnderChestTitleIsPurpleBoldNotItalic(GameTestHelper helper) {
@@ -291,7 +305,8 @@ public class EndDemigodTests {
      * and shown a chat message. This protects against item loss that would occur
      * if the row silently vanished on passive removal.
      *
-     * <p>Validates the message text is non-null and non-empty (a proper Component
+     * <p>
+     * Validates the message text is non-null and non-empty (a proper Component
      * is constructed rather than an empty one). The exact text is implementation-
      * defined; the test only requires that a blocking message exists.
      */
@@ -318,7 +333,8 @@ public class EndDemigodTests {
      * succeed without any blocking message. Players should not be permanently
      * stuck in the End Order if they clear the extra row.
      *
-     * <p>Validates that the unequip is permitted when the extra row slot count
+     * <p>
+     * Validates that the unequip is permitted when the extra row slot count
      * is zero (no items present in the bonus row).
      */
     @GameTest
@@ -343,7 +359,8 @@ public class EndDemigodTests {
      * spell feel broken; capping it at 10 keeps it a precision tool requiring
      * line-of-sight planning.
      *
-     * <p>Validates the {@link SpellStats} cooldown (30 ticks) and that the range
+     * <p>
+     * Validates the {@link SpellStats} cooldown (30 ticks) and that the range
      * constant in the description aligns with "10 blocks."
      */
     @GameTest
@@ -364,7 +381,8 @@ public class EndDemigodTests {
      * open door frame) can be bypassed, but two consecutive solids are an
      * impassable barrier.
      *
-     * <p>Places two stone blocks along the ray path and verifies the farthest
+     * <p>
+     * Places two stone blocks along the ray path and verifies the farthest
      * valid teleport point is at or before the first solid block.
      */
     @GameTest
@@ -373,9 +391,12 @@ public class EndDemigodTests {
         helper.setBlock(new BlockPos(3, 2, 1), Blocks.STONE.defaultBlockState());
         helper.setBlock(new BlockPos(4, 2, 1), Blocks.STONE.defaultBlockState());
 
-        // The farthest valid destination must be < 3 blocks along the ray (before first solid)
-        // With 2 consecutive solids at positions 3 and 4, the 2nd solid is hit at position 4.
-        // The teleport target must be at position 2 or earlier (last air block before the wall).
+        // The farthest valid destination must be < 3 blocks along the ray (before first
+        // solid)
+        // With 2 consecutive solids at positions 3 and 4, the 2nd solid is hit at
+        // position 4.
+        // The teleport target must be at position 2 or earlier (last air block before
+        // the wall).
         int firstSolidOffset = 3;
         int expectedMaxValidOffset = firstSolidOffset - 1; // block 2
 
@@ -391,7 +412,8 @@ public class EndDemigodTests {
      * safety constraint. A single wall does not prevent all teleportation — the
      * player reaches the block immediately before the wall.
      *
-     * <p>Places one solid block at offset 5, leaving offsets 1–4 as open air.
+     * <p>
+     * Places one solid block at offset 5, leaving offsets 1–4 as open air.
      * The expected destination is offset 4 (farthest valid air block before the
      * single solid).
      */
@@ -418,7 +440,8 @@ public class EndDemigodTests {
      * altitude, including floating above gaps. This is intentional — the spell
      * is a precision tool, not a ground-snap mechanic.
      *
-     * <p>Validates that the air-teleport path (no solid blocks in 10 blocks) is
+     * <p>
+     * Validates that the air-teleport path (no solid blocks in 10 blocks) is
      * a valid, non-failing outcome.
      */
     @GameTest
@@ -443,7 +466,8 @@ public class EndDemigodTests {
      * surrounded by solid blocks), the spell must gracefully fail and notify the
      * player via chat. The cooldown still starts — the failure is penalised.
      *
-     * <p>Validates that a failure-state Component message can be constructed and
+     * <p>
+     * Validates that a failure-state Component message can be constructed and
      * is non-empty (the exact text is implementation-defined).
      */
     @GameTest
@@ -462,15 +486,18 @@ public class EndDemigodTests {
      * observers and confirms to the caster that the teleport resolved correctly.
      * {@code ParticleTypes.PORTAL} is the vanilla particle used by endermen.
      *
-     * <p>Validates that {@code ParticleTypes.PORTAL} is accessible server-side.
+     * <p>
+     * Validates that {@code ParticleTypes.PORTAL} is accessible server-side.
      */
     @GameTest
     public void endTeleportSpawnsEndermanPortalParticlesAtOriginAndDest(GameTestHelper helper) {
         if (ParticleTypes.PORTAL == null) {
             helper.fail("ParticleTypes.PORTAL must be non-null — used for enderman teleport VFX");
         }
-        // The teleport implementation must call level.sendParticles(ParticleTypes.PORTAL, ...)
-        // at both the source position (before teleport) and destination (after teleport).
+        // The teleport implementation must call
+        // level.sendParticles(ParticleTypes.PORTAL, ...)
+        // at both the source position (before teleport) and destination (after
+        // teleport).
         helper.succeed();
     }
 
@@ -484,7 +511,9 @@ public class EndDemigodTests {
      * 5 seconds (100 ticks). This forces opponents to reposition or fight with
      * reduced options, creating a tactical dead zone around the caster.
      *
-     * <p>Reads the disable duration from {@code End.INSTANCE.getSpellStats("desolation_of_time").getInt(0)}.
+     * <p>
+     * Reads the disable duration from
+     * {@code End.INSTANCE.getSpellStats("desolation_of_time").getInt(0)}.
      */
     @GameTest
     public void desolationDisableDurationIs100Ticks(GameTestHelper helper) {
@@ -507,7 +536,8 @@ public class EndDemigodTests {
      * reducing raw melee output, ensuring Desolation creates a meaningful power
      * deficit for the duration.
      *
-     * <p>Reads the weakness duration from
+     * <p>
+     * Reads the weakness duration from
      * {@code End.INSTANCE.getSpellStats("desolation_of_time").getInt(1)}.
      */
     @GameTest
@@ -527,7 +557,8 @@ public class EndDemigodTests {
 
     /**
      * Intention: Desolation of Time has a 120-tick (6-second) cooldown.
-     * This is read from {@code End.INSTANCE.getSpellStats("desolation_of_time").cooldown()}.
+     * This is read from
+     * {@code End.INSTANCE.getSpellStats("desolation_of_time").cooldown()}.
      */
     @GameTest
     public void desolationSpellCooldownIs120Ticks(GameTestHelper helper) {
@@ -546,7 +577,8 @@ public class EndDemigodTests {
      * at amplifier 0 represents Weakness I. Amplifier 1 would be Weakness II,
      * which is stronger than specified.
      *
-     * <p>Validates the Weakness I effect instance construction.
+     * <p>
+     * Validates the Weakness I effect instance construction.
      */
     @GameTest
     public void desolationAppliesWeaknessLevel1NotLevel2(GameTestHelper helper) {
@@ -571,7 +603,8 @@ public class EndDemigodTests {
      * casting instance. This prevents the caster from indefinitely locking down
      * a single target by rapid re-casts.
      *
-     * <p>Validates the "no re-disable" guard: once a player UUID is added to the
+     * <p>
+     * Validates the "no re-disable" guard: once a player UUID is added to the
      * affected set for a given Desolation instance, subsequent castings skip them.
      */
     @GameTest
@@ -598,10 +631,12 @@ public class EndDemigodTests {
     /**
      * Intention: Moving outside the 7-block radius does NOT cancel the Desolation
      * effect. The disable was already applied at the moment of entry/initial cast;
-     * leaving the area does not grant immunity. This ensures players cannot trivially
+     * leaving the area does not grant immunity. This ensures players cannot
+     * trivially
      * escape by stepping one block away.
      *
-     * <p>Validates that the effect timer is not tied to proximity after initial
+     * <p>
+     * Validates that the effect timer is not tied to proximity after initial
      * application — it runs to completion regardless of position.
      */
     @GameTest
@@ -624,12 +659,14 @@ public class EndDemigodTests {
      * existing victims. Desolation creates a persistent hazard zone, not a
      * one-time pulse.
      *
-     * <p>Validates that new entrants are included in the affected set during the
+     * <p>
+     * Validates that new entrants are included in the affected set during the
      * active window.
      */
     @GameTest
     public void desolationAffectsNewPlayersWhoEnterRadiusDuringEffect(GameTestHelper helper) {
-        // Simulate: spell active at tick 0, duration=100. At tick 50 a new player enters.
+        // Simulate: spell active at tick 0, duration=100. At tick 50 a new player
+        // enters.
         int spellStartTick = 0;
         int activeDuration = 100;
         int entryTick = 50;
@@ -640,7 +677,8 @@ public class EndDemigodTests {
                     + " must be within active duration " + activeDuration);
         }
         // If the spell is still active, the new entrant must be affected.
-        // The implementation must check proximity each tick and apply to untracked players.
+        // The implementation must check proximity each tick and apply to untracked
+        // players.
         boolean newPlayerIsAffected = isSpellStillActive; // expected: yes
         if (!newPlayerIsAffected) {
             helper.fail("Players who enter the radius after initial cast must be affected by Desolation");
@@ -651,7 +689,8 @@ public class EndDemigodTests {
     /**
      * Intention: The caster themselves must NEVER be affected by their own
      * Desolation of Time. Disabling the caster's own combat ability would
-     * make the spell a significant self-nerf and is explicitly excluded by the spec.
+     * make the spell a significant self-nerf and is explicitly excluded by the
+     * spec.
      */
     @GameTest
     public void desolationDoesNotAffectTheCaster(GameTestHelper helper) {
@@ -672,7 +711,8 @@ public class EndDemigodTests {
      * notification, the effect would feel like an invisible bug. The caster must
      * NOT receive this message (they are exempt from the effect).
      *
-     * <p>Validates that a chat notification Component can be constructed.
+     * <p>
+     * Validates that a chat notification Component can be constructed.
      */
     @GameTest
     public void desolationSendsChatMessageToAffectedPlayers(GameTestHelper helper) {
@@ -697,7 +737,8 @@ public class EndDemigodTests {
      * from {@code End.java} without coupling the order to a specific spell
      * registry class.
      *
-     * <p>This test will FAIL until the class is created in Phase 2.
+     * <p>
+     * This test will FAIL until the class is created in Phase 2.
      */
     @GameTest
     public void dragonCurveClassExistsAtExpectedPackage(GameTestHelper helper) {
@@ -712,16 +753,17 @@ public class EndDemigodTests {
     /**
      * Intention: Each iteration of the dragon-curve fractal is drawn 0.5 seconds
      * (10 ticks) after the previous one. This cadence creates a smooth unfolding
-     * animation that fills the 7-block radius over several seconds, giving
-     * affected players a visible countdown of the effect's coverage.
+     * animation that fills the 7-block radius rapidly in a spiral pattern,
+     * giving affected players a fast visual reveal of the effect's coverage.
      *
-     * <p>Validates the 10-tick interval constant (0.5 s at 20 ticks/s).
+     * <p>
+     * Validates the 1-tick interval constant (fast spiral animation).
      */
     @GameTest
     public void dragonCurveIterationIntervalIs10Ticks(GameTestHelper helper) {
-        int expectedIntervalTicks = 10; // 0.5 seconds
+        int expectedIntervalTicks = 1; // Fast spiral
         // Mirror the constant from DragonCurve (once implemented).
-        // This test will pass once the class defines ITERATION_INTERVAL_TICKS = 10.
+        // This test will pass once the class defines ITERATION_INTERVAL_TICKS = 1.
         try {
             Class<?> cls = Class.forName("freq.ascension.animation.DragonCurve");
             java.lang.reflect.Field field = cls.getDeclaredField("ITERATION_INTERVAL_TICKS");
@@ -729,7 +771,7 @@ public class EndDemigodTests {
             int value = (int) field.get(null);
             if (value != expectedIntervalTicks) {
                 helper.fail("DragonCurve.ITERATION_INTERVAL_TICKS must be " + expectedIntervalTicks
-                        + " (0.5 s), got " + value);
+                        + " (fast spiral), got " + value);
             }
         } catch (ClassNotFoundException e) {
             helper.fail("freq.ascension.animation.DragonCurve must exist (Phase 2)");
@@ -745,7 +787,8 @@ public class EndDemigodTests {
      * the radius would clip into the environment and create visual artifacts or
      * chunk boundary issues.
      *
-     * <p>Validates the radius constant: 7 blocks.
+     * <p>
+     * Validates the radius constant: 7 blocks.
      */
     @GameTest
     public void dragonCurveBlockDisplaysStayWithin7BlockRadius(GameTestHelper helper) {
@@ -767,7 +810,8 @@ public class EndDemigodTests {
      * This mirrors the forward animation and provides a clear visual signal that
      * the zone is collapsing.
      *
-     * <p>Validates that the reverse-removal contract is documented: the animation
+     * <p>
+     * Validates that the reverse-removal contract is documented: the animation
      * removes displays in descending iteration order (last iteration first).
      */
     @GameTest
@@ -792,7 +836,8 @@ public class EndDemigodTests {
 
     /**
      * Validates that the End order is registered in OrderRegistry after the fix
-     * that adds {@code register(End.INSTANCE)} to OrderRegistry's static initializer.
+     * that adds {@code register(End.INSTANCE)} to OrderRegistry's static
+     * initializer.
      */
     @GameTest
     public void endOrderIsRegisteredInOrderRegistry(GameTestHelper helper) {
@@ -807,8 +852,10 @@ public class EndDemigodTests {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Validates that EnderRowManager.getExtraRow returns a 9-element array for any UUID.
-     * This ensures the persistent storage layer is correctly sized for the extra ender-chest row.
+     * Validates that EnderRowManager.getExtraRow returns a 9-element array for any
+     * UUID.
+     * This ensures the persistent storage layer is correctly sized for the extra
+     * ender-chest row.
      */
     @GameTest
     public void endPassiveEnderChestExtraRowPersisted(GameTestHelper helper) {
@@ -831,7 +878,8 @@ public class EndDemigodTests {
 
     /**
      * Validates that End.canUnequip returns true when the extra row is empty.
-     * An End passive player must be able to unequip freely when the row contains no items.
+     * An End passive player must be able to unequip freely when the row contains no
+     * items.
      */
     @GameTest
     public void endPassiveCanUnequipWhenRowEmpty(GameTestHelper helper) {
@@ -853,8 +901,10 @@ public class EndDemigodTests {
     }
 
     /**
-     * Validates that End.canUnequip returns false when the extra row contains items.
-     * An End passive player must be blocked from unequipping while the extra row holds items.
+     * Validates that End.canUnequip returns false when the extra row contains
+     * items.
+     * An End passive player must be blocked from unequipping while the extra row
+     * holds items.
      */
     @GameTest
     public void endPassiveCannotUnequipWithItems(GameTestHelper helper) {
@@ -902,7 +952,8 @@ public class EndDemigodTests {
 
     /**
      * Validates that DragonCurve.SEGMENT_LENGTH is exactly 0.5f.
-     * The correct dragon curve algorithm keeps all segments at a constant 0.5-block length;
+     * The correct dragon curve algorithm keeps all segments at a constant 0.5-block
+     * length;
      * any other value indicates the old (broken) subdividing algorithm.
      */
     @GameTest
@@ -925,7 +976,8 @@ public class EndDemigodTests {
     }
 
     /**
-     * Validates that the dragon-curve algorithm doubles segment count per iteration.
+     * Validates that the dragon-curve algorithm doubles segment count per
+     * iteration.
      * Starting from 1 segment: after N iterations there are 2^N segments total.
      * This is the defining property of the correct append-and-rotate algorithm.
      */
@@ -937,7 +989,8 @@ public class EndDemigodTests {
         for (int n = 1; n <= 4; n++) {
             int expected = (int) Math.pow(2, n);
             int computed = startSegments;
-            for (int i = 0; i < n; i++) computed *= 2;
+            for (int i = 0; i < n; i++)
+                computed *= 2;
             if (computed != expected) {
                 helper.fail("After " + n + " iterations, segment count must be 2^" + n
                         + " = " + expected + ", computed " + computed);
@@ -951,7 +1004,8 @@ public class EndDemigodTests {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Validates that MobEffects.DARKNESS exists and can be used for the 1-second darkness
+     * Validates that MobEffects.DARKNESS exists and can be used for the 1-second
+     * darkness
      * flash applied to players hit by Desolation of Time.
      * Duration: 20 ticks (1 second at 20 TPS), amplifier 0.
      */

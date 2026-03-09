@@ -14,7 +14,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Tests for Bug 8 — DragonCurve block-display persistence, teardown, centre-spawn,
+ * Tests for Bug 8 — DragonCurve block-display persistence, teardown,
+ * centre-spawn,
  * multi-branch coverage, and iteration-interval constant.
  */
 public class DragonCurveTests {
@@ -24,12 +25,13 @@ public class DragonCurveTests {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * {@link DragonCurve#ITERATION_INTERVAL_TICKS} must equal 10 (0.5 s at 20 TPS).
+     * {@link DragonCurve#ITERATION_INTERVAL_TICKS} must equal 1 (fast spiral
+     * animation).
      */
     @GameTest
     public void dragonCurveIterationIntervalIsCorrect(GameTestHelper helper) {
-        if (DragonCurve.ITERATION_INTERVAL_TICKS != 10) {
-            helper.fail("ITERATION_INTERVAL_TICKS must be 10, was " + DragonCurve.ITERATION_INTERVAL_TICKS);
+        if (DragonCurve.ITERATION_INTERVAL_TICKS != 1) {
+            helper.fail("ITERATION_INTERVAL_TICKS must be 1, was " + DragonCurve.ITERATION_INTERVAL_TICKS);
         }
         helper.succeed();
     }
@@ -41,7 +43,8 @@ public class DragonCurveTests {
     /**
      * Block-display segments must persist after DragonCurve spawns them.
      *
-     * <p>Previously, DragonCurve used VFXBuilder which auto-discards its entity
+     * <p>
+     * Previously, DragonCurve used VFXBuilder which auto-discards its entity
      * when the keyframe queue is empty — for a static display with no keyframes
      * that happens after ~2 ticks. The fix bypasses VFXBuilder and creates
      * BlockDisplay entities directly so they persist until explicitly discarded.
@@ -52,12 +55,14 @@ public class DragonCurveTests {
         Vec3 center = Vec3.atCenterOf(helper.absolutePos(new BlockPos(2, 2, 2)));
         Vector3f origin = new Vector3f((float) center.x, (float) center.y, (float) center.z);
 
-        // 0 extra iterations → exactly 1 segment from step 0 (fires on first scheduler tick)
+        // 0 extra iterations → exactly 1 segment from step 0 (fires on first scheduler
+        // tick)
         new DragonCurve(level, origin, 0, 1);
 
         helper.runAfterDelay(5, () -> {
-            AABB box = new AABB(center.x - 2, center.y - 2, center.z - 2,
-                    center.x + 2, center.y + 2, center.z + 2);
+            // Wide Y range to accommodate ground-based spawning via resolveSurface
+            AABB box = new AABB(center.x - 2, -70, center.z - 2,
+                    center.x + 2, 100, center.z + 2);
             List<Display.BlockDisplay> displays = level.getEntitiesOfClass(Display.BlockDisplay.class, box);
             // Clean up so leaked displays don't affect other tests
             displays.forEach(d -> d.discard());
@@ -91,8 +96,9 @@ public class DragonCurveTests {
             // Segments are now in the level; discard them all
             curve.discardAll();
 
-            AABB box = new AABB(center.x - 2, center.y - 2, center.z - 2,
-                    center.x + 2, center.y + 2, center.z + 2);
+            // Wide Y range to accommodate ground-based spawning via resolveSurface
+            AABB box = new AABB(center.x - 2, -70, center.z - 2,
+                    center.x + 2, 100, center.z + 2);
             long alive = level.getEntitiesOfClass(Display.BlockDisplay.class, box)
                     .stream().filter(d -> d.isAlive()).count();
 
@@ -121,10 +127,11 @@ public class DragonCurveTests {
         new DragonCurve(level, origin, 0, 1);
 
         helper.runAfterDelay(5, () -> {
-            // First segment midpoint is SEGMENT_LENGTH/2 from origin in XZ; wy = origin.y + 0.5
+            // First segment midpoint is SEGMENT_LENGTH/2 from origin in XZ
+            // Wide Y range to accommodate ground-based spawning via resolveSurface
             double r = DragonCurve.SEGMENT_LENGTH + 0.1;
-            AABB nearBox = new AABB(center.x - r, center.y - 1, center.z - r,
-                    center.x + r, center.y + 2, center.z + r);
+            AABB nearBox = new AABB(center.x - r, -70, center.z - r,
+                    center.x + r, 100, center.z + r);
             List<Display.BlockDisplay> near = level.getEntitiesOfClass(Display.BlockDisplay.class, nearBox);
             near.forEach(d -> d.discard());
 
@@ -144,7 +151,8 @@ public class DragonCurveTests {
      * A 4-branch DragonCurve must spawn more block-display segments than a
      * 1-branch curve at the same step, verifying radial coverage.
      *
-     * <p>With maxIterations=0 each branch contributes exactly 1 segment at step 0,
+     * <p>
+     * With maxIterations=0 each branch contributes exactly 1 segment at step 0,
      * so 4 branches → 4 displays, 1 branch → 1 display.
      */
     @GameTest(maxTicks = 30)
@@ -161,10 +169,11 @@ public class DragonCurveTests {
         DragonCurve curve1 = new DragonCurve(level, origin1, 0, 1);
 
         helper.runAfterDelay(5, () -> {
-            AABB box4 = new AABB(center4.x - 3, center4.y - 2, center4.z - 3,
-                    center4.x + 3, center4.y + 2, center4.z + 3);
-            AABB box1 = new AABB(center1.x - 3, center1.y - 2, center1.z - 3,
-                    center1.x + 3, center1.y + 2, center1.z + 3);
+            // Wide Y range to accommodate ground-based spawning via resolveSurface
+            AABB box4 = new AABB(center4.x - 3, -70, center4.z - 3,
+                    center4.x + 3, 100, center4.z + 3);
+            AABB box1 = new AABB(center1.x - 3, -70, center1.z - 3,
+                    center1.x + 3, 100, center1.z + 3);
 
             int count4 = level.getEntitiesOfClass(Display.BlockDisplay.class, box4).size();
             int count1 = level.getEntitiesOfClass(Display.BlockDisplay.class, box1).size();

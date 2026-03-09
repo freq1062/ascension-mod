@@ -254,7 +254,7 @@ public class PrismWand implements MythicWeapon {
         if (bolt == null) return;
         bolt.setBlockState(Blocks.PINK_GLAZED_TERRACOTTA.defaultBlockState());
         bolt.setPos(startPos.x, startPos.y, startPos.z);
-        // Centered cube with no rotation
+        // Centered cube with no rotation (initial state)
         bolt.setTransformation(new Transformation(
                 new Vector3f(-half, -half, -half), new Quaternionf(),
                 new Vector3f(half * 2, half * 2, half * 2), null));
@@ -264,10 +264,34 @@ public class PrismWand implements MythicWeapon {
         level.addFreshEntity(bolt);
 
         int[] alive = {0};
+        boolean[] impacted = {false};
+        int[] shrinkTick = {0};
         ContinuousTask[] ref = {null};
         ref[0] = new ContinuousTask(1, () -> {
             alive[0]++;
-            if (bolt.isRemoved() || !target.isAlive() || alive[0] > 80) {
+            if (bolt.isRemoved()) {
+                ref[0].stop();
+                return;
+            }
+
+            // Impact shrink phase: linearly reduce X and Z scale over 10 ticks
+            if (impacted[0]) {
+                shrinkTick[0]++;
+                float t = Math.max(0f, 1f - (shrinkTick[0] / 10f));
+                float w = (half * 2) * t;
+                float wh = w * 0.5f;
+                bolt.setTransformation(new Transformation(
+                        new Vector3f(-wh, -half, -wh), new Quaternionf(),
+                        new Vector3f(w, half * 2, w), null));
+                bolt.setTransformationInterpolationDuration(1);
+                if (shrinkTick[0] >= 10) {
+                    bolt.discard();
+                    ref[0].stop();
+                }
+                return;
+            }
+
+            if (!target.isAlive() || alive[0] > 80) {
                 bolt.discard();
                 ref[0].stop();
                 return;
@@ -279,16 +303,26 @@ public class PrismWand implements MythicWeapon {
             double dist = delta.length();
 
             if (dist <= 0.7) {
-                // Impact: 10 % max-HP magic damage
+                // Impact: 10 % max-HP magic damage, then start width-shrink animation
                 float dmg = target.getMaxHealth() * SPELL_DAMAGE_FRACTION;
                 target.hurtServer(level, level.damageSources().magic(), dmg);
-                bolt.discard();
-                ref[0].stop();
+                impacted[0] = true;
                 return;
             }
 
+            // Move bolt toward target
             Vec3 step = delta.normalize().scale(BOLT_SPEED);
             bolt.setPos(boltPos.x + step.x, boltPos.y + step.y, boltPos.z + step.z);
+
+            // Spin the cube around its own center (Y-axis rotation, 10°/tick)
+            float angle = alive[0] * 10f;
+            Quaternionf rot = new Quaternionf().rotateY((float) Math.toRadians(angle));
+            // Correct translation to keep the cube center at the entity origin after rotation
+            Vector3f rotatedCenter = rot.transform(new Vector3f(half, half, half), new Vector3f());
+            Vector3f translation = new Vector3f(-rotatedCenter.x, -rotatedCenter.y, -rotatedCenter.z);
+            bolt.setTransformation(new Transformation(
+                    translation, rot, new Vector3f(half * 2, half * 2, half * 2), null));
+            bolt.setTransformationInterpolationDuration(1);
         });
         Ascension.scheduler.schedule(ref[0]);
     }

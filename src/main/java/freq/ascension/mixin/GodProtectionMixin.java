@@ -38,7 +38,11 @@ public abstract class GodProtectionMixin {
         ChallengerTrialManager ctm = ChallengerTrialManager.get();
         if (!ctm.isActiveTrialInRadius(player, server)) return amount;
 
+        // Bug 12A: allow very large damage amounts through (e.g. from /kill command).
+        // Float.MAX_VALUE is passed by the kill command; any amount ≥ 2× max HP is instakill.
         float maxHp = player.getMaxHealth();
+        if (amount >= maxHp * 2f) return amount;
+
         float currentHp = player.getHealth();
         // Only protect if currently above 50 % max HP
         if (currentHp <= maxHp * 0.5f) return amount;

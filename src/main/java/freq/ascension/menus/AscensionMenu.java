@@ -68,7 +68,7 @@ public class AscensionMenu {
                                                 ? Component.literal(Utils.smallCaps(combat.getOrderName()))
                                                                 .withColor(combat.getOrderColor().getValue())
                                                 : Component.literal("None").withStyle(ChatFormatting.GRAY))
-                                .append(Component.literal("  "))
+                                .append(Component.literal("\n"))
                                 .append(makeInfluenceIcon(data)).withStyle(Style.EMPTY.withColor(0xFFFFFF))
                                 .append(Component.literal("\n"));
 

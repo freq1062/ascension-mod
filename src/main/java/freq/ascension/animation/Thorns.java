@@ -69,8 +69,7 @@ public class Thorns {
                 VFXBuilder.instant(new Vector3f(0), GeometrySource.faceVector(dir),
                         new Vector3f(thickness, 0.0f, thickness)))
                 .addKeyframeS(null, null, new Vector3f(thickness, length, thickness), growDuration, growDelay)
-                .addKeyframeS(null, null, new Vector3f(thickness, length, thickness), durationTicks, 0)
-                .addKeyframeS(null, null, new Vector3f(thickness, 0.0f, thickness), retractDuration, 0);
+                .addKeyframeS(null, null, new Vector3f(thickness, 0.0f, thickness), retractDuration, durationTicks);
     }
 
     private static Vector3f rotateVector(Vector3f v, float yaw, float pitch) {

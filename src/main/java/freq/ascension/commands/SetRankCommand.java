@@ -8,7 +8,6 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 
 import freq.ascension.managers.GodManager;
-import freq.ascension.orders.End;
 import freq.ascension.orders.Order;
 import freq.ascension.registry.OrderRegistry;
 import net.minecraft.commands.CommandSourceStack;
@@ -27,8 +26,6 @@ import java.util.List;
  *
  * <p>Requires operator level 2 (same as vanilla {@code /gamemode}).
  * All promotion and demotion logic is delegated to {@link GodManager}.
- *
- * <p>God promotion is refused for the End order because no EndGod class exists.
  */
 public class SetRankCommand {
 
@@ -39,9 +36,7 @@ public class SetRankCommand {
             (ctx, builder) -> {
                 List<String> orders = new ArrayList<>();
                 for (Order order : OrderRegistry.iterable()) {
-                    if (!(order instanceof End)) {
-                        orders.add(order.getOrderName());
-                    }
+                    orders.add(order.getOrderName());
                 }
                 return SharedSuggestionProvider.suggest(orders, builder);
             };
@@ -105,12 +100,6 @@ public class SetRankCommand {
             return 0;
         }
 
-        if (order instanceof End) {
-            ctx.getSource().sendFailure(
-                    Component.literal("§cThe End order has no god tier. Choose a different order."));
-            return 0;
-        }
-
         MinecraftServer server = ctx.getSource().getServer();
         GodManager gm = GodManager.get(server);
 
@@ -130,7 +119,7 @@ public class SetRankCommand {
     private static String validOrderList() {
         List<String> names = new ArrayList<>();
         for (Order order : OrderRegistry.iterable()) {
-            if (!(order instanceof End)) names.add(order.getOrderName());
+            names.add(order.getOrderName());
         }
         return String.join(", ", names);
     }

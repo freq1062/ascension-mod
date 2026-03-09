@@ -27,10 +27,13 @@ import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Interaction;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.Level;
 
 import java.util.*;
+import java.util.Queue;
 
 /**
  * Runtime-only (not persisted) manager for Order god-challenge trials.
@@ -82,6 +85,10 @@ public class ChallengerTrialManager {
         public ContinuousTask bossBarTask;
         public ContinuousTask leashTask;
         public ContinuousTask cooldownTask;
+        /** Task that scans for blocks placed during the trial and removes them. */
+        public ContinuousTask blockScanTask;
+        /** Queue of block positions placed during the trial that must be broken. */
+        public Queue<BlockPos> pendingBreakQueue = new java.util.LinkedList<>();
         /** Reference to the POI cube ItemDisplay entity for applying glow / glow removal. */
         public Display.ItemDisplay cubeDisplay;
         /** Reference to the Interaction entity for damage detection. */
@@ -105,6 +112,8 @@ public class ChallengerTrialManager {
             if (bossBarTask != null) { bossBarTask.stop(); bossBarTask = null; }
             if (leashTask != null) { leashTask.stop(); leashTask = null; }
             if (cooldownTask != null) { cooldownTask.stop(); cooldownTask = null; }
+            if (blockScanTask != null) { blockScanTask.stop(); blockScanTask = null; }
+            pendingBreakQueue.clear();
         }
     }
 
@@ -298,6 +307,12 @@ public class ChallengerTrialManager {
             return;
         }
 
+        // Bug 4: prevent a god from challenging themselves
+        if (godUUID.equals(challenger.getUUID())) {
+            challenger.sendSystemMessage(Component.literal("§cYou cannot challenge yourself!"));
+            return;
+        }
+
         // Consume the sigil
         consumeSigil(challenger);
 
@@ -438,6 +453,16 @@ public class ChallengerTrialManager {
                 }
             }
             state.bossBar.setProgress(Math.max(0f, (float) state.cubeHealth / 500f));
+
+            // Bug 9D: include time remaining in the boss bar name
+            long elapsedMs = System.currentTimeMillis() - state.activeStartMs;
+            long remainingMs = Math.max(0L, 600_000L - elapsedMs);
+            long mins = remainingMs / 60_000L;
+            long secs = (remainingMs % 60_000L) / 1_000L;
+            int hpPct = Math.max(0, Math.round((float) state.cubeHealth / 500f * 100));
+            state.bossBar.setName(Component.literal(String.format(
+                    "Challenger Trial — %s | %d%% HP — %d:%02d remaining",
+                    capitalize(orderName), hpPct, mins, secs)));
         });
         Ascension.scheduler.schedule(state.bossBarTask);
 
@@ -507,6 +532,63 @@ public class ChallengerTrialManager {
                 endTrial(orderName, TrialResult.TIMEOUT, server);
             }
         }));
+
+        // ── Bug 11: Block-placement scanner — remove blocks placed during trial ──
+        final ServerLevel scanLevel = level;
+        final BlockPos scanCenter = poiPos;
+        final int scanRadius = Math.min(poi.getPoiRadius(orderName), 20);
+        final List<PoiManager.SnapshotEntry> snap = poi.getTerrainSnapshot(orderName);
+        // Pre-build snapshot lookup (offset → state) once — cheaply reused each scan cycle
+        final Map<Long, net.minecraft.world.level.block.state.BlockState> snapshotStates = new HashMap<>();
+        for (PoiManager.SnapshotEntry entry : snap) {
+            snapshotStates.put(BlockPos.asLong(entry.dx(), entry.dy(), entry.dz()), entry.state());
+        }
+        final int[] scanTick = {0};
+        state.blockScanTask = new ContinuousTask(2, () -> {
+            if (state.phase != Phase.ACTIVE) {
+                state.blockScanTask.stop();
+                return;
+            }
+            if (scanLevel == null || scanCenter == null) return;
+
+            // Re-scan for placed blocks once every 20 ticks (every 10th 2-tick interval)
+            scanTick[0]++;
+            if (scanTick[0] % 10 == 0) {
+                int rSq = scanRadius * scanRadius;
+                for (int dx = -scanRadius; dx <= scanRadius; dx++) {
+                    for (int dy = -scanRadius; dy <= scanRadius; dy++) {
+                        for (int dz = -scanRadius; dz <= scanRadius; dz++) {
+                            if (dx * dx + dy * dy + dz * dz > rSq) continue;
+                            BlockPos bp = scanCenter.offset(dx, dy, dz);
+                            net.minecraft.world.level.block.state.BlockState current =
+                                    scanLevel.getBlockState(bp);
+                            if (current.isAir()) continue;
+                            long offset = BlockPos.asLong(dx, dy, dz);
+                            net.minecraft.world.level.block.state.BlockState blockSnap =
+                                    snapshotStates.get(offset);
+                            // Block differs from snapshot → was placed during the trial
+                            if (blockSnap == null || !current.equals(blockSnap)) {
+                                if (!state.pendingBreakQueue.contains(bp)) {
+                                    state.pendingBreakQueue.add(bp);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Break one queued block per 2-tick interval
+            BlockPos toBreak = state.pendingBreakQueue.poll();
+            if (toBreak != null) {
+                net.minecraft.world.level.block.state.BlockState current =
+                        scanLevel.getBlockState(toBreak);
+                if (!current.isAir()) {
+                    scanLevel.setBlock(toBreak,
+                            net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+                }
+            }
+        });
+        Ascension.scheduler.schedule(state.blockScanTask);
     }
 
     /** Delegates to {@link #startActiveTrial} — retained for external callers. */
@@ -523,6 +605,24 @@ public class ChallengerTrialManager {
         TrialState state = get(orderName);
         if (state == null || state.phase != Phase.ACTIVE) return;
         state.cubeHealth = Math.max(0, state.cubeHealth - (int) damage);
+
+        // Bug 9E: immediately sync boss bar progress on each hit
+        if (state.bossBar != null) {
+            state.bossBar.setProgress(Math.max(0f, (float) state.cubeHealth / 500f));
+        }
+
+        // Bug 9A: play a hit sound at the cube position
+        if (state.cubeHealth > 0) {
+            BlockPos cubePos = PoiManager.get(server).getPoiPosition(orderName);
+            ServerLevel cubeLevel = getPoiLevel(orderName, server);
+            if (cubeLevel != null && cubePos != null) {
+                cubeLevel.playSound(null,
+                        cubePos.getX() + 0.5, cubePos.getY() + 0.5, cubePos.getZ() + 0.5,
+                        SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.BLOCKS,
+                        1.0f, 0.8f + (state.cubeHealth / 500f) * 0.4f);
+            }
+        }
+
         if (state.cubeHealth <= 0) {
             endTrial(orderName, TrialResult.CUBE_DESTROYED, server);
         }
@@ -603,6 +703,21 @@ public class ChallengerTrialManager {
                                     + " has ended — the cube was defeated!"),
                             false);
                 }
+
+                // Bug 9C: victory sound at POI for all nearby players; defeat sound for old god
+                ServerLevel triLevel = getPoiLevel(orderName, server);
+                BlockPos triPos = PoiManager.get(server).getPoiPosition(orderName);
+                if (triLevel != null && triPos != null) {
+                    triLevel.playSound(null, triPos.getX() + 0.5, triPos.getY() + 0.5, triPos.getZ() + 0.5,
+                            SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 1.0f, 1.0f);
+                }
+                // Defeat sound for old god (if still online and alive)
+                ServerPlayer oldGod = (state.godUUID != null)
+                        ? server.getPlayerList().getPlayer(state.godUUID) : null;
+                if (oldGod != null && triLevel != null) {
+                    triLevel.playSound(null, oldGod.getX(), oldGod.getY(), oldGod.getZ(),
+                            SoundEvents.WITHER_SHOOT, SoundSource.PLAYERS, 1.0f, 1.5f);
+                }
             }
             case CHALLENGER_DEATH -> {
                 gm.decrementLossCounter(orderName);
@@ -610,6 +725,20 @@ public class ChallengerTrialManager {
                         Component.literal("§6⚔ The God of " + orderDisplay
                                 + " has defended their title! The challenger has been defeated!"),
                         false);
+
+                // Bug 9C: victory sound for god, defeat sound for challenger
+                ServerLevel triLevel2 = getPoiLevel(orderName, server);
+                BlockPos triPos2 = PoiManager.get(server).getPoiPosition(orderName);
+                if (triLevel2 != null && triPos2 != null) {
+                    triLevel2.playSound(null, triPos2.getX() + 0.5, triPos2.getY() + 0.5, triPos2.getZ() + 0.5,
+                            SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 1.0f, 0.8f);
+                }
+                ServerPlayer defeatedChallenger = (state.challengerUUID != null)
+                        ? server.getPlayerList().getPlayer(state.challengerUUID) : null;
+                if (defeatedChallenger != null && triLevel2 != null) {
+                    triLevel2.playSound(null, defeatedChallenger.getX(), defeatedChallenger.getY(), defeatedChallenger.getZ(),
+                            SoundEvents.WITHER_SHOOT, SoundSource.PLAYERS, 1.0f, 1.5f);
+                }
             }
             case FORFEIT -> {
                 gm.decrementLossCounter(orderName);
@@ -624,6 +753,14 @@ public class ChallengerTrialManager {
                         Component.literal("§6⚔ The God of " + orderDisplay
                                 + " has defended their title against the 10-minute challenge!"),
                         false);
+
+                // Bug 9C: victory sound for god surviving timeout
+                ServerLevel triLevel3 = getPoiLevel(orderName, server);
+                BlockPos triPos3 = PoiManager.get(server).getPoiPosition(orderName);
+                if (triLevel3 != null && triPos3 != null) {
+                    triLevel3.playSound(null, triPos3.getX() + 0.5, triPos3.getY() + 0.5, triPos3.getZ() + 0.5,
+                            SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 1.0f, 0.8f);
+                }
             }
         }
 
@@ -748,6 +885,24 @@ public class ChallengerTrialManager {
             }
         }
         state.cooldownDisplayUUID = null;
+    }
+
+    // ─── Bug 8: Reposition Cooldown Display ──────────────────────────────────
+
+    /**
+     * Teleports the cooldown countdown TextDisplay to a new POI position after a /setpoi command.
+     * Called from {@link freq.ascension.commands.SetPoiCommand} after the position is updated.
+     */
+    public void repositionCooldownDisplay(String orderName, BlockPos newPos, MinecraftServer server) {
+        TrialState state = get(orderName.toLowerCase());
+        if (state == null || state.cooldownDisplayUUID == null) return;
+        for (ServerLevel level : server.getAllLevels()) {
+            net.minecraft.world.entity.Entity e = level.getEntity(state.cooldownDisplayUUID);
+            if (e instanceof Display.TextDisplay td && !td.isRemoved()) {
+                td.setPos(newPos.getX() + 0.5, newPos.getY() + 1.5, newPos.getZ() + 0.5);
+                return;
+            }
+        }
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────

@@ -5,8 +5,6 @@ import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
 import freq.ascension.registry.SpellRegistry;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
@@ -20,11 +18,8 @@ public class NetherGod extends Nether {
     @Override
     public void applyEffect(ServerPlayer player) {
         super.applyEffect(player);
-
-        // Dolphins' Grace 1 equivalent speed when swimming in lava
-        if (hasCapability(player, "passive") && player.isInLava()) {
-            player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 80, 0, true, false, true));
-        }
+        // Lava swimming speed boost is handled in LavaSwimmingMixin (0.20 b/t for gods
+        // vs 0.12 b/t for demigods)
     }
 
     @Override
@@ -33,7 +28,8 @@ public class NetherGod extends Nether {
     }
 
     /**
-     * God: nether mobs are truly passive (isIgnoredBy = never attack under any circumstances).
+     * God: nether mobs are truly passive (isIgnoredBy = never attack under any
+     * circumstances).
      * Demigod: isNeutralBy (neutral = don't attack unless provoked).
      */
     @Override

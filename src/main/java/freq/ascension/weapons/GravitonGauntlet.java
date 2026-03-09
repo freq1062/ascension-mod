@@ -5,16 +5,21 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.minecraft.core.particles.DustParticleOptions;
+
 import freq.ascension.Ascension;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.orders.End;
 import freq.ascension.orders.Order;
 import freq.ascension.orders.Sky;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -37,6 +42,12 @@ public class GravitonGauntlet implements MythicWeapon {
 
     /** Per-player mode map. {@code true} = PULL (default), {@code false} = PUSH. */
     private static final ConcurrentHashMap<UUID, Boolean> PULL_MODE = new ConcurrentHashMap<>();
+
+    /** Per-player cooldown map: stores the server tick at which the cooldown expires. */
+    private static final ConcurrentHashMap<UUID, Long> COOLDOWN_ENDS = new ConcurrentHashMap<>();
+
+    /** Cooldown duration in ticks (20 seconds). */
+    public static final int COOLDOWN_TICKS = 400;
 
     @Override
     public String getWeaponId() {
@@ -65,6 +76,23 @@ public class GravitonGauntlet implements MythicWeapon {
         stack.enchant(registries.getOrThrow(Enchantments.VANISHING_CURSE), 1);
 
         return stack;
+    }
+
+    // ═══ COOLDOWN MANAGEMENT ═══
+
+    /**
+     * Returns {@code true} if the given player's push/pull ability is currently on cooldown.
+     *
+     * @param playerId    the player's UUID
+     * @param currentTick the server's current tick count (from {@code MinecraftServer.getTickCount()})
+     */
+    public static boolean isOnCooldown(UUID playerId, long currentTick) {
+        return currentTick < COOLDOWN_ENDS.getOrDefault(playerId, 0L);
+    }
+
+    /** Records the end-of-cooldown tick for the given player. */
+    private static void startCooldown(UUID playerId, long currentTick) {
+        COOLDOWN_ENDS.put(playerId, currentTick + COOLDOWN_TICKS);
     }
 
     // ═══ MODE MANAGEMENT ═══
@@ -134,6 +162,12 @@ public class GravitonGauntlet implements MythicWeapon {
         } else {
             player.sendSystemMessage(Component.literal("§cGraviton Gauntlet: §cPUSH mode"));
         }
+
+        // Audible feedback for mode switch
+        if (player.level() instanceof ServerLevel sl) {
+            sl.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.STONE_BUTTON_CLICK_ON, SoundSource.PLAYERS, 1.0f, 1.2f);
+        }
     }
 
     /**
@@ -149,8 +183,21 @@ public class GravitonGauntlet implements MythicWeapon {
             return;
         }
 
+        long currentTick = Ascension.getServer().getTickCount();
+        if (isOnCooldown(player.getUUID(), currentTick)) {
+            player.sendSystemMessage(Component.literal("§cGraviton Gauntlet is cooling down!"));
+            return;
+        }
+        startCooldown(player.getUUID(), currentTick);
+
         boolean pullMode = getPullMode(player.getUUID());
         Vec3 playerPos = player.position();
+
+        // Activation sound
+        if (player.level() instanceof ServerLevel sl) {
+            sl.playSound(null, playerPos.x, playerPos.y, playerPos.z,
+                    SoundEvents.BEACON_AMBIENT, SoundSource.PLAYERS, 1.0f, 1.5f);
+        }
 
         AABB box = AABB.ofSize(playerPos, 20, 20, 20);
         List<LivingEntity> targets = player.level().getEntitiesOfClass(
@@ -174,19 +221,29 @@ public class GravitonGauntlet implements MythicWeapon {
 
     private static void spawnVfx(ServerPlayer player, Vec3 playerPos, boolean pullMode) {
         if (!(player.level() instanceof ServerLevel serverLevel)) return;
-        var rng = player.getRandom();
-        for (int i = 0; i < 20; i++) {
-            double theta = rng.nextDouble() * 2 * Math.PI;
-            double phi   = rng.nextDouble() * Math.PI;
-            double px = playerPos.x + 3 * Math.sin(phi) * Math.cos(theta);
-            double py = playerPos.y + 1.0 + 3 * Math.cos(phi);
-            double pz = playerPos.z + 3 * Math.sin(phi) * Math.sin(theta);
-            if (pullMode) {
-                serverLevel.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
-                        px, py, pz, 1, 0, 0, 0, 0.05);
-            } else {
-                serverLevel.sendParticles(ParticleTypes.FLAME,
-                        px, py, pz, 1, 0, 0, 0, 0.05);
+
+        // 8 lines evenly spaced around a circle, each with 6 particles along the radial direction
+        int lineCount = 8;
+        int particlesPerLine = 6;
+        float size = 1.5f;
+
+        DustParticleOptions dust = pullMode
+                ? new DustParticleOptions(0xFF0000FF, size)  // blue for PULL
+                : new DustParticleOptions(0xFFFF0000, size); // red for PUSH
+
+        for (int i = 0; i < lineCount; i++) {
+            double angle = 2 * Math.PI * i / lineCount;
+            double dx = Math.cos(angle);
+            double dz = Math.sin(angle);
+
+            for (int j = 1; j <= particlesPerLine; j++) {
+                double t = pullMode
+                        ? (10.0 - j * (10.0 / particlesPerLine))  // PULL: start far, move inward
+                        : (j * (10.0 / particlesPerLine));          // PUSH: start near, go outward
+                double px = playerPos.x + dx * t;
+                double py = playerPos.y + 1.0;
+                double pz = playerPos.z + dz * t;
+                serverLevel.sendParticles(dust, px, py, pz, 1, 0, 0, 0, 0);
             }
         }
     }

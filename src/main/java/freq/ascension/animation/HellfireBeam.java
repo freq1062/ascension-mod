@@ -1,11 +1,14 @@
 package freq.ascension.animation;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import freq.ascension.Ascension;
 import freq.ascension.Utils;
+import freq.ascension.api.ContinuousTask;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -61,9 +64,51 @@ public class HellfireBeam {
         level.playSound(null, px, py, pz, SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 1.0f, 0.40f);
         level.playSound(null, px, py, pz, SoundEvents.TOTEM_USE,            SoundSource.PLAYERS, 1.0f, 0.50f);
 
-        // VFX
-        spawnBeamVFX(level, start, dir, (float) actualRange);
+        // VFX — spawnBeamVFX returns data about the glow entity for the rotation task
+        GlowEntityData glowData = spawnBeamVFX(level, start, dir, (float) actualRange);
         spawnBeamParticles(level, start, dir, actualRange);
+        // Flame explosion at origin
+        level.sendParticles(ParticleTypes.FLAME, start.x, start.y, start.z, 15, 0.2, 0.2, 0.2, 0.2);
+        level.sendParticles(ParticleTypes.LARGE_SMOKE, start.x, start.y, start.z, 5, 0.1, 0.1, 0.1, 0.05);
+
+        // Rotate + animate the outer glass entity (manages scale AND rotation, replaces VFXBuilder for glow)
+        if (glowData != null) {
+            final float beamLength = (float) actualRange;
+            final float G = glowData.g;
+            final Vector3f glowCenter = glowData.center;
+            final Quaternionf baseRot = glowData.baseRot;
+            float[] glassAngle = {0f};
+            int[] glassTick = {0};
+            Ascension.scheduler.schedule(new ContinuousTask(1, () -> {
+                glassTick[0]++;
+                glassAngle[0] += 3f;
+                var glassEntity = level.getEntity(glowData.id);
+                if (!(glassEntity instanceof net.minecraft.world.entity.Display.BlockDisplay gd) || gd.isRemoved()) return;
+
+                // Compute scale mimicking VFXBuilder keyframes: grow 3 ticks, shrink 10 ticks
+                float scaleY;
+                int t = glassTick[0];
+                if (t <= 3) {
+                    scaleY = (t / 3f) * beamLength;
+                } else {
+                    scaleY = ((13 - t) / 10f) * beamLength;
+                }
+                scaleY = Math.max(0f, scaleY);
+
+                org.joml.Quaternionf rotY = new org.joml.Quaternionf(baseRot).rotateY((float) Math.toRadians(glassAngle[0]));
+                gd.setTransformation(new com.mojang.math.Transformation(
+                    glowCenter, rotY, new Vector3f(G, scaleY, G), new Quaternionf()));
+                gd.setTransformationInterpolationDelay(0);
+                gd.setTransformationInterpolationDuration(1);
+
+                if (t >= 13) gd.discard();
+            }) {
+                @Override
+                public boolean isFinished() {
+                    return glassTick[0] >= 13;
+                }
+            });
+        }
 
         // Damage
         applyBeamDamage(player, level, start, dir, actualRange);
@@ -87,7 +132,10 @@ public class HellfireBeam {
 
     // ─── Private helpers ──────────────────────────────────────────────────────
 
-    private static void spawnBeamVFX(ServerLevel level, Vec3 start, Vec3 dir, float length) {
+    /** Holds data about the glow (outer glass) display entity for use in the rotation task. */
+    private record GlowEntityData(UUID id, Vector3f center, Quaternionf baseRot, float g) {}
+
+    private static GlowEntityData spawnBeamVFX(ServerLevel level, Vec3 start, Vec3 dir, float length) {
         Vector3f startVec = new Vector3f((float) start.x, (float) start.y, (float) start.z);
         Vector3f dirVec   = new Vector3f((float) dir.x, (float) dir.y, (float) dir.z);
         Quaternionf rotation = GeometrySource.faceVector(dirVec);
@@ -100,16 +148,25 @@ public class HellfireBeam {
                 .addKeyframeS(coreCenter, null, new Vector3f(T, length, T), 3)
                 .addKeyframeS(coreCenter, null, new Vector3f(T, 0f, T), 10, 0);
 
-        // Glow — ORANGE_STAINED_GLASS, 0.8 × 0.8 wide. Glowing orange.
+        // Glow — ORANGE_STAINED_GLASS, 0.8 × 0.8 wide. Created directly so rotation task
+        // can manage both scale and rotation without conflicting with VFXBuilder.
         float G = 0.8f;
         Vector3f glowCenter = rotation.transform(new Vector3f(-G * 0.5f, 0f, -G * 0.5f), new Vector3f());
-        VFXBuilder glow = new VFXBuilder(level, startVec, Blocks.ORANGE_STAINED_GLASS.defaultBlockState(),
-                VFXBuilder.instant(glowCenter, rotation, new Vector3f(G, 0f, G)));
-        glow.getEntity().setGlowingTag(true);
-        glow.getEntity().setGlowColorOverride(0xFF6600);
-        glow.getEntity().setBrightnessOverride(new Brightness(15, 15));
-        glow.addKeyframeS(glowCenter, null, new Vector3f(G, length, G), 3)
-            .addKeyframeS(glowCenter, null, new Vector3f(G, 0f, G), 10, 0);
+        net.minecraft.world.entity.Display.BlockDisplay glowEntity =
+                (net.minecraft.world.entity.Display.BlockDisplay)
+                net.minecraft.world.entity.EntityType.BLOCK_DISPLAY.create(
+                        level, net.minecraft.world.entity.EntitySpawnReason.TRIGGERED);
+        if (glowEntity == null) return null;
+
+        glowEntity.setPos(start.x, start.y, start.z);
+        glowEntity.setBlockState(Blocks.ORANGE_STAINED_GLASS.defaultBlockState());
+        glowEntity.setGlowingTag(true);
+        glowEntity.setBrightnessOverride(new Brightness(15, 15));
+        glowEntity.setTransformation(VFXBuilder.instant(glowCenter, rotation, new Vector3f(G, 0f, G)));
+        glowEntity.setTransformationInterpolationDuration(1);
+        level.addFreshEntity(glowEntity);
+
+        return new GlowEntityData(glowEntity.getUUID(), glowCenter, new Quaternionf(rotation), G);
     }
 
     private static void spawnBeamParticles(ServerLevel level, Vec3 start, Vec3 dir, double length) {
@@ -137,22 +194,29 @@ public class HellfireBeam {
         for (LivingEntity target : candidates) {
             if (target == player) continue;
 
-            // Project target position onto the ray.
-            Vec3 toTarget = target.position().subtract(start);
+            // Project target bounding box center onto the ray (eye-level correction).
+            Vec3 targetCenter = target.getBoundingBox().getCenter();
+            Vec3 toTarget = targetCenter.subtract(start);
             double proj   = toTarget.dot(dir);
             if (proj < 0 || proj > actualRange) continue;
 
-            // Reject if too far from the beam axis (cylinder radius = 1 block).
+            // Reject if too far from the beam axis (cylinder radius = 1.5 blocks).
             Vec3 closest     = start.add(dir.scale(proj));
-            double perpDist  = target.position().distanceTo(closest);
-            if (perpDist > 1.0) continue;
+            double perpDist  = targetCenter.distanceTo(closest);
+            if (perpDist > 1.5) continue;
 
             double damage = calculateDamage(proj, target.getMaxHealth());
             if (damage <= 0) continue;
 
             // spellDmg takes a percentage, so convert back.
             float pct = (float) (damage / target.getMaxHealth() * 100.0);
-            Utils.spellDmg(target, player, pct);
+            if (damage > 0) {
+                Utils.spellDmg(target, player, pct);
+                // Flame explosion VFX at hit entity
+                Vec3 hitPos = targetCenter;
+                level.sendParticles(ParticleTypes.FLAME, hitPos.x, hitPos.y, hitPos.z, 20, 0.3, 0.3, 0.3, 0.1);
+                level.sendParticles(ParticleTypes.EXPLOSION, hitPos.x, hitPos.y, hitPos.z, 3, 0.2, 0.2, 0.2, 0.05);
+            }
         }
     }
 

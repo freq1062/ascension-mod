@@ -64,8 +64,10 @@ public class End implements Order {
 
     @Override
     public Order getVersion(String rank) {
-        // No god tier defined yet — return self
-        return this;
+        return switch (rank.toLowerCase()) {
+            case "god" -> EndGod.INSTANCE;
+            default -> this;
+        };
     }
 
     /** Players currently affected by Desolation of Time (combat disabled). */
@@ -78,7 +80,9 @@ public class End implements Order {
     @Override
     public void registerSpells() {
         SpellCooldownManager.register(new Spell("teleport", this, "utility", (player, stats) -> {
-            SpellRegistry.teleport(player);
+            int maxBlocks = (stats != null && stats.extra().length > 0) ? stats.getInt(0) : 10;
+            int maxSolid = (stats != null && stats.extra().length > 1) ? stats.getInt(1) : 2;
+            SpellRegistry.teleport(player, maxBlocks, maxSolid);
         }));
         SpellCooldownManager.register(new Spell("desolation_of_time", this, "combat", (player, stats) -> {
             SpellRegistry.desolationOfTime(player, stats);
@@ -87,9 +91,9 @@ public class End implements Order {
 
     @Override
     public SpellStats getSpellStats(String spellId) {
-        // Stubs — durations/cooldowns filled in during Phase 2
         return switch (spellId.toLowerCase()) {
-            case "teleport" -> new SpellStats(30, "Teleport up to 10 blocks in your look direction.");
+            // extra[0] = maxBlocks for teleport
+            case "teleport" -> new SpellStats(30, "Teleport up to 10 blocks in your look direction.", 10);
             case "desolation_of_time" -> new SpellStats(120,
                     "Within 7 blocks: disable combat abilities 5 s, Weakness I 10 s.",
                     100, // disableDurationTicks (5 s)

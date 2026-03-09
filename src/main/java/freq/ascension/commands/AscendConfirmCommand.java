@@ -7,7 +7,6 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 
 import freq.ascension.managers.GodManager;
 import freq.ascension.managers.PromotionHandler;
-import freq.ascension.orders.End;
 import freq.ascension.orders.Order;
 import freq.ascension.registry.OrderRegistry;
 import net.minecraft.commands.CommandSourceStack;
@@ -33,9 +32,7 @@ public class AscendConfirmCommand {
             (ctx, builder) -> {
                 List<String> orders = new ArrayList<>();
                 for (Order order : OrderRegistry.iterable()) {
-                    if (!(order instanceof End)) {
-                        orders.add(order.getOrderName());
-                    }
+                    orders.add(order.getOrderName());
                 }
                 return SharedSuggestionProvider.suggest(orders, builder);
             };
@@ -73,7 +70,7 @@ public class AscendConfirmCommand {
         }
 
         Order order = OrderRegistry.get(orderName);
-        if (order == null || order instanceof End) {
+        if (order == null) {
             player.sendSystemMessage(Component.literal("§cInvalid order for ascension."));
             return 0;
         }

@@ -98,10 +98,12 @@ public class Sky implements Order {
         DamageSource source = context.getSource();
 
         // STALAGMITE is tagged IS_FALL in vanilla, so it must be checked first.
-        // Dripstone damage: 50% reduction for demigods (gods get full immunity via SkyGod).
+        // Dripstone damage: 50% reduction for demigods (gods get full immunity via
+        // SkyGod).
         if (source.is(DamageTypes.STALAGMITE)) {
             context.setAmount(context.getAmount() * 0.5f);
-        } else if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypeTags.IS_PROJECTILE)) {
+        } else if (source.is(DamageTypeTags.IS_FALL)) {
+            // Demigods: only fall damage is cancelled, not projectile damage
             context.setCancelled(true);
         }
     }
@@ -161,18 +163,22 @@ public class Sky implements Order {
 
     @Override
     public void applyProjectileShield(ServerPlayer player, Projectile projectile) {
-        if (nonHarmfulProjectiles(projectile)) return;
-        if (projectile.getTags().contains("sky_slowed") || projectile.getOwner() == player) return;
+        if (nonHarmfulProjectiles(projectile))
+            return;
+        if (projectile.getTags().contains("sky_slowed") || projectile.getOwner() == player)
+            return;
 
         if (projectile.level() instanceof ServerLevel serverLevel) {
-            // Demigods: arrows hit normally — no velocity change, only visual feedback.
+            // Demigods: reduce projectile velocity by 50%
+            projectile.setDeltaMovement(projectile.getDeltaMovement().scale(0.5));
+
             serverLevel.sendParticles(
                     net.minecraft.core.particles.ParticleTypes.GLOW,
                     projectile.getX(), projectile.getY(), projectile.getZ(),
                     5,
                     0.1, 0.1, 0.1,
                     0.01);
-            projectile.addTag("sky_slowed"); // prevent particle spam on subsequent ticks
+            projectile.addTag("sky_slowed"); // prevent multiple velocity reductions
         }
     }
 

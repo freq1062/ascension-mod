@@ -167,6 +167,39 @@ public class ServerPlayerMixin implements AscensionData {
         }
     }
 
+    // Strip DisguiseLib NBT tags before they are processed to prevent crashes
+    @Inject(method = "readAdditionalSaveData", at = @At("HEAD"))
+    private void stripDisguiseLibNbt(ValueInput input, CallbackInfo ci) {
+        // Remove DisguiseLib NBT tags if present to prevent NPE during player login
+        // when disguise data is corrupted or contains null GameProfile references.
+        // This complements the DisguiseLoadMixin guard by ensuring no disguise
+        // data reaches DisguiseLib's fromTag injection in the first place.
+        try {
+            // Try to access the underlying CompoundTag through reflection
+            // ValueInput implementations typically have a field holding the tag
+            Class<?> clazz = input.getClass();
+            java.lang.reflect.Field[] fields = clazz.getDeclaredFields();
+
+            for (java.lang.reflect.Field field : fields) {
+                field.setAccessible(true);
+                Object value = field.get(input);
+
+                if (value instanceof net.minecraft.nbt.CompoundTag compound) {
+                    // Remove all DisguiseLib tags
+                    compound.remove("disguiselib$profile");
+                    compound.remove("disguiselib$playerUuid");
+                    compound.remove("disguiselib$disguiseUuid");
+                    compound.remove("disguiselib$type");
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            // Silently ignore reflection failures - the DisguiseLoadMixin guard will still
+            // work
+            Ascension.LOGGER.debug("Could not strip DisguiseLib NBT tags: " + e.getMessage());
+        }
+    }
+
     // LOADING DATA
     @Inject(method = "readAdditionalSaveData", at = @At("TAIL"))
     private void readAscensionData(ValueInput input, CallbackInfo ci) {

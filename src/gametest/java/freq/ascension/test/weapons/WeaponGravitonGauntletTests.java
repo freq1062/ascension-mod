@@ -231,4 +231,54 @@ public class WeaponGravitonGauntletTests {
         }
         helper.succeed();
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Cooldown: second activation must be blocked
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Verifies that the 400-tick cooldown blocks a second activation.
+     *
+     * <p>Simulates the cooldown by manually checking {@link GravitonGauntlet#isOnCooldown}
+     * before and after a recorded cooldown entry, without requiring a live ServerPlayer.
+     */
+    @GameTest
+    public void gravitonCooldownBlocksSpellActivation(GameTestHelper helper) {
+        UUID uuid = UUID.randomUUID();
+        long fakeTick = 1000L;
+
+        // Before any activation — must NOT be on cooldown
+        if (GravitonGauntlet.isOnCooldown(uuid, fakeTick)) {
+            helper.fail("Player must not be on cooldown before first use");
+            return;
+        }
+
+        // Simulate an activation: cooldown expires at fakeTick + COOLDOWN_TICKS
+        java.lang.reflect.Field field;
+        try {
+            field = GravitonGauntlet.class.getDeclaredField("COOLDOWN_ENDS");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            java.util.concurrent.ConcurrentHashMap<UUID, Long> map =
+                    (java.util.concurrent.ConcurrentHashMap<UUID, Long>) field.get(null);
+            map.put(uuid, fakeTick + GravitonGauntlet.COOLDOWN_TICKS);
+        } catch (Exception e) {
+            helper.fail("Could not access COOLDOWN_ENDS field: " + e);
+            return;
+        }
+
+        // 1 tick after activation: must be on cooldown
+        if (!GravitonGauntlet.isOnCooldown(uuid, fakeTick + 1)) {
+            helper.fail("Player must be on cooldown immediately after activation");
+            return;
+        }
+
+        // At cooldown expiry tick: must NOT be on cooldown
+        if (GravitonGauntlet.isOnCooldown(uuid, fakeTick + GravitonGauntlet.COOLDOWN_TICKS)) {
+            helper.fail("Player must not be on cooldown at expiry tick");
+            return;
+        }
+
+        helper.succeed();
+    }
 }

@@ -7,8 +7,8 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 
 import freq.ascension.Ascension;
+import freq.ascension.managers.ChallengerTrialManager;
 import freq.ascension.managers.PoiManager;
-import freq.ascension.orders.End;
 import freq.ascension.orders.Order;
 import freq.ascension.registry.OrderRegistry;
 import net.minecraft.commands.CommandSourceStack;
@@ -35,9 +35,7 @@ public class SetPoiCommand {
             (ctx, builder) -> {
                 List<String> orders = new ArrayList<>();
                 for (Order order : OrderRegistry.iterable()) {
-                    if (!(order instanceof End)) {
-                        orders.add(order.getOrderName());
-                    }
+                    orders.add(order.getOrderName());
                 }
                 return SharedSuggestionProvider.suggest(orders, builder);
             };
@@ -65,10 +63,6 @@ public class SetPoiCommand {
             ctx.getSource().sendFailure(Component.literal("§cUnknown order: '" + orderName + "'."));
             return 0;
         }
-        if (order instanceof End) {
-            ctx.getSource().sendFailure(Component.literal("§cThe End order cannot have a POI."));
-            return 0;
-        }
 
         BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "pos");
         MinecraftServer server = ctx.getSource().getServer();
@@ -80,6 +74,8 @@ public class SetPoiCommand {
 
         poi.setPoiData(orderName, pos, level.dimension().location().toString(), radius, snapshot);
         poi.spawnPoiEntities(orderName, level, pos, Ascension.scheduler);
+        // Bug 8: move cooldown display to the new POI position if one exists
+        ChallengerTrialManager.get().repositionCooldownDisplay(orderName, pos, server);
 
         ctx.getSource().sendSuccess(
                 () -> Component.literal("§aPOI set for §e" + orderName + "§a at " +

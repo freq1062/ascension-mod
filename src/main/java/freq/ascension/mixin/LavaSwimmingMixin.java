@@ -14,14 +14,18 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Grants Nether-order players elytra-glide pose and swimming-speed movement while
+ * Grants Nether-order players elytra-glide pose and swimming-speed movement
+ * while
  * sprinting and submerged in lava.
  *
- * <p>Uses entity shared flag 7 (isFallFlying / elytra pose) for the horizontal
- * lying-flat visual. Creative-mode flight abilities are intentionally untouched so
+ * <p>
+ * Uses entity shared flag 7 (isFallFlying / elytra pose) for the horizontal
+ * lying-flat visual. Creative-mode flight abilities are intentionally untouched
+ * so
  * that creative players are unaffected.
  *
- * <p>Injected at TAIL so our flag write occurs after vanilla may have cleared it
+ * <p>
+ * Injected at TAIL so our flag write occurs after vanilla may have cleared it
  * earlier in the same tick. No Fabric event provides an equivalent hook.
  */
 @Mixin(Player.class)
@@ -30,7 +34,8 @@ public abstract class LavaSwimmingMixin {
     @Inject(method = "tick", at = @At("TAIL"))
     private void manageLavaGlide(CallbackInfo ci) {
         Player player = (Player) (Object) this;
-        if (!(player instanceof ServerPlayer serverPlayer)) return;
+        if (!(player instanceof ServerPlayer serverPlayer))
+            return;
 
         // Cast to the invoker interface to access protected Entity.setSharedFlag
         EntitySharedFlagInvoker flagSetter = (EntitySharedFlagInvoker) player;
@@ -67,9 +72,8 @@ public abstract class LavaSwimmingMixin {
             // Grace 1 speed (~0.20 b/t); Demigods get normal swimming speed (0.12 b/t).
             Vec3 look = serverPlayer.getLookAngle();
             AscensionData data = (AscensionData) serverPlayer;
-            boolean isGod = "god".equals(data.getRank())
-                    && "nether".equalsIgnoreCase(data.getGodOrder());
-            float speed = isGod ? 0.20f : 0.12f;
+            boolean isNetherGod = "nether".equalsIgnoreCase(data.getGodOrder());
+            float speed = isNetherGod ? 0.20f : 0.12f;
             serverPlayer.setDeltaMovement(look.x * speed, look.y * speed, look.z * speed);
 
             Nether.recordFireContact(serverPlayer);

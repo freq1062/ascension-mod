@@ -356,60 +356,62 @@ public class GodManager extends SavedData {
     void playPromotionAnimation(ServerPlayer player) {
         net.minecraft.server.level.ServerLevel level = (net.minecraft.server.level.ServerLevel) player.level();
 
-        // Create the sigil item stack (heart_of_the_sea with custom model data)
-        ItemStack sigilItem = new ItemStack(net.minecraft.world.item.Items.HEART_OF_THE_SEA);
-        sigilItem.set(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA,
-            new net.minecraft.world.item.component.CustomModelData(
-                java.util.List.of(), java.util.List.of(),
-                java.util.List.of("challengers_sigil"), java.util.List.of()));
+        double px = player.getX(), py = player.getY(), pz = player.getZ();
 
-        // Spawn ItemDisplay at player's feet
-        net.minecraft.world.entity.Display.ItemDisplay display =
-            net.minecraft.world.entity.EntityType.ITEM_DISPLAY.create(level,
-                net.minecraft.world.entity.EntitySpawnReason.TRIGGERED);
-        if (display == null) return;
+        // Play beacon activate sound at the start of the promotion
+        level.playSound(null, px, py, pz, net.minecraft.sounds.SoundEvents.BEACON_ACTIVATE,
+                net.minecraft.sounds.SoundSource.PLAYERS, 1.2f, 0.9f);
 
-        display.setPos(player.getX(), player.getY(), player.getZ());
-        display.setItemStack(sigilItem);
-        display.setTransformation(new com.mojang.math.Transformation(
-            new org.joml.Vector3f(0f, 0f, 0f),
-            new org.joml.Quaternionf(),
-            new org.joml.Vector3f(0.5f, 0.05f, 0.5f),
-            new org.joml.Quaternionf()));
-        display.setBrightnessOverride(new net.minecraft.util.Brightness(15, 15));
-        display.setTransformationInterpolationDuration(20);
-        level.addFreshEntity(display);
+        // Beam dimensions: 1×1 block wide, 8 blocks tall, centered on player
+        float beamH = 8.0f;
+        org.joml.Vector3f beamPos = new org.joml.Vector3f((float) px, (float) py, (float) pz);
+        // Translation to center a 1×1 block horizontally on the entity origin
+        org.joml.Vector3f centerXZ = new org.joml.Vector3f(-0.5f, 0f, -0.5f);
 
-        // Animate: spin and rise over 60 ticks, then discard
-        float[] tick = {0f};
-        freq.ascension.api.ContinuousTask animTask = new freq.ascension.api.ContinuousTask(1, () -> {
-            if (display.isRemoved()) return;
-            tick[0]++;
-            float progress = tick[0] / 60f;
-            float angle = tick[0] * 6f;
-            float height = tick[0] * 0.03f;
-            float scale = 0.5f + progress * 0.5f;
+        // Spawn the VFXBuilder beam using OCHRE_FROGLIGHT (golden/yellow column)
+        freq.ascension.animation.VFXBuilder beam = new freq.ascension.animation.VFXBuilder(
+                level, beamPos,
+                net.minecraft.world.level.block.Blocks.OCHRE_FROGLIGHT.defaultBlockState(),
+                freq.ascension.animation.VFXBuilder.instant(
+                        centerXZ, new org.joml.Quaternionf(), new org.joml.Vector3f(1f, 0f, 1f)));
 
-            org.joml.Quaternionf rot = new org.joml.Quaternionf().rotateY((float) Math.toRadians(angle));
-            display.setPos(player.getX(), player.getY() + height, player.getZ());
-            display.setTransformation(new com.mojang.math.Transformation(
-                new org.joml.Vector3f(-scale / 2, 0, -scale / 2),
-                rot,
-                new org.joml.Vector3f(scale, 0.05f, scale),
-                new org.joml.Quaternionf()));
-            display.setTransformationInterpolationDuration(2);
+        // Keyframe 1: grow beam to full height in 5 ticks, play thunder when it appears
+        beam.addKeyframeS(centerXZ, null, new org.joml.Vector3f(1f, beamH, 1f), 5)
+                .withAction(() -> level.playSound(null, px, py, pz,
+                        net.minecraft.sounds.SoundEvents.LIGHTNING_BOLT_THUNDER,
+                        net.minecraft.sounds.SoundSource.PLAYERS, 0.8f, 0.7f));
 
-            if (tick[0] >= 60) {
-                display.discard();
+        // Keyframe 2: hold at full beam for ~2.5 seconds (50 ticks)
+        beam.addKeyframeS(null, null, null, 50);
+
+        // Keyframe 3: shrink width to zero over 15 ticks (fade out)
+        beam.addKeyframeS(new org.joml.Vector3f(0f, 0f, 0f), null,
+                new org.joml.Vector3f(0f, beamH, 0f), 15);
+
+        // Total animation = 5 + 50 + 15 = 70 ticks
+        int[] particleTick = {0};
+        freq.ascension.api.ContinuousTask particleTask = new freq.ascension.api.ContinuousTask(1, () -> {
+            particleTick[0]++;
+            if (particleTick[0] % 3 == 0) {
+                // Totem particles in a ring around the player
+                int ringCount = 12;
+                double radius = 2.0;
+                for (int j = 0; j < ringCount; j++) {
+                    double angle = 2 * Math.PI * j / ringCount;
+                    double tx = px + radius * Math.cos(angle);
+                    double tz = pz + radius * Math.sin(angle);
+                    level.sendParticles(net.minecraft.core.particles.ParticleTypes.TOTEM_OF_UNDYING,
+                            tx, py + 1.0, tz, 2, 0.0, 0.4, 0.0, 0.05);
+                }
             }
         }) {
             @Override
             public boolean isFinished() {
-                return display.isRemoved() || tick[0] >= 60;
+                return particleTick[0] >= 70;
             }
         };
 
-        freq.ascension.Ascension.scheduler.schedule(animTask);
+        freq.ascension.Ascension.scheduler.schedule(particleTask);
     }
 
     // ─── Demotion ────────────────────────────────────────────────────────────

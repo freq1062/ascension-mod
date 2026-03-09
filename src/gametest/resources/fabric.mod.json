@@ -33,7 +33,8 @@
 			"freq.ascension.test.weapons.WeaponPrismWandTests",
 			"freq.ascension.test.weapons.WeaponHellfireCrossbowTests",
 			"freq.ascension.test.weapons.WeaponVinewrathAxeTests",
-			"freq.ascension.test.weapons.WeaponGravitonGauntletTests"
+			"freq.ascension.test.weapons.WeaponGravitonGauntletTests",
+			"freq.ascension.test.god.EndGodTests"
 		]
 	},
 	"depends": {
