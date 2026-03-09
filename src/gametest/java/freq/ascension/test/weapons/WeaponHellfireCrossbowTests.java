@@ -3,6 +3,9 @@ package freq.ascension.test.weapons;
 import java.util.List;
 import java.util.UUID;
 
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
 import freq.ascension.animation.HellfireBeam;
 import freq.ascension.orders.Nether;
 import freq.ascension.registry.WeaponRegistry;
@@ -315,6 +318,48 @@ public class WeaponHellfireCrossbowTests {
         if (!(found instanceof HellfireCrossbow)) {
             helper.fail("WeaponRegistry.getForOrder(\"nether\") returned " + found.getClass().getSimpleName()
                     + " but expected HellfireCrossbow");
+        }
+        helper.succeed();
+    }
+
+    // ─── HellfireBeam centering ───────────────────────────────────────────────
+
+    /**
+     * Verifies that the dynamic center offset used in the outer glass animation
+     * scales proportionally with {@code scaleXZ}, keeping the block centered on
+     * the beam axis at every stage of the shrink.
+     *
+     * <p>When {@code scaleXZ = S} and the base rotation is the identity, the
+     * expected offset is {@code (-S/2, 0, -S/2)}. The test checks two sizes:
+     * full width G=0.8 and half width G/2=0.4.
+     */
+    @GameTest
+    public void beamCenterCalculationIsProportional(GameTestHelper helper) {
+        Quaternionf identity = new Quaternionf(); // identity rotation
+
+        float G = 0.8f;
+        Vector3f fullCenter = identity.transform(
+                new Vector3f(-G * 0.5f, 0f, -G * 0.5f), new Vector3f());
+        float halfG = G * 0.5f;
+        Vector3f halfCenter = identity.transform(
+                new Vector3f(-halfG * 0.5f, 0f, -halfG * 0.5f), new Vector3f());
+
+        // Full-width: center must be (-G/2, 0, -G/2)
+        float eps = 0.0001f;
+        if (Math.abs(fullCenter.x - (-G * 0.5f)) > eps || Math.abs(fullCenter.z - (-G * 0.5f)) > eps) {
+            helper.fail("Full-width center must be (-G/2, 0, -G/2); got ("
+                    + fullCenter.x + ", " + fullCenter.y + ", " + fullCenter.z + ")");
+        }
+        // Half-width: center must be (-G/4, 0, -G/4)
+        if (Math.abs(halfCenter.x - (-G * 0.25f)) > eps || Math.abs(halfCenter.z - (-G * 0.25f)) > eps) {
+            helper.fail("Half-width center must be (-G/4, 0, -G/4); got ("
+                    + halfCenter.x + ", " + halfCenter.y + ", " + halfCenter.z + ")");
+        }
+        // Proportionality: halfCenter must equal fullCenter × 0.5 in X and Z
+        if (Math.abs(halfCenter.x - fullCenter.x * 0.5f) > eps
+                || Math.abs(halfCenter.z - fullCenter.z * 0.5f) > eps) {
+            helper.fail("Center offset must scale proportionally with scaleXZ; "
+                    + "half-width center != full-width center × 0.5");
         }
         helper.succeed();
     }

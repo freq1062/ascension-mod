@@ -1056,7 +1056,7 @@ public class SpellRegistry {
 
         // Start DragonCurve VFX
         DragonCurve curve = new DragonCurve(level,
-                new Vector3f((float) castPos.x, (float) castPos.y, (float) castPos.z), 8);
+                new Vector3f((float) castPos.x, (float) castPos.y, (float) castPos.z), 5);
         ACTIVE_DESOLATIONS.put(player.getUUID(), curve);
 
         // Track affected players for this activation to prevent double-disable

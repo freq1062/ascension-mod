@@ -79,7 +79,6 @@ public class HellfireBeam {
         if (glowData != null) {
             final float beamLength = (float) actualRange;
             final float G = glowData.g;
-            final Vector3f glowCenter = glowData.center;
             final Quaternionf baseRot = glowData.baseRot;
             float[] glassAngle = {0f};
             int[] glassTick = {0};
@@ -99,9 +98,14 @@ public class HellfireBeam {
                     scaleXZ = Math.max(0f, ((23f - t) / 10f) * G);
                 }
 
+                // Dynamic centering: offset scales with scaleXZ so the block shrinks toward
+                // its center rather than its corner. When scaleXZ=S the local extent is [0,S]
+                // in X and Z, so we translate by baseRot × (-S/2, 0, -S/2).
+                Vector3f dynamicCenter = glowData.baseRot.transform(
+                        new Vector3f(-scaleXZ * 0.5f, 0f, -scaleXZ * 0.5f), new Vector3f());
                 org.joml.Quaternionf rotY = new org.joml.Quaternionf(baseRot).rotateY((float) Math.toRadians(glassAngle[0]));
                 gd.setTransformation(new com.mojang.math.Transformation(
-                    glowCenter, rotY, new Vector3f(scaleXZ, beamLength, scaleXZ), new Quaternionf()));
+                    dynamicCenter, rotY, new Vector3f(scaleXZ, beamLength, scaleXZ), new Quaternionf()));
                 gd.setTransformationInterpolationDelay(0);
                 gd.setTransformationInterpolationDuration(1);
 

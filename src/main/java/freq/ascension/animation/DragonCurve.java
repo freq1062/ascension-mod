@@ -80,7 +80,7 @@ public class DragonCurve {
      * This value is <em>constant</em> — it never changes between iterations.
      * Tests validate this constant directly.
      */
-    public static final float SEGMENT_LENGTH = 0.5f;
+    public static final float SEGMENT_LENGTH = 1.0f;
 
     private static final BlockState PURPLE_CONCRETE = Blocks.PURPLE_CONCRETE.defaultBlockState();
 
@@ -89,6 +89,8 @@ public class DragonCurve {
     private final int maxIterations;
     private final List<BlockDisplay> spawnedDisplays = new ArrayList<>();
     private final List<List<BlockDisplay>> iterationGroups = new ArrayList<>();
+    /** Total ticks needed for all spawn tasks to complete; set at end of scheduleIterations(). */
+    private int totalSpawnTicks = 0;
 
     /**
      * Constructs and begins the DragonCurve animation with 4 radial branches.
@@ -204,6 +206,9 @@ public class DragonCurve {
         // Sort all segments by distance from center (spiral outward)
         allSegments.sort((s1, s2) -> Double.compare(s1.distance, s2.distance));
 
+        // Record total ticks required so teardown() can wait for all spawns to finish.
+        this.totalSpawnTicks = allSegments.size() * ITERATION_INTERVAL_TICKS;
+
         // Schedule each segment with a small delay for fast spiral animation
         for (int i = 0; i < allSegments.size(); i++) {
             final SegmentData seg = allSegments.get(i);
@@ -237,12 +242,17 @@ public class DragonCurve {
      * Begins the reverse-animation teardown (called when the spell ends).
      * Block displays are removed from outermost group inward, one group per
      * {@value #ITERATION_INTERVAL_TICKS} ticks, with witch particles.
+     *
+     * <p>Teardown is delayed by {@code totalSpawnTicks} so that removal tasks
+     * always fire <em>after</em> all spawn tasks, preventing segments from being
+     * discarded before they even appear.
      */
     public void teardown() {
         int numGroups = iterationGroups.size();
         for (int g = numGroups - 1; g >= 0; g--) {
             final int groupIndex = g;
-            int delayTicks = (numGroups - 1 - g) * ITERATION_INTERVAL_TICKS * 10; // Groups represent 10 segments each
+            // Start AFTER all segments have spawned, then stagger removal outward→inward.
+            int delayTicks = totalSpawnTicks + (numGroups - 1 - g) * ITERATION_INTERVAL_TICKS * 10;
 
             Ascension.scheduler.schedule(new DelayedTask(delayTicks, () -> {
                 if (groupIndex >= iterationGroups.size())
@@ -258,9 +268,8 @@ public class DragonCurve {
                 }
             }));
         }
-        // Final sweep: discard anything still alive (guards against race with spawn
-        // tasks)
-        int totalTeardown = numGroups * ITERATION_INTERVAL_TICKS * 10 + 5;
+        // Final sweep: discard anything still alive (guards against race with spawn tasks).
+        int totalTeardown = totalSpawnTicks + numGroups * ITERATION_INTERVAL_TICKS * 10 + 5;
         Ascension.scheduler.schedule(new DelayedTask(totalTeardown, () -> {
             for (BlockDisplay bd : spawnedDisplays) {
                 if (bd.isAlive())
