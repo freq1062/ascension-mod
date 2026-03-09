@@ -39,6 +39,11 @@ public class AscensionMenu {
                 Order utility = data.getUtility();
                 Order combat = data.getCombat();
 
+                // Dynamic gap before influence icon keeps it on the same line as "Combat: [name]"
+                // Book page is ~114px; each small-caps char ≈ 6px; icon net ≈ 18px; "Combat: " ≈ 48px
+                int combatNameLen = combat != null ? combat.getOrderName().length() : 4; // "None" = 4
+                String influenceGap = combatNameLen <= 3 ? "   " : combatNameLen == 4 ? "  " : combatNameLen == 5 ? " " : "";
+
                 // \uF806\uE181\uF801\uF801\uF801\uF801 \uF804\uF804\uE188\n\uF806\uF804
                 // \uE183\uF802\uF802 \uF805\uE187\n\uF806\n\n \uE182\uF802\uF802 \uF804 \uE186
                 // \n\n\n\uF806 \uE184\uF802\uF802\uF804 \uE185\n\uF806\uF802\uF802H
@@ -68,7 +73,7 @@ public class AscensionMenu {
                                                 ? Component.literal(Utils.smallCaps(combat.getOrderName()))
                                                                 .withColor(combat.getOrderColor().getValue())
                                                 : Component.literal("None").withStyle(ChatFormatting.GRAY))
-                                .append(Component.literal("\n"))
+                                .append(Component.literal(influenceGap))
                                 .append(makeInfluenceIcon(data)).withStyle(Style.EMPTY.withColor(0xFFFFFF))
                                 .append(Component.literal("\n"));
 

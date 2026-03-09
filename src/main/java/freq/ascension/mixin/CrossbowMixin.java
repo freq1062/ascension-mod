@@ -29,7 +29,7 @@ import net.minecraft.world.level.Level;
 @Mixin(CrossbowItem.class)
 public class CrossbowMixin {
 
-    @Inject(method = "performShooting", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "performShooting", at = @At("HEAD"))
     private void ascension$onPerformShooting(
             Level level,
             LivingEntity entity,
@@ -51,9 +51,7 @@ public class CrossbowMixin {
         ChargedProjectiles charged = crossbow.get(DataComponents.CHARGED_PROJECTILES);
         if (charged == null || !charged.contains(Items.FIREWORK_ROCKET)) return;
 
-        // Let HellfireCrossbow decide: cancel the shot and fire the beam, or play charging SFX.
-        if (hfc.onFireworkShot(player)) {
-            ci.cancel();
-        }
+        // The beam fires as a BONUS alongside the vanilla firework — never cancel the shot.
+        hfc.onFireworkShot(player);
     }
 }

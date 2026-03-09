@@ -100,23 +100,26 @@ public class HellfireCrossbow implements MythicWeapon {
 
     /**
      * Called by {@link freq.ascension.mixin.CrossbowMixin} when a player fires a firework from
-     * this crossbow. Increments the per-player counter and triggers the Hellfire Beam on every
-     * 3rd shot.
+     * this crossbow. Increments the per-player counter and triggers the Hellfire Beam as a bonus
+     * on every 3rd shot (the firework still fires normally). On shots 1 and 2, plays a charge
+     * sound at rising pitch to signal progress toward the beam.
      *
-     * @return {@code true} if the Hellfire Beam was activated (the caller must cancel the
-     *         vanilla firework launch), {@code false} if a charging sound was played instead.
+     * @return {@code true} if the Hellfire Beam was activated (informational only — caller must
+     *         NOT cancel the vanilla firework launch).
      */
     public boolean onFireworkShot(ServerPlayer player) {
         boolean triggered = incrementAndCheck(player.getUUID());
         if (triggered) {
             Vec3 dir = player.getLookAngle();
             HellfireBeam.fire(player, dir, 60.0);
+            // Reset counter so the next 3 shots start a fresh charge cycle.
+            FIREWORK_COUNTER.put(player.getUUID(), 0);
         } else {
-            // Charging sound — pitch rises with each press to signal progress toward the beam.
+            // Charging sound — pitch rises on the 2nd press to signal progress toward the beam.
             int count = FIREWORK_COUNTER.getOrDefault(player.getUUID(), 0);
-            float pitch = 0.8f + (count % 3) * 0.2f;
+            float pitch = (count % 3 == 1) ? 0.8f : 1.0f;
             player.level().playSound(null, player.blockPosition(),
-                    SoundEvents.CROSSBOW_LOADING_END.value(), SoundSource.PLAYERS, 0.9f, pitch);
+                    SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 1.0f, pitch);
         }
         return triggered;
     }

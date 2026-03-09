@@ -207,6 +207,43 @@ public class WeaponHellfireCrossbowTests {
         helper.succeed();
     }
 
+    /**
+     * After the beam fires (shot 3), {@link HellfireCrossbow#onFireworkShot} resets the counter
+     * to 0 so the next 3 shots start a fresh charge cycle. Verified by checking that the
+     * subsequent two shots do NOT trigger, and the third subsequent shot DOES trigger again.
+     */
+    @GameTest
+    public void hellfire_crossbow_counter_resets_after_beam(GameTestHelper helper) {
+        UUID id = UUID.randomUUID();
+        // Simulate counter at 2 (shots 1 and 2 already fired).
+        HellfireCrossbow.FIREWORK_COUNTER.put(id, 2);
+        // Shot 3 → triggers (count becomes 3, 3 % 3 == 0).
+        boolean triggered = HellfireCrossbow.incrementAndCheck(id);
+        if (!triggered) {
+            HellfireCrossbow.FIREWORK_COUNTER.remove(id);
+            helper.fail("incrementAndCheck must return true when count goes 2→3");
+        }
+        // Simulate the reset that onFireworkShot performs after the beam fires.
+        HellfireCrossbow.FIREWORK_COUNTER.put(id, 0);
+        // Next shot (shot 4) → count goes 0→1, must NOT trigger.
+        boolean shot4 = HellfireCrossbow.incrementAndCheck(id);
+        // Next shot (shot 5) → count goes 1→2, must NOT trigger.
+        boolean shot5 = HellfireCrossbow.incrementAndCheck(id);
+        // Next shot (shot 6) → count goes 2→3, MUST trigger again.
+        boolean shot6 = HellfireCrossbow.incrementAndCheck(id);
+        HellfireCrossbow.FIREWORK_COUNTER.remove(id);
+        if (shot4) {
+            helper.fail("After counter reset, shot 4 (count 0→1) must not trigger");
+        }
+        if (shot5) {
+            helper.fail("After counter reset, shot 5 (count 1→2) must not trigger");
+        }
+        if (!shot6) {
+            helper.fail("After counter reset, shot 6 (count 2→3) must trigger again");
+        }
+        helper.succeed();
+    }
+
     // ─── Damage formula ───────────────────────────────────────────────────────
 
     /** At dist=5 (≤ 10), damage = 40 % of maxHp. */

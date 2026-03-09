@@ -342,12 +342,6 @@ public class WeaponTempestTridentTests {
      */
     @GameTest
     public void tempestTridentThrownTridentInvisible(GameTestHelper helper) {
-        // Spawn a ThrownTrident at the test origin.
-        var tridentEntity = helper.getLevel().getServer()
-                .overworld()
-                .getEntityLookup()
-                .get(null); // placeholder — use entity spawn below
-
         // Build a loyalty-mode ItemStack that identifies as a TempestTrident.
         ItemStack loyaltyStack = new ItemStack(Items.TRIDENT);
         loyaltyStack.set(DataComponents.CUSTOM_MODEL_DATA,

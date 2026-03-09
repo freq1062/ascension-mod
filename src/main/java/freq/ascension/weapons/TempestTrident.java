@@ -82,7 +82,7 @@ public class TempestTrident implements MythicWeapon {
     public static final ConcurrentHashMap<UUID, Long> hitTimestamps = new ConcurrentHashMap<>();
 
     /** Per-player last-toggle-tick for mode switch deduplication (prevents double-fire from Swing + hit events). */
-    private static final ConcurrentHashMap<UUID, Long> lastToggleTick = new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<UUID, Long> lastToggleTick = new ConcurrentHashMap<>();
 
     /** Maps thrown ThrownTrident entity UUID → thrower (player) UUID. */
     public static final ConcurrentHashMap<UUID, UUID> tridentToThrower = new ConcurrentHashMap<>();

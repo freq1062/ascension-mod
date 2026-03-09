@@ -71,7 +71,11 @@ public class HellfireBeam {
         level.sendParticles(ParticleTypes.FLAME, start.x, start.y, start.z, 15, 0.2, 0.2, 0.2, 0.2);
         level.sendParticles(ParticleTypes.LARGE_SMOKE, start.x, start.y, start.z, 5, 0.1, 0.1, 0.1, 0.05);
 
-        // Rotate + animate the outer glass entity (manages scale AND rotation, replaces VFXBuilder for glow)
+        // Rotate + animate the outer glass entity — width-only fade; length stays constant.
+        // Phase: 0–3  = grow width (0 → G)
+        //        3–13 = hold full width
+        //        13–23 = shrink width (G → 0)
+        // Total lifetime: 23 ticks (matches SHROOMLIGHT core lifetime of 3+10+10).
         if (glowData != null) {
             final float beamLength = (float) actualRange;
             final float G = glowData.g;
@@ -85,27 +89,27 @@ public class HellfireBeam {
                 var glassEntity = level.getEntity(glowData.id);
                 if (!(glassEntity instanceof net.minecraft.world.entity.Display.BlockDisplay gd) || gd.isRemoved()) return;
 
-                // Compute scale mimicking VFXBuilder keyframes: grow 3 ticks, shrink 10 ticks
-                float scaleY;
                 int t = glassTick[0];
+                float scaleXZ;
                 if (t <= 3) {
-                    scaleY = (t / 3f) * beamLength;
+                    scaleXZ = (t / 3f) * G;
+                } else if (t <= 13) {
+                    scaleXZ = G;
                 } else {
-                    scaleY = ((13 - t) / 10f) * beamLength;
+                    scaleXZ = Math.max(0f, ((23f - t) / 10f) * G);
                 }
-                scaleY = Math.max(0f, scaleY);
 
                 org.joml.Quaternionf rotY = new org.joml.Quaternionf(baseRot).rotateY((float) Math.toRadians(glassAngle[0]));
                 gd.setTransformation(new com.mojang.math.Transformation(
-                    glowCenter, rotY, new Vector3f(G, scaleY, G), new Quaternionf()));
+                    glowCenter, rotY, new Vector3f(scaleXZ, beamLength, scaleXZ), new Quaternionf()));
                 gd.setTransformationInterpolationDelay(0);
                 gd.setTransformationInterpolationDuration(1);
 
-                if (t >= 13) gd.discard();
+                if (t >= 23) gd.discard();
             }) {
                 @Override
                 public boolean isFinished() {
-                    return glassTick[0] >= 13;
+                    return glassTick[0] >= 23;
                 }
             });
         }
@@ -140,13 +144,14 @@ public class HellfireBeam {
         Vector3f dirVec   = new Vector3f((float) dir.x, (float) dir.y, (float) dir.z);
         Quaternionf rotation = GeometrySource.faceVector(dirVec);
 
-        // Core — SHROOMLIGHT, 0.5 × 0.5 wide. Grows in 3 ticks, shrinks in 10.
+        // Core — SHROOMLIGHT, 0.5 × 0.5 wide. Full length from the start; width fades in/out.
         float T = 0.5f;
         Vector3f coreCenter = rotation.transform(new Vector3f(-T * 0.5f, 0f, -T * 0.5f), new Vector3f());
         new VFXBuilder(level, startVec, Blocks.SHROOMLIGHT.defaultBlockState(),
-                VFXBuilder.instant(coreCenter, rotation, new Vector3f(T, 0f, T)))
-                .addKeyframeS(coreCenter, null, new Vector3f(T, length, T), 3)
-                .addKeyframeS(coreCenter, null, new Vector3f(T, 0f, T), 10, 0);
+                VFXBuilder.instant(coreCenter, rotation, new Vector3f(0f, length, 0f)))  // full length, 0 width
+                .addKeyframeS(coreCenter, null, new Vector3f(T, length, T), 3)           // grow width in 3 ticks
+                .addKeyframeS(coreCenter, null, new Vector3f(T, length, T), 10)          // hold 10 ticks
+                .addKeyframeS(coreCenter, null, new Vector3f(0f, length, 0f), 10, 0);   // shrink width in 10 ticks
 
         // Glow — ORANGE_STAINED_GLASS, 0.8 × 0.8 wide. Created directly so rotation task
         // can manage both scale and rotation without conflicting with VFXBuilder.
@@ -162,7 +167,8 @@ public class HellfireBeam {
         glowEntity.setBlockState(Blocks.ORANGE_STAINED_GLASS.defaultBlockState());
         glowEntity.setGlowingTag(true);
         glowEntity.setBrightnessOverride(new Brightness(15, 15));
-        glowEntity.setTransformation(VFXBuilder.instant(glowCenter, rotation, new Vector3f(G, 0f, G)));
+        // Start at full beam length but zero width — width animates in via the rotation task.
+        glowEntity.setTransformation(VFXBuilder.instant(glowCenter, rotation, new Vector3f(0f, length, 0f)));
         glowEntity.setTransformationInterpolationDuration(1);
         level.addFreshEntity(glowEntity);
 
