@@ -1,58 +1,58 @@
-// package com.ascension.commands;
+package freq.ascension.commands;
 
-// import org.bukkit.Bukkit;
-// import org.bukkit.command.Command;
-// import org.bukkit.command.CommandExecutor;
-// import org.bukkit.command.CommandSender;
-// import org.bukkit.entity.Player;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import freq.ascension.managers.AscensionData;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 
-// import com.ascension.managers.DivineDataManager;
+import java.util.Collection;
 
-// public class SetInfluenceCommand implements CommandExecutor {
+public class SetInfluenceCommand {
 
-// @Override
-// public boolean onCommand(CommandSender sender, Command command, String label,
-// String[] args) {
-// if (!sender.hasPermission("ascension.admin")) {
-// sender.sendMessage("You do not have permission to use this command.");
-// return true;
-// }
-// if (args.length < 2) {
-// sender.sendMessage("Usage: /setinfluence <player> <amount>");
-// return true;
-// }
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(Commands.literal("setinfluence")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.argument("targets", EntityArgument.players())
+                        .then(Commands.argument("amount", IntegerArgumentType.integer(-5))
+                                .executes(SetInfluenceCommand::run))));
+    }
 
-// Player target = Bukkit.getPlayerExact(args[0]);
-// if (target == null) {
-// sender.sendMessage("§cThat player must be online.");
-// return true;
-// }
+    private static int run(CommandContext<CommandSourceStack> context) {
+        try {
+            Collection<ServerPlayer> targets = EntityArgument.getPlayers(context, "targets");
+            int amount = IntegerArgumentType.getInteger(context, "amount");
+            int playersSet = 0;
 
-// int amount;
-// try {
-// amount = Integer.parseInt(args[1]);
-// } catch (NumberFormatException e) {
-// sender.sendMessage("§cAmount must be a number.");
-// return true;
-// }
-// if (amount < 0)
-// amount = 0;
+            for (ServerPlayer player : targets) {
+                if (player instanceof AscensionData data) {
+                    data.setInfluence(amount);
+                    player.sendSystemMessage(Component.literal("Your Influence has been set to " + amount + ".")
+                            .withStyle(style -> style.withColor(0xFFD700)));
+                    playersSet++;
+                }
+            }
 
-// DivineDataManager dm = DivineDataManager.getInstance();
-// if (dm == null) {
-// sender.sendMessage("§cData manager not ready.");
-// return true;
-// }
+            if (playersSet > 0) {
+                final int finalCount = playersSet;
+                context.getSource().sendSuccess(
+                        () -> Component.literal("Set Influence to " + amount + " for " + finalCount + " player(s)."),
+                        true);
+                return playersSet;
+            } else {
+                context.getSource().sendFailure(Component.literal("No valid targets found."));
+                return 0;
+            }
 
-// dm.setInfluence(target, amount);
-// sender.sendMessage("§aSet §e" + target.getName() + "§a influence to §e" +
-// amount + "§a.");
-// if (sender instanceof Player p &&
-// p.getUniqueId().equals(target.getUniqueId())) {
-// // no-op
-// } else {
-// target.sendMessage("§aYour influence was set to §e" + amount + "§a.");
-// }
-// return true;
-// }
-// }
+        } catch (CommandSyntaxException e) {
+            context.getSource().sendFailure(Component.literal("Error: " + e.getMessage()));
+            return 0;
+        }
+    }
+}
+

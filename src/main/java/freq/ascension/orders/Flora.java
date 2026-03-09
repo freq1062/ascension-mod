@@ -1,6 +1,7 @@
 package freq.ascension.orders;
 
 import freq.ascension.Ascension;
+import freq.ascension.Config;
 import freq.ascension.api.DelayedTask;
 import freq.ascension.managers.PlantProximityManager;
 import freq.ascension.managers.Spell;
@@ -38,7 +39,7 @@ public class Flora implements Order {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "thorns" -> new SpellStats(60,
+            case "thorns" -> new SpellStats(Config.floraThornsCD,
                     "Impale your opponents from the ground, freezing them for 3 seconds and giving them poison 1 for 10 seconds. Deals 35% max health.",
                     0);
             default -> null;
@@ -50,8 +51,11 @@ public class Flora implements Order {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
                 "Regeneration I every 3s. Immune to negative potion effects. Double saturation from food. Within 5 blocks of a plant: Sculk sensors and shriekers ignore you, mob aggro distance reduced by 50%.";
-            case "utility" -> "flora util temp";
-            case "combat" -> "flora combat temp";
+            case "utility" -> "CREEPER TRUCE: Creepers are neutral while near any plant block.";
+            case "combat" -> {
+                SpellStats s = getSpellStats("thorns");
+                yield "THORNS: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            }
             default -> "";
         };
     }

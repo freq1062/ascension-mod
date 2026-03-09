@@ -4,6 +4,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import freq.ascension.Ascension;
+import freq.ascension.Config;
 import freq.ascension.animation.HellfireBeam;
 import freq.ascension.orders.Nether;
 import freq.ascension.orders.Order;
@@ -117,7 +118,7 @@ public class HellfireCrossbow implements MythicWeapon {
         } else {
             // Charging sound — pitch rises on the 2nd press to signal progress toward the beam.
             int count = FIREWORK_COUNTER.getOrDefault(player.getUUID(), 0);
-            float pitch = (count % 3 == 1) ? 0.8f : 1.0f;
+            float pitch = (count % Config.hellfireCrossbowHitsBeforeFire == 1) ? 0.8f : 1.0f;
             player.level().playSound(null, player.blockPosition(),
                     SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 1.0f, pitch);
         }
@@ -133,7 +134,7 @@ public class HellfireCrossbow implements MythicWeapon {
      */
     public static boolean incrementAndCheck(UUID playerId) {
         int count = FIREWORK_COUNTER.merge(playerId, 1, Integer::sum);
-        return count % 3 == 0;
+        return count % Config.hellfireCrossbowHitsBeforeFire == 0;
     }
 
     // ─── Cleanup on god death / weapon released ───────────────────────────────

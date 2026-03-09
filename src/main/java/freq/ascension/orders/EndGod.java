@@ -1,5 +1,6 @@
 package freq.ascension.orders;
 
+import freq.ascension.Config;
 import freq.ascension.managers.SpellStats;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
@@ -29,8 +30,8 @@ public class EndGod extends End {
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
             // extra[0] = maxBlocks for teleport, extra[1] = maxSolidBlocks
-            case "teleport" -> new SpellStats(20, "Teleport up to 15 blocks in your look direction.", 15, 4);
-            case "desolation_of_time" -> new SpellStats(90,
+            case "teleport" -> new SpellStats(Config.endGodTeleportCD, "Teleport up to 15 blocks in your look direction.", Config.endGodTeleportRange, 4);
+            case "desolation_of_time" -> new SpellStats(Config.endGodDesolationCD,
                     "Within 7 blocks: disable combat abilities 10 s, Weakness I 15 s.",
                     200, // disableDurationTicks (10 s)
                     300  // weaknessDurationTicks (15 s)
@@ -43,8 +44,8 @@ public class EndGod extends End {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" -> "End mobs neutral. Ender pearl cooldown quartered. Ender chest +1 row.";
-            case "utility" -> "Teleport up to 15 blocks through up to 4 solid blocks.";
-            case "combat" -> "Desolation of Time — disable combat 10 s + Weakness I 15 s in 7-block radius.";
+            case "utility" -> "TELEPORT: Teleport up to 15 blocks through up to 4 solid blocks. " + getSpellStats("teleport").getCooldownSecs() + "s cooldown.";
+            case "combat" -> "DESOLATION OF TIME: Disable combat abilities 10s + Weakness I 15s within 7 blocks. " + getSpellStats("desolation_of_time").getCooldownSecs() + "s cooldown.";
             default -> "";
         };
     }

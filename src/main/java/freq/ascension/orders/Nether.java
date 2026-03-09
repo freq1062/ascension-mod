@@ -1,5 +1,6 @@
 package freq.ascension.orders;
 
+import freq.ascension.Config;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -71,12 +72,12 @@ public class Nether implements Order {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "ghast_carry" -> new SpellStats(60,
+            case "ghast_carry" -> new SpellStats(Config.netherGhastCarryCD,
                     "Summons a normal health ghast you can control and fly using. 6 b/s",
                     0);
-            case "soul_drain" -> new SpellStats(60,
+            case "soul_drain" -> new SpellStats(Config.netherSoulDrainCD,
                     "For 10 seconds you gain saturation equivalent to 1/3 of the damage that you deal.",
-                    200); // duration ticks (10s)
+                    Config.netherSoulDrainDuration);
             default -> null;
         };
     }
@@ -86,8 +87,14 @@ public class Nether implements Order {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
                 "Permanent fire resistance. Nether mobs are neutral. Ability to swim in lava. Autocrit when on fire. ";
-            case "utility" -> "Nether util temp";
-            case "combat" -> "Nether combat temp";
+            case "utility" -> {
+                SpellStats s = getSpellStats("ghast_carry");
+                yield "GHAST CARRY: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            }
+            case "combat" -> {
+                SpellStats s = getSpellStats("soul_drain");
+                yield "SOUL DRAIN: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            }
             default -> "";
         };
     }

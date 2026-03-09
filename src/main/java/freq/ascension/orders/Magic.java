@@ -1,6 +1,7 @@
 package freq.ascension.orders;
 
 import freq.ascension.animation.PotionFlame;
+import freq.ascension.Config;
 import freq.ascension.managers.AbilityManager;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.Spell;
@@ -47,7 +48,10 @@ public class Magic implements Order {
             case "passive" -> "Permanent Speed 1. Enchantments are 50% cheaper.";
             case "utility" ->
                 "All potion effects shorter than 5 minutes become 5 minutes, excluding negative effects and resistance.";
-            case "combat" -> "Shapeshift";
+            case "combat" -> {
+                SpellStats s = getSpellStats("shapeshift");
+                yield "SHAPESHIFT: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            }
             default -> "";
         };
     }
@@ -118,9 +122,9 @@ public class Magic implements Order {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "shapeshift" -> new SpellStats(600,
+            case "shapeshift" -> new SpellStats(Config.magicShapeshiftCD,
                     "Transform into the last mob you killed for 30s. Up to 5 forms in history. Die as the mob = die for real.",
-                    600); // duration ticks (30s)
+                    Config.magicShapeshiftDuration);
             default -> null;
         };
     }

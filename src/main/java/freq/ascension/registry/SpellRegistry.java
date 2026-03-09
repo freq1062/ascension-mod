@@ -692,6 +692,21 @@ public class SpellRegistry {
         final boolean hadNoAi = tempHadNoAi;
         target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, freezeTicks, 255, false, false));
         target.setDeltaMovement(0, 0, 0);
+        target.setNoGravity(true);
+
+        // Zero out velocity every tick for the full stun duration so no knockback applies
+        final int capTicks = freezeTicks;
+        int[] stunTicks = {0};
+        ContinuousTask[] stunTaskRef = {null};
+        stunTaskRef[0] = new ContinuousTask(1, () -> {
+            stunTicks[0]++;
+            if (!target.isAlive() || stunTicks[0] >= capTicks) {
+                stunTaskRef[0].stop();
+                return;
+            }
+            target.setDeltaMovement(0, 0, 0);
+        });
+        Ascension.scheduler.schedule(stunTaskRef[0]);
 
         // Apply poison 1 for 10 seconds
         target.addEffect(new MobEffectInstance(MobEffects.POISON, 200, 0, false, true));
@@ -710,6 +725,7 @@ public class SpellRegistry {
                 frozenMob.setNoAi(hadNoAi); // restore original AI state
             }
             target.removeEffect(MobEffects.SLOWNESS);
+            target.setNoGravity(false);
             if (target.isAlive()) {
                 Utils.spellDmg(target, player, finalPullDamage);
                 level.playSound(null, target.getX(), target.getY(), target.getZ(),

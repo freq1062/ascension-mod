@@ -1,5 +1,6 @@
 package freq.ascension.orders;
 
+import freq.ascension.Config;
 import freq.ascension.managers.SpellStats;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -20,13 +21,30 @@ public class SkyGod extends Sky {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "double_jump" -> new SpellStats(160, "Jump twice mid-air. Upon landing, nearby entities take damage.", 6, true);
+            case "double_jump" -> new SpellStats(Config.skyGodDoubleJumpCD, "Jump twice mid-air. Upon landing, nearby entities take damage.", Config.skyDoubleJumpRange, true);
             // Jump height, slam=true for landing AoE
-            case "dash" -> new SpellStats(225, "Dash forward 12 blocks", 12);
-            case "star_strike" -> new SpellStats(675,
+            case "dash" -> new SpellStats(Config.skyGodDashCD, "Dash forward 12 blocks", Config.skyGodDashDistance);
+            case "star_strike" -> new SpellStats(Config.skyGodStarStrikeCD,
                     "Summon a 2x2 beam of light that damages and launches entities",
                     true);
             default -> null;
+        };
+    }
+
+    @Override
+    public String getDescription(String slotType) {
+        return switch (slotType.toLowerCase()) {
+            case "passive" ->
+                "Full fall, dripstone, and projectile immunity. Projectiles are deflected. Double jump slams nearby entities on landing. Breezes are passive.";
+            case "utility" -> {
+                SpellStats s = getSpellStats("dash");
+                yield "DASH: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            }
+            case "combat" -> {
+                SpellStats s = getSpellStats("star_strike");
+                yield "STAR STRIKE: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            }
+            default -> "";
         };
     }
 

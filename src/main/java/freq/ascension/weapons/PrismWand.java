@@ -8,6 +8,7 @@ import org.joml.Vector3f;
 import com.mojang.math.Transformation;
 
 import freq.ascension.Ascension;
+import freq.ascension.Config;
 import freq.ascension.animation.GeometrySource;
 import freq.ascension.api.ContinuousTask;
 import freq.ascension.api.DelayedTask;
@@ -17,6 +18,8 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Brightness;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Display.BlockDisplay;
@@ -64,13 +67,13 @@ public class PrismWand implements MythicWeapon {
     public static final PrismWand INSTANCE = new PrismWand();
 
     /** Maximum targeting range in blocks. */
-    private static final double MAX_RANGE = 64.0;
+    private static double MAX_RANGE = 64.0;
     /** Maximum off-axis angle in degrees for aimbot lock. */
-    private static final double MAX_ANGLE_DEG = 5.0;
+    private static double MAX_ANGLE_DEG = 10.0;
     /** PrismBolt movement speed in blocks per tick. */
-    private static final float BOLT_SPEED = 1.5f;
+    private static float BOLT_SPEED = 1.5f;
     /** Fraction of target max HP dealt as spell damage on bolt impact. */
-    private static final float SPELL_DAMAGE_FRACTION = 0.10f;
+    private static float SPELL_DAMAGE_FRACTION = 0.10f;
     /** Lock-on beam visual thickness. */
     private static final float BEAM_THICKNESS = 0.12f;
     /** PrismBolt visual cube half-size. */
@@ -143,8 +146,8 @@ public class PrismWand implements MythicWeapon {
         Vec3 lookDir = player.getLookAngle();
 
         // Collect candidate entities in a bounding box around the player
-        AABB box = new AABB(eyePos.subtract(MAX_RANGE, MAX_RANGE, MAX_RANGE),
-                            eyePos.add(MAX_RANGE, MAX_RANGE, MAX_RANGE));
+        AABB box = new AABB(eyePos.subtract(Config.prismWandRange, Config.prismWandRange, Config.prismWandRange),
+                            eyePos.add(Config.prismWandRange, Config.prismWandRange, Config.prismWandRange));
         List<LivingEntity> candidates = level.getEntitiesOfClass(
                 LivingEntity.class, box, e -> e != player && e.isAlive());
 
@@ -153,11 +156,14 @@ public class PrismWand implements MythicWeapon {
                 .filter(e -> hasLineOfSight(level, eyePos, e.getEyePosition(), player))
                 .toList();
 
-        LivingEntity target = findTarget(eyePos, lookDir, visible, MAX_RANGE, MAX_ANGLE_DEG);
+        LivingEntity target = findTarget(eyePos, lookDir, visible, Config.prismWandRange, Config.prismWandAngleDeg);
 
         if (target != null) {
-            spawnLockOnBeam(level, eyePos, target);
-            spawnPrismBolt(level, eyePos, target);
+            // Play a chime to confirm lock-on before the bolt launches
+            level.playSound(null, player.blockPosition(),
+                    SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1.0f, 1.5f);
+            BlockDisplay beam = spawnLockOnBeam(level, eyePos, target);
+            spawnPrismBolt(level, eyePos, target, beam);
         } else {
             fireNormalArrow(player, level);
         }
@@ -212,7 +218,7 @@ public class PrismWand implements MythicWeapon {
 
     // ─── VFX: lock-on beam ────────────────────────────────────────────────────
 
-    private static void spawnLockOnBeam(ServerLevel level, Vec3 eyePos, LivingEntity target) {
+    private static BlockDisplay spawnLockOnBeam(ServerLevel level, Vec3 eyePos, LivingEntity target) {
         Vec3 targetEye = target.getEyePosition();
 
         Vector3f from = new Vector3f((float) eyePos.x, (float) eyePos.y, (float) eyePos.z);
@@ -221,7 +227,7 @@ public class PrismWand implements MythicWeapon {
                 (float) (targetEye.y - eyePos.y),
                 (float) (targetEye.z - eyePos.z));
         float dist = toTarget.length();
-        if (dist < 1e-4f) return;
+        if (dist < 1e-4f) return null;
 
         Quaternionf rotation = GeometrySource.faceVector(new Vector3f(toTarget).normalize());
         float T = BEAM_THICKNESS;
@@ -229,7 +235,7 @@ public class PrismWand implements MythicWeapon {
         Vector3f offset = rotation.transform(new Vector3f(-T * 0.5f, 0, -T * 0.5f), new Vector3f());
 
         BlockDisplay beam = EntityType.BLOCK_DISPLAY.create(level, EntitySpawnReason.TRIGGERED);
-        if (beam == null) return;
+        if (beam == null) return null;
         beam.setBlockState(Blocks.PINK_STAINED_GLASS.defaultBlockState());
         beam.setPos(from.x, from.y, from.z);
         beam.setTransformation(new Transformation(offset, rotation, new Vector3f(T, dist, T), null));
@@ -239,15 +245,18 @@ public class PrismWand implements MythicWeapon {
         beam.setViewRange(5.0f);
         level.addFreshEntity(beam);
 
-        // Auto-remove after 2 seconds
+        // Auto-remove after 2 seconds (bolt impact may shrink and discard it earlier)
         Ascension.scheduler.schedule(new DelayedTask(40, () -> {
             if (!beam.isRemoved()) beam.discard();
         }));
+
+        return beam;
     }
 
     // ─── VFX: homing PrismBolt ────────────────────────────────────────────────
 
-    private static void spawnPrismBolt(ServerLevel level, Vec3 startPos, LivingEntity target) {
+    private static void spawnPrismBolt(ServerLevel level, Vec3 startPos, LivingEntity target,
+            BlockDisplay lockOnBeam) {
         float half = BOLT_HALF;
 
         BlockDisplay bolt = EntityType.BLOCK_DISPLAY.create(level, EntitySpawnReason.TRIGGERED);
@@ -304,14 +313,25 @@ public class PrismWand implements MythicWeapon {
 
             if (dist <= 0.7) {
                 // Impact: 10 % max-HP magic damage, then start width-shrink animation
-                float dmg = target.getMaxHealth() * SPELL_DAMAGE_FRACTION;
+                float dmg = target.getMaxHealth() * Config.prismWandDamageFraction;
                 target.hurtServer(level, level.damageSources().magic(), dmg);
                 impacted[0] = true;
+                // Shrink the lock-on beam to zero width over 5 ticks, then discard it.
+                // The 40-tick auto-remove DelayedTask is harmless if it fires after discard.
+                if (lockOnBeam != null && !lockOnBeam.isRemoved()) {
+                    lockOnBeam.setTransformation(new Transformation(
+                            new Vector3f(), new Quaternionf(), new Vector3f(0, 0, 0), null));
+                    lockOnBeam.setTransformationInterpolationDelay(0);
+                    lockOnBeam.setTransformationInterpolationDuration(5);
+                    Ascension.scheduler.schedule(new DelayedTask(6, () -> {
+                        if (!lockOnBeam.isRemoved()) lockOnBeam.discard();
+                    }));
+                }
                 return;
             }
 
             // Move bolt toward target
-            Vec3 step = delta.normalize().scale(BOLT_SPEED);
+            Vec3 step = delta.normalize().scale(Config.prismWandBoltSpeed);
             bolt.setPos(boltPos.x + step.x, boltPos.y + step.y, boltPos.z + step.z);
 
             // Spin the cube around its own center (Y-axis rotation, 10°/tick)

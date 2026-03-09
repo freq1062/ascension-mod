@@ -1,8 +1,10 @@
 package freq.ascension.weapons;
 
 import freq.ascension.Ascension;
+import freq.ascension.Config;
 import freq.ascension.Utils;
 import freq.ascension.animation.Thorns;
+import freq.ascension.api.ContinuousTask;
 import freq.ascension.api.DelayedTask;
 import freq.ascension.orders.Flora;
 import freq.ascension.orders.Order;
@@ -87,13 +89,29 @@ public class VinewrathAxe implements MythicWeapon {
             victimPlayer.getCooldowns().addCooldown(Items.SHIELD.getDefaultInstance(), 200);
 
             if (wasBlocking) {
-                // Vine freeze: Slowness 255 for 60 ticks (3 seconds)
-                Thorns.spawnThorns(attacker, victimPlayer, 6, 60);
-                victimPlayer.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 60, 255, false, false));
+                // Vine freeze: Slowness 255 for stun ticks (configurable, default 3 seconds)
+                Thorns.spawnThorns(attacker, victimPlayer, 6, Config.vinewrathAxeStunTicks);
+                victimPlayer.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, Config.vinewrathAxeStunTicks, 255, false, false));
                 victimPlayer.setDeltaMovement(0, 0, 0);
+                victimPlayer.setNoGravity(true);
 
-                Ascension.scheduler.schedule(new DelayedTask(60, () ->
-                        victimPlayer.removeEffect(MobEffects.SLOWNESS)));
+                // Zero out velocity every tick for the full stun duration so no knockback applies
+                int[] stunTicks = {0};
+                ContinuousTask[] stunTaskRef = {null};
+                stunTaskRef[0] = new ContinuousTask(1, () -> {
+                    stunTicks[0]++;
+                    if (!victimPlayer.isAlive() || stunTicks[0] >= Config.vinewrathAxeStunTicks) {
+                        stunTaskRef[0].stop();
+                        return;
+                    }
+                    victimPlayer.setDeltaMovement(0, 0, 0);
+                });
+                Ascension.scheduler.schedule(stunTaskRef[0]);
+
+                Ascension.scheduler.schedule(new DelayedTask(Config.vinewrathAxeStunTicks, () -> {
+                    victimPlayer.removeEffect(MobEffects.SLOWNESS);
+                    victimPlayer.setNoGravity(false);
+                }));
             }
 
             // 15% max HP spell damage regardless of blocking

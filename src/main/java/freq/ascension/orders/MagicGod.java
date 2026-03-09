@@ -1,6 +1,7 @@
 package freq.ascension.orders;
 
 import freq.ascension.animation.PotionFlame;
+import freq.ascension.Config;
 import freq.ascension.managers.SpellStats;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.EntityTypeTags;
@@ -108,10 +109,23 @@ public class MagicGod extends Magic {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "shapeshift" -> new SpellStats(600,
+            case "shapeshift" -> new SpellStats(Config.magicGodShapeshiftCD,
                     "Transform into the last mob you killed for 45s. Up to 8 forms in history. Boss mobs and other players allowed.",
-                    900); // duration ticks (45s)
+                    Config.magicGodShapeshiftDuration);
             default -> null;
+        };
+    }
+
+    @Override
+    public String getDescription(String slotType) {
+        return switch (slotType.toLowerCase()) {
+            case "passive" -> "Speed 2. Enchantments cost 90% less. All Illagers and Raiders fully ignore you.";
+            case "utility" -> "Beneficial potion effects extended to 10 minutes. Tipped arrows extended to 1 minute.";
+            case "combat" -> {
+                SpellStats s = getSpellStats("shapeshift");
+                yield "SHAPESHIFT: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            }
+            default -> "";
         };
     }
 }

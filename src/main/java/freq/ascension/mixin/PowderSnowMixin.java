@@ -6,6 +6,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import freq.ascension.Ascension;
 import freq.ascension.managers.AbilityManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,6 +18,11 @@ import net.minecraft.world.level.block.state.BlockState;
 
 @Mixin(PowderSnowBlock.class)
 public class PowderSnowMixin {
+
+    static {
+        Ascension.LOGGER.info("[PowderSnow] Mixin class loaded!");
+    }
+
     /**
      * Makes Ocean passive players walk on powder snow as if they have leather boots.
      *
@@ -39,7 +45,10 @@ public class PowderSnowMixin {
     private static void ocean$allowPowderSnowWalk(Entity entity,
             CallbackInfoReturnable<Boolean> cir) {
         if (entity instanceof ServerPlayer player) {
-            if (AbilityManager.anyMatch(player, order -> order.canWalkOnPowderSnow(player))) {
+            boolean hasAbility = AbilityManager.anyMatch(player, order -> order.canWalkOnPowderSnow(player));
+            Ascension.LOGGER.debug("[PowderSnow] canEntityWalkOnPowderSnow called for {} hasAbility={} crouching={}",
+                    player.getName().getString(), hasAbility, player.isShiftKeyDown());
+            if (hasAbility) {
                 // Solid when standing, passable when crouching (allow sinking through).
                 cir.setReturnValue(!player.isShiftKeyDown());
             }
@@ -62,8 +71,11 @@ public class PowderSnowMixin {
             BlockPos pos, Entity entity,
             InsideBlockEffectApplier effectApplier, boolean hasPowderSnowBoots,
             CallbackInfo ci) {
-        if (entity instanceof ServerPlayer player && !player.isShiftKeyDown()) {
-            if (AbilityManager.anyMatch(player, order -> order.canWalkOnPowderSnow(player))) {
+        if (entity instanceof ServerPlayer player) {
+            boolean hasAbility = AbilityManager.anyMatch(player, order -> order.canWalkOnPowderSnow(player));
+            Ascension.LOGGER.debug("[PowderSnow] entityInside called for {} hasAbility={} crouching={}",
+                    player.getName().getString(), hasAbility, player.isShiftKeyDown());
+            if (!player.isShiftKeyDown() && hasAbility) {
                 ci.cancel();
             }
         }

@@ -152,10 +152,10 @@ public class HellfireBeam {
         float T = 0.5f;
         Vector3f coreCenter = rotation.transform(new Vector3f(-T * 0.5f, 0f, -T * 0.5f), new Vector3f());
         new VFXBuilder(level, startVec, Blocks.SHROOMLIGHT.defaultBlockState(),
-                VFXBuilder.instant(coreCenter, rotation, new Vector3f(0f, length, 0f)))  // full length, 0 width
+                VFXBuilder.instant(new Vector3f(0f), rotation, new Vector3f(0f, length, 0f)))  // 0 width, 0 translation
                 .addKeyframeS(coreCenter, null, new Vector3f(T, length, T), 3)           // grow width in 3 ticks
                 .addKeyframeS(coreCenter, null, new Vector3f(T, length, T), 10)          // hold 10 ticks
-                .addKeyframeS(coreCenter, null, new Vector3f(0f, length, 0f), 10, 0);   // shrink width in 10 ticks
+                .addKeyframeS(new Vector3f(0f), null, new Vector3f(0f, length, 0f), 10, 0);   // shrink width in 10 ticks
 
         // Glow — ORANGE_STAINED_GLASS, 0.8 × 0.8 wide. Created directly so rotation task
         // can manage both scale and rotation without conflicting with VFXBuilder.
@@ -171,8 +171,8 @@ public class HellfireBeam {
         glowEntity.setBlockState(Blocks.ORANGE_STAINED_GLASS.defaultBlockState());
         glowEntity.setGlowingTag(true);
         glowEntity.setBrightnessOverride(new Brightness(15, 15));
-        // Start at full beam length but zero width — width animates in via the rotation task.
-        glowEntity.setTransformation(VFXBuilder.instant(glowCenter, rotation, new Vector3f(0f, length, 0f)));
+        // Start at full beam length but zero width and zero translation — width animates in via the rotation task.
+        glowEntity.setTransformation(VFXBuilder.instant(new Vector3f(0f, 0f, 0f), rotation, new Vector3f(0f, length, 0f)));
         glowEntity.setTransformationInterpolationDuration(1);
         level.addFreshEntity(glowEntity);
 

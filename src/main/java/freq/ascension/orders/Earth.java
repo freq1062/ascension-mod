@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import freq.ascension.Config;
 import freq.ascension.Utils;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -83,12 +84,12 @@ public class Earth implements Order {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "supermine" -> new SpellStats(60,
+            case "supermine" -> new SpellStats(Config.earthSupermineCD,
                     "Activate to toggle 2x2 mining. Durability loss applies for half of the blocks mined. Works with Earth passives.",
                     2, 4); // diameter, max durability loss
-            case "magma_bubble" -> new SpellStats(10,
+            case "magma_bubble" -> new SpellStats(Config.earthMagmaBubbleCD,
                     "Scorches enemy with magma spikes in a 4x4 centered area, dealing 30% max hp. Must be activated on land or in lava.",
-                    4, 30, false); // 600
+                    Config.earthMagmaBubbleRange, Config.earthMagmaBubbleDmg, false);
             default -> null;
         };
     }

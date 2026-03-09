@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": ["AAA", "BCB", "DDD"],
+  "key": {
+    "A": "minecraft:echo_shard",
+    "B": "minecraft:netherite_scrap",
+    "C": "minecraft:totem_of_undying",
+    "D": "minecraft:gold_block"
+  },
+  "result": {"id": "minecraft:amethyst_shard", "count": 1}
+}

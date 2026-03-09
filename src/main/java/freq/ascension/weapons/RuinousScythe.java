@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 import freq.ascension.Ascension;
+import freq.ascension.Config;
 import freq.ascension.Utils;
 import freq.ascension.api.DelayedTask;
 import freq.ascension.orders.End;
@@ -122,6 +123,10 @@ public class RuinousScythe implements MythicWeapon {
         // Don't count hits that were blocked by a shield
         if (victim instanceof ServerPlayer victimPlayer && victimPlayer.isBlocking()) return;
 
+        // Only count fully charged swings (attack strength ≥ 0.9).
+        // Spam clicks and any residual sweep-damage calls at low charge are ignored.
+        if (attacker.getAttackStrengthScale(0.5f) < 0.9f) return;
+
         UUID attackerId = attacker.getUUID();
         UUID targetId = victim.getUUID();
 
@@ -155,13 +160,13 @@ public class RuinousScythe implements MythicWeapon {
         }));
 
         // Play charge-up sound for each hit in the combo (not when triggering)
-        if (newCount < 4 && victim.level() instanceof ServerLevel sl) {
+        if (newCount < Config.ruinousScytheHitsNeeded && victim.level() instanceof ServerLevel sl) {
             float pitch = newCount == 1 ? 0.8f : (newCount == 2 ? 1.0f : 1.2f);
             sl.playSound(null, victim.blockPosition(),
                     SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 1.0f, pitch);
         }
 
-        if (newCount >= 4) {
+        if (newCount >= Config.ruinousScytheHitsNeeded) {
             // Reset the counter first to avoid double-trigger on rapid hits.
             attackerCombo.put(targetId, 0);
 

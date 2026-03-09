@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.core.particles.DustParticleOptions;
 
 import freq.ascension.Ascension;
+import freq.ascension.Config;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.orders.End;
 import freq.ascension.orders.Order;
@@ -51,8 +52,11 @@ public class GravitonGauntlet implements MythicWeapon {
     /** Debounce map: stores the last server tick on which the mode-switch fired per player. */
     private static final ConcurrentHashMap<UUID, Long> LAST_MODE_SWITCH_TICK = new ConcurrentHashMap<>();
 
+    /** Throttle map: stores the last tick on which a cooldown message was sent per player. */
+    private static final ConcurrentHashMap<UUID, Long> LAST_COOLDOWN_MESSAGE_TICK = new ConcurrentHashMap<>();
+
     /** Cooldown duration in ticks (20 seconds). */
-    public static final int COOLDOWN_TICKS = 400;
+    public static int COOLDOWN_TICKS = 400;
 
     private static volatile boolean cleanupRegistered = false;
 
@@ -99,7 +103,7 @@ public class GravitonGauntlet implements MythicWeapon {
 
     /** Records the end-of-cooldown tick for the given player. */
     private static void startCooldown(UUID playerId, long currentTick) {
-        COOLDOWN_ENDS.put(playerId, currentTick + COOLDOWN_TICKS);
+        COOLDOWN_ENDS.put(playerId, currentTick + Config.gravitonGauntletCooldown);
     }
 
     // ═══ MODE MANAGEMENT ═══
@@ -128,7 +132,7 @@ public class GravitonGauntlet implements MythicWeapon {
      */
     public static Vec3 calcPullVelocity(Vec3 playerPos, Vec3 entityPos) {
         double d = entityPos.distanceTo(playerPos);
-        double strength = (d / 10.0) * 2.5;
+        double strength = (d / Config.gravitonGauntletRange) * 2.5;
         Vec3 dir = playerPos.subtract(entityPos).normalize();
         return dir.scale(strength).add(0, 0.3, 0);
     }
@@ -140,7 +144,7 @@ public class GravitonGauntlet implements MythicWeapon {
      */
     public static Vec3 calcPushVelocity(Vec3 playerPos, Vec3 entityPos) {
         double d = entityPos.distanceTo(playerPos);
-        double strength = ((10.0 - d) / 10.0) * 2.5;
+        double strength = ((Config.gravitonGauntletRange - d) / Config.gravitonGauntletRange) * 2.5;
         Vec3 dir = entityPos.subtract(playerPos).normalize();
         return dir.scale(strength).add(0, 0.3, 0);
     }
@@ -155,10 +159,12 @@ public class GravitonGauntlet implements MythicWeapon {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             UUID playerId = handler.getPlayer().getUUID();
             LAST_MODE_SWITCH_TICK.remove(playerId);
+            LAST_COOLDOWN_MESSAGE_TICK.remove(playerId);
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> {
             LAST_MODE_SWITCH_TICK.clear();
+            LAST_COOLDOWN_MESSAGE_TICK.clear();
         });
     }
 
@@ -212,10 +218,14 @@ public class GravitonGauntlet implements MythicWeapon {
 
         long currentTick = Ascension.getServer().getTickCount();
         if (isOnCooldown(player.getUUID(), currentTick)) {
-            long ticksLeft = Math.max(0L, COOLDOWN_ENDS.getOrDefault(player.getUUID(), 0L) - currentTick);
-            long secsLeft = (long) Math.ceil(ticksLeft / 20.0);
-            player.sendSystemMessage(Component.literal(
-                    "§cGraviton Gauntlet is cooling down! §7(" + secsLeft + "s left)"));
+            long lastMsg = LAST_COOLDOWN_MESSAGE_TICK.getOrDefault(player.getUUID(), Long.MIN_VALUE);
+            if (currentTick - lastMsg >= 20) {
+                long ticksLeft = Math.max(0L, COOLDOWN_ENDS.getOrDefault(player.getUUID(), 0L) - currentTick);
+                long secsLeft = (long) Math.ceil(ticksLeft / 20.0);
+                player.sendSystemMessage(Component.literal(
+                        "§cGraviton Gauntlet is cooling down! §7(" + secsLeft + "s left)"));
+                LAST_COOLDOWN_MESSAGE_TICK.put(player.getUUID(), currentTick);
+            }
             return;
         }
         startCooldown(player.getUUID(), currentTick);
@@ -229,11 +239,11 @@ public class GravitonGauntlet implements MythicWeapon {
                     SoundEvents.BEACON_AMBIENT, SoundSource.PLAYERS, 1.0f, 1.5f);
         }
 
-        AABB box = AABB.ofSize(playerPos, 20, 20, 20);
+        AABB box = AABB.ofSize(playerPos, Config.gravitonGauntletRange * 2, Config.gravitonGauntletRange * 2, Config.gravitonGauntletRange * 2);
         List<LivingEntity> targets = player.level().getEntitiesOfClass(
                 LivingEntity.class, box,
                 e -> !e.equals(player)
-                        && e.distanceTo(player) <= 10.0
+                        && e.distanceTo(player) <= Config.gravitonGauntletRange
                         && !(e instanceof Player ePlr && ePlr.getAbilities().instabuild));
 
         for (LivingEntity entity : targets) {
@@ -268,8 +278,8 @@ public class GravitonGauntlet implements MythicWeapon {
 
             for (int j = 1; j <= particlesPerLine; j++) {
                 double t = pullMode
-                        ? (10.0 - j * (10.0 / particlesPerLine))  // PULL: start far, move inward
-                        : (j * (10.0 / particlesPerLine));          // PUSH: start near, go outward
+                        ? (Config.gravitonGauntletRange - j * (Config.gravitonGauntletRange / particlesPerLine))  // PULL: start far, move inward
+                        : (j * (Config.gravitonGauntletRange / particlesPerLine));          // PUSH: start near, go outward
                 double px = playerPos.x + dx * t;
                 double py = playerPos.y + 1.0;
                 double pz = playerPos.z + dz * t;

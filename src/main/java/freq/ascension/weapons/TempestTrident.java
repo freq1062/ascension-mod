@@ -39,7 +39,9 @@ import net.minecraft.world.item.component.CustomModelData;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.world.phys.Vec3;
+import freq.ascension.mixin.EntitySharedFlagInvoker;
 
 /**
  * Tempest Trident — mythical weapon for the Ocean order.
@@ -242,6 +244,13 @@ public class TempestTrident implements MythicWeapon {
             player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.STONE_BUTTON_CLICK_ON, SoundSource.PLAYERS, 1.0f, 1.2f);
         }
+
+        // Splash particle burst on every mode switch
+        if (player.level() instanceof ServerLevel sl) {
+            Vec3 pos = player.position();
+            sl.sendParticles(ParticleTypes.SPLASH,    pos.x, pos.y + 1, pos.z, 15, 0.3, 0.3, 0.3, 0.5);
+            sl.sendParticles(ParticleTypes.BUBBLE_POP, pos.x, pos.y + 1, pos.z,  8, 0.2, 0.2, 0.2, 0.2);
+        }
     }
 
     /** Removes {@code removeEnch} and sets {@code addEnch} at the specified level on the stack. */
@@ -338,6 +347,7 @@ public class TempestTrident implements MythicWeapon {
         if (!isLoyaltyModeStack(tridentStack)) return;
 
         // Make the vanilla entity invisible so only our ItemDisplay is visible
+        Ascension.LOGGER.info("[TridentVis] Trident thrown, UUID={}, setting invisible", tridentEntity.getUUID());
         tridentEntity.setInvisible(true);
         // Re-apply after 1 tick to ensure invisibility is sent after entity tracking initializes
         Ascension.scheduler.schedule(new DelayedTask(1, () -> {
@@ -353,7 +363,21 @@ public class TempestTrident implements MythicWeapon {
         displayStack.set(DataComponents.CUSTOM_MODEL_DATA,
                 new CustomModelData(List.of(), List.of(), List.of(MODEL_LOYALTY), List.of()));
         display.setItemStack(displayStack);
+        display.setItemTransform(net.minecraft.world.item.ItemDisplayContext.FIXED);
         display.setPos(tridentEntity.getX(), tridentEntity.getY(), tridentEntity.getZ());
+
+        // Apply initial rotation based on throw velocity so the model faces the right way from frame 0.
+        Vec3 initialVel = tridentEntity.getDeltaMovement();
+        if (initialVel.lengthSqr() > 0.0001) {
+            Vec3 initDir = initialVel.normalize();
+            org.joml.Vector3f fromInit = new org.joml.Vector3f(0, 1, 0);
+            org.joml.Vector3f toInit = new org.joml.Vector3f((float) initDir.x, (float) initDir.y, (float) initDir.z);
+            org.joml.Quaternionf initRot = new org.joml.Quaternionf().rotationTo(fromInit, toInit);
+            display.setTransformation(new com.mojang.math.Transformation(
+                    new org.joml.Vector3f(0, 0, 0), initRot,
+                    new org.joml.Vector3f(1, 1, 1), new org.joml.Quaternionf()));
+        }
+
         display.setTransformationInterpolationDuration(1);
         display.setTransformationInterpolationDelay(-1); // start interpolation immediately
         serverLevel.addFreshEntity(display);
@@ -363,12 +387,28 @@ public class TempestTrident implements MythicWeapon {
         Ascension.scheduler.schedule(new DelayedTask(1, () -> {
             if (!tridentEntity.isRemoved()) tridentEntity.setInvisible(true);
         }));
+        // Remove the vanilla trident entity client-side for all players (it stays server-side)
         Ascension.scheduler.schedule(new DelayedTask(2, () -> {
-            if (!tridentEntity.isRemoved()) tridentEntity.setInvisible(true);
+            if (!tridentEntity.isRemoved()) {
+                ServerLevel level = (ServerLevel) tridentEntity.level();
+                net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket removePacket =
+                    new net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket(tridentEntity.getId());
+                for (ServerPlayer p : level.players()) {
+                    p.connection.send(removePacket);
+                }
+                Ascension.LOGGER.info("[TridentVis] Sent remove packet for trident ID={}", tridentEntity.getId());
+            }
+        }));
+        Ascension.scheduler.schedule(new DelayedTask(3, () -> {
+            if (!tridentEntity.isRemoved()) {
+                tridentEntity.setInvisible(true);
+            }
         }));
 
         // Tick task: sync display position/rotation to the trident every tick
+        int[] tickCount = {0};
         ContinuousTask trackingTask = new ContinuousTask(1, () -> {
+            tickCount[0]++;
             if (tridentEntity.isRemoved()) {
                 // Trident is gone — discard display and cancel task
                 if (!display.isRemoved()) display.discard();
@@ -379,18 +419,43 @@ public class TempestTrident implements MythicWeapon {
             }
             // Re-enforce invisibility each tick — the entity-tracking packet can reset it.
             tridentEntity.setInvisible(true);
+            // Belt-and-suspenders: directly set shared flag 5 (invisible bit) so the
+            // metadata flush every 4 ticks cannot overwrite our invisible state.
+            ((EntitySharedFlagInvoker) tridentEntity).invokeSetSharedFlag(5, true);
+            tridentEntity.setGlowingTag(false);
+            // Every 20 ticks re-send remove packet in case clients re-added the entity via late tracking.
+            if (tickCount[0] % 20 == 0) {
+                ServerLevel level = (ServerLevel) tridentEntity.level();
+                net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket removePacket =
+                    new net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket(tridentEntity.getId());
+                for (ServerPlayer p : level.players()) {
+                    p.connection.send(removePacket);
+                }
+            }
             // Ensure the trident's physics / hitbox remain active.
             tridentEntity.noPhysics = false;
 
-            display.setPos(tridentEntity.getX(), tridentEntity.getY(), tridentEntity.getZ());
+            // Compute travel direction to align display position and rotation.
+            Vec3 vel = tridentEntity.getDeltaMovement();
+            Vec3 dir = vel.lengthSqr() > 0.0001 ? vel.normalize() : Vec3.ZERO;
+
+            // Position display exactly at the trident — the vanilla entity is removed client-side
+            // so the ItemDisplay is the only visible representation.
+            display.setPos(
+                    tridentEntity.getX(),
+                    tridentEntity.getY(),
+                    tridentEntity.getZ());
+            if (Ascension.getServer() != null && Ascension.getServer().getTickCount() % 20 == 0) {
+                Ascension.LOGGER.info("[TridentPos] trident=({},{},{}) display=({},{},{})",
+                    tridentEntity.getX(), tridentEntity.getY(), tridentEntity.getZ(),
+                    display.getX(), display.getY(), display.getZ());
+            }
             display.setTransformationInterpolationDelay(0);
             display.setTransformationInterpolationDuration(1);
 
             // Rotate the item display to face the trident's travel direction.
-            Vec3 vel = tridentEntity.getDeltaMovement();
-            if (vel.lengthSqr() > 0.0001) {
-                Vec3 dir = vel.normalize();
-                org.joml.Vector3f from = new org.joml.Vector3f(0, 0, 1); // trident model forward = Z axis
+            if (dir.lengthSqr() > 0.0001) {
+                org.joml.Vector3f from = new org.joml.Vector3f(0, 1, 0); // trident model tip points +Y in FIXED context
                 org.joml.Vector3f to   = new org.joml.Vector3f((float) dir.x, (float) dir.y, (float) dir.z);
                 org.joml.Quaternionf rotation = new org.joml.Quaternionf().rotationTo(from, to);
                 display.setTransformation(new com.mojang.math.Transformation(

@@ -1,5 +1,6 @@
 package freq.ascension.mixin;
 
+import freq.ascension.Ascension;
 import freq.ascension.registry.WeaponRegistry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -34,6 +35,8 @@ public class ContainerWeaponMixin {
         if (slotId >= 0 && slotId < menu.slots.size()) {
             ItemStack clicked = menu.slots.get(slotId).getItem();
             if (WeaponRegistry.isMythicalWeapon(clicked)) {
+                Ascension.LOGGER.info("[WeaponContainer] Mythical weapon detected: slot={} type={} isPlayerInv={} playerPerm2={}",
+                        slotId, clickType, isPlayerInventory, sp.hasPermissions(2));
                 if (!isPlayerInventory) {
                     // In any external container (chest, etc.) block ALL interactions with the weapon slot
                     sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon!"));
@@ -50,7 +53,7 @@ public class ContainerWeaponMixin {
         }
 
         // Block placing a cursor-held weapon into any slot in a non-player container
-        ItemStack cursor = player.containerMenu.getCarried();
+        ItemStack cursor = ((AbstractContainerMenu) (Object) this).getCarried();
         if (WeaponRegistry.isMythicalWeapon(cursor)) {
             if (!isPlayerInventory) {
                 sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon!"));
@@ -61,7 +64,16 @@ public class ContainerWeaponMixin {
 
         // Block THROW (drop outside window, slotId == -999 with PICKUP click type)
         if (slotId == -999 && clickType == ClickType.PICKUP) {
-            if (WeaponRegistry.isMythicalWeapon(player.containerMenu.getCarried())) {
+            if (WeaponRegistry.isMythicalWeapon(((AbstractContainerMenu) (Object) this).getCarried())) {
+                ci.cancel();
+                return;
+            }
+        }
+
+        // Block QUICK_CRAFT (drag-split across slots) — covers dragging a weapon into a chest
+        if (clickType == ClickType.QUICK_CRAFT && !isPlayerInventory) {
+            if (WeaponRegistry.isMythicalWeapon(((AbstractContainerMenu) (Object) this).getCarried())) {
+                sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon!"));
                 ci.cancel();
                 return;
             }

@@ -192,12 +192,17 @@ public class AscensionMenu {
                                 currentPage = Component.empty();
                                 currentLineCount = 0;
                         }
-                        currentPage.append(buildSectionTitle(s, order, startPageIndex + localPageCount))
+                        currentPage.append(buildSectionTitle(s, order, startPageIndex + localPageCount, data))
                                         .append(Component.literal("\n"));
                         currentLineCount++;
 
                         // 2. Add Wrapped Description
-                        List<String> wrapped = wrapTextPixels(order.getDescription(s.type), 140); // 110-114 is safe
+                        // Use god version of order description if player is a god of this order
+                        boolean isGodOfThisOrder = data.getGodOrder() != null
+                                        && !data.getGodOrder().isEmpty()
+                                        && data.getGodOrder().equalsIgnoreCase(order.getOrderName());
+                        Order displayOrder = isGodOfThisOrder ? order.getVersion("god") : order;
+                        List<String> wrapped = wrapTextPixels(displayOrder.getDescription(s.type), 140);
                         for (String line : wrapped) {
                                 if (currentLineCount >= maxLines) {
                                         finalPages.add(finishPage(currentPage, order,
@@ -266,7 +271,7 @@ public class AscensionMenu {
                 return lines;
         }
 
-        private MutableComponent buildSectionTitle(Section s, Order order, int globalPageForTitle) {
+        private MutableComponent buildSectionTitle(Section s, Order order, int globalPageForTitle, AscensionData data) {
                 HoverEvent hover = new HoverEvent.ShowText(
                                 Component.literal(s.equipped ? "Equipped!"
                                                 : (s.unlocked ? "Click to equip!"
@@ -286,10 +291,18 @@ public class AscensionMenu {
                 }) ? new ClickEvent.RunCommand(cmd) : null;
 
                 MutableComponent title = Component.literal(s.type)
-                                .withStyle(style -> style.withBold(true)
-                                                .withColor(s.equipped ? ChatFormatting.GREEN : ChatFormatting.BLACK)
-                                                .withShadowColor(ChatFormatting.GOLD.getColor()).withHoverEvent(hover)
-                                                .withClickEvent(click));
+                                .withStyle(style -> {
+                                        boolean isGodOrder = data.getGodOrder() != null
+                                                        && !data.getGodOrder().isEmpty()
+                                                        && data.getGodOrder().equalsIgnoreCase(order.getOrderName());
+                                        int shadowColor = isGodOrder
+                                                        ? order.getOrderColor().getValue()
+                                                        : ChatFormatting.GOLD.getColor();
+                                        return style.withBold(true)
+                                                        .withColor(s.equipped ? ChatFormatting.GREEN : ChatFormatting.BLACK)
+                                                        .withShadowColor(shadowColor).withHoverEvent(hover)
+                                                        .withClickEvent(click);
+                                });
 
                 MutableComponent icon = Component.literal((s.unlocked || s.equipped) ? " \uE18B" : " \uE18A")
                                 .withStyle(Style.EMPTY.withColor(0xFFFFFF).withHoverEvent(hover).withClickEvent(click));

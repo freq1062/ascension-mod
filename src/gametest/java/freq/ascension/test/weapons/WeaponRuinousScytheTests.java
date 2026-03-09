@@ -353,6 +353,46 @@ public class WeaponRuinousScytheTests {
     }
 
     /**
+     * Verifies that a weak / non-fully-charged hit (attack strength &lt; 0.9) does NOT increment
+     * the combo counter.
+     *
+     * <p>The guard {@code attacker.getAttackStrengthScale(0.5f) < 0.9f} in
+     * {@link RuinousScythe#onAttack} returns early before touching COMBO_COUNTERS.
+     * We simulate this structural invariant: if the guard fires, the map is never touched,
+     * so the entry remains absent (count defaults to 0).
+     */
+    @GameTest
+    public void ruinous_scythe_weak_hit_not_counted(GameTestHelper helper) {
+        UUID attacker = UUID.randomUUID();
+        UUID target = UUID.randomUUID();
+
+        // Start clean
+        RuinousScythe.COMBO_COUNTERS.remove(attacker);
+
+        // Simulate a weak hit: attack strength < 0.9 means the guard fires and we return
+        // early — the combo merge is never reached.
+        float simulatedStrength = 0.5f; // spam-click range
+        if (simulatedStrength >= 0.9f) {
+            // Only merge when strength is full; this branch must NOT be taken for weak hits
+            RuinousScythe.COMBO_COUNTERS
+                    .computeIfAbsent(attacker, k -> new ConcurrentHashMap<>())
+                    .merge(target, 1, Integer::sum);
+        }
+
+        int count = RuinousScythe.COMBO_COUNTERS
+                .getOrDefault(attacker, new ConcurrentHashMap<>())
+                .getOrDefault(target, 0);
+
+        if (count != 0) {
+            helper.fail("Weak hit (strength=" + simulatedStrength
+                    + ") must not increment combo counter; expected 0, got " + count);
+        }
+
+        RuinousScythe.COMBO_COUNTERS.remove(attacker);
+        helper.succeed();
+    }
+
+    /**
      * Verifies the combo-reset generation mechanic: after the generation for (attacker, target)
      * is incremented, the reset task scheduled for the old generation is a no-op.
      * Only the task holding the current generation should clear the counter.

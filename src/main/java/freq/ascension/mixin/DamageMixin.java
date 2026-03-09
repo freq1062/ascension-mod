@@ -36,8 +36,12 @@ public abstract class DamageMixin {
             AbilityManager.broadcastWeapon(attacker, w -> w.onAttack(attacker, victim, ascension$currentDamageContext));
 
             // Check if attacker has thorns active and trigger on victim
+            // Shield blocks should not trigger the Thorns spell
             if (SpellRegistry.isThornsActive(attacker)) {
-                SpellRegistry.executeThorns(attacker, victim);
+                boolean victimBlocking = victim instanceof ServerPlayer vp && vp.isBlocking();
+                if (!victimBlocking) {
+                    SpellRegistry.executeThorns(attacker, victim);
+                }
             }
         }
 

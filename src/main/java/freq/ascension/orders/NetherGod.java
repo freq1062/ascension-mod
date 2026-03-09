@@ -1,5 +1,6 @@
 package freq.ascension.orders;
 
+import freq.ascension.Config;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
@@ -50,13 +51,30 @@ public class NetherGod extends Nether {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "ghast_carry" -> new SpellStats(60,
+            case "ghast_carry" -> new SpellStats(Config.netherGodGhastCarryCD,
                     "Summons a double-health happy ghast you can fly using. 11.5 b/s.",
                     0);
-            case "soul_drain" -> new SpellStats(60,
+            case "soul_drain" -> new SpellStats(Config.netherGodSoulDrainCD,
                     "For 15 seconds you gain saturation equivalent to 1/2 of the damage that you deal.",
-                    300); // duration ticks (15s)
+                    Config.netherGodSoulDrainDuration);
             default -> null;
+        };
+    }
+
+    @Override
+    public String getDescription(String slotType) {
+        return switch (slotType.toLowerCase()) {
+            case "passive" ->
+                "Fire resistance. All Nether mobs fully passive (never aggro). Swim in lava. Autocrit when on fire.";
+            case "utility" -> {
+                SpellStats s = getSpellStats("ghast_carry");
+                yield "GHAST CARRY: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            }
+            case "combat" -> {
+                SpellStats s = getSpellStats("soul_drain");
+                yield "SOUL DRAIN: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            }
+            default -> "";
         };
     }
 }

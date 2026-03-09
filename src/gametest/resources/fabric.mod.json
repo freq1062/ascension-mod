@@ -27,6 +27,7 @@
 			"freq.ascension.test.misc.DataPersistenceTests",
 			"freq.ascension.test.misc.DragonCurveTests",
 			"freq.ascension.test.misc.GameplayTests",
+			"freq.ascension.test.misc.SetInfluenceCommandTests",
 			"freq.ascension.test.weapons.WeaponColossusHammerTests",
 			"freq.ascension.test.weapons.WeaponTempestTridentTests",
 			"freq.ascension.test.weapons.WeaponRuinousScytheTests",

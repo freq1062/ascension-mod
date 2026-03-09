@@ -1,5 +1,6 @@
 package freq.ascension.orders;
 
+import freq.ascension.Config;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -73,15 +74,15 @@ public class OceanGod extends Ocean {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "dolphins_grace" -> new SpellStats(60,
+            case "dolphins_grace" -> new SpellStats(Config.oceanGodDolphinsGraceCD,
                     "Cycle between no speed boost, Dolphins' Grace 1, and Dolphins' Grace 2.",
                     0);
-            case "molecular_flux" -> new SpellStats(300,
+            case "molecular_flux" -> new SpellStats(Config.oceanGodMolecularFluxCD,
                     "Transforms water-related blocks between states",
-                    40, 15); // range(blocks), duration(seconds)
-            case "drown" -> new SpellStats(600,
+                    Config.oceanGodMolecularFluxRange, Config.oceanGodMolecularFluxDuration);
+            case "drown" -> new SpellStats(Config.oceanGodDrownCD,
                     "Drowns players within 12 blocks for 10s. Grants Haste 1 to caster.",
-                    10, 12); // duration, radius
+                    Config.oceanGodDrownDuration, Config.oceanGodDrownRadius);
             default -> null;
         };
     }
@@ -89,5 +90,24 @@ public class OceanGod extends Ocean {
     /** Remove dolphins grace state on player disconnect or ability unequip. */
     public static void clearState(UUID playerId) {
         DOLPHINS_GRACE_STATE.remove(playerId);
+    }
+
+    @Override
+    public String getDescription(String slotType) {
+        return switch (slotType.toLowerCase()) {
+            case "passive" ->
+                "Conduit Power. Haste 2 while submerged. Autocrit in water or during Drown. DOLPHIN'S GRACE: Cycle off \u2192 DG1 \u2192 DG2.";
+            case "utility" -> {
+                SpellStats s = getSpellStats("molecular_flux");
+                yield "MOLECULAR FLUX: Transform water-related blocks in a " + s.getInt(0)
+                        + "-block range for " + s.getInt(1) + "s. " + s.getCooldownSecs() + "s cooldown.";
+            }
+            case "combat" -> {
+                SpellStats s = getSpellStats("drown");
+                yield "DROWN: Drowns players within " + s.getInt(1) + " blocks for " + s.getInt(0)
+                        + "s. Grants Haste 1 to caster. " + s.getCooldownSecs() + "s cooldown.";
+            }
+            default -> "";
+        };
     }
 }

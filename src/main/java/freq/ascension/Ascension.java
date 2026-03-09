@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -17,7 +18,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Interaction;
 import net.minecraft.world.level.Level;
-
+import net.minecraft.world.level.block.Blocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +37,8 @@ import freq.ascension.commands.AscensionMenuOpenCommand;
 import freq.ascension.commands.BindCommand;
 import freq.ascension.commands.GetInfluenceCommand;
 import freq.ascension.commands.GiveInfluenceCommand;
+import freq.ascension.commands.ReloadConfigCommand;
+import freq.ascension.commands.SetInfluenceCommand;
 import freq.ascension.commands.LossCounterCommand;
 import freq.ascension.commands.SetPoiCommand;
 import freq.ascension.commands.SetRankCommand;
@@ -100,6 +103,57 @@ public class Ascension implements ModInitializer {
 			server = s;
 			scheduler.tick(s.getTickCount());
 			PromotionHandler.cleanExpired(s.getTickCount());
+
+			// Ocean passive: convert powder_snow → snow_block under the player's feet so
+			// they walk on top naturally. Restored to powder_snow on crouch, leave, or
+			// disconnect.
+			for (ServerPlayer player : s.getPlayerList().getPlayers()) {
+				if (!AbilityManager.anyMatch(player, order -> order.canWalkOnPowderSnow(player))) continue;
+
+				java.util.Set<BlockPos> converted = freq.ascension.orders.Ocean.CONVERTED_SNOW
+						.computeIfAbsent(player.getUUID(), id ->
+								java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>()));
+
+				BlockPos feetPos = player.blockPosition();
+				BlockPos belowPos = feetPos.below();
+				ServerLevel level = (ServerLevel) player.level();
+
+				// Restore any converted blocks no longer under the player
+				java.util.Set<BlockPos> toRestore = new java.util.HashSet<>(converted);
+				toRestore.remove(feetPos);
+				toRestore.remove(belowPos);
+				for (BlockPos pos : toRestore) {
+					converted.remove(pos);
+					if (level.getBlockState(pos).is(Blocks.SNOW_BLOCK)) {
+						level.setBlock(pos, Blocks.POWDER_SNOW.defaultBlockState(),
+								net.minecraft.world.level.block.Block.UPDATE_ALL);
+					}
+				}
+
+				if (player.isShiftKeyDown()) {
+					// Crouching: restore everything, let them sink into the powder snow
+					freq.ascension.orders.Ocean.restoreConvertedSnow(player);
+					continue;
+				}
+
+				// Convert powder_snow blocks at feet or one below
+				for (BlockPos checkPos : new BlockPos[]{feetPos, belowPos}) {
+					if (level.getBlockState(checkPos).is(Blocks.POWDER_SNOW)) {
+						boolean alreadyConverted = converted.contains(checkPos);
+						level.setBlock(checkPos, Blocks.SNOW_BLOCK.defaultBlockState(),
+								net.minecraft.world.level.block.Block.UPDATE_ALL);
+						converted.add(checkPos);
+						if (!alreadyConverted) {
+							level.playSound(null, checkPos,
+									net.minecraft.sounds.SoundEvents.POWDER_SNOW_STEP,
+									net.minecraft.sounds.SoundSource.BLOCKS, 0.8f, 1.1f);
+							level.sendParticles(net.minecraft.core.particles.ParticleTypes.SNOWFLAKE,
+									checkPos.getX() + 0.5, checkPos.getY() + 1.05, checkPos.getZ() + 0.5,
+									12, 0.4, 0.05, 0.4, 0.02);
+						}
+					}
+				}
+			}
 		});
 
 		// PacketEvents listener temporarily disabled
@@ -236,6 +290,33 @@ public class Ascension implements ModInitializer {
 				LOGGER.warn("Failed to clear disguise on join for " + handler.getPlayer().getName().getString() + ": "
 						+ e.getMessage());
 			}
+
+			// Re-send fake leather boots on reconnect for Ocean passive players so
+			// the client immediately predicts powder-snow walk correctly.
+			ServerPlayer joining = handler.getPlayer();
+			if (AbilityManager.anyMatch(joining, order -> order.canWalkOnPowderSnow(joining))) {
+				// Defer by one tick to ensure the entity tracker is set up first.
+				server.execute(() -> freq.ascension.orders.Ocean.sendFakeLeatherBoots(joining));
+			}
+
+			// Grant custom recipe book unlocks on join (deferred 1 tick so the player
+			// entity is fully initialized before awardRecipes writes the advancement).
+			scheduler.schedule(new freq.ascension.api.DelayedTask(1, () -> {
+				java.util.List<net.minecraft.world.item.crafting.RecipeHolder<?>> toUnlock = new java.util.ArrayList<>();
+				server.getRecipeManager()
+						.byKey(net.minecraft.resources.ResourceKey.create(
+								net.minecraft.core.registries.Registries.RECIPE,
+								net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("ascension", "challengers_sigil")))
+						.ifPresent(toUnlock::add);
+				server.getRecipeManager()
+						.byKey(net.minecraft.resources.ResourceKey.create(
+								net.minecraft.core.registries.Registries.RECIPE,
+								net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("ascension", "influence_restoration")))
+						.ifPresent(toUnlock::add);
+				if (!toUnlock.isEmpty()) {
+					joining.awardRecipes(toUnlock);
+				}
+			}));
 		});
 
 		// Clear disguises when players disconnect to prevent DisguiseLib errors on
@@ -260,6 +341,14 @@ public class Ascension implements ModInitializer {
 			freq.ascension.orders.Nether.clearFireTracking(disconnectedUUID);
 			// Clean up POI interact debounce map
 			lastPoiInteractTick.remove(disconnectedUUID);
+
+			// Restore real boots on the client before disconnect so the fake equipment
+			// state is not persisted in the client's session (cosmetic cleanup).
+			ServerPlayer leaving = handler.getPlayer();
+			if (AbilityManager.anyMatch(leaving, order -> order.canWalkOnPowderSnow(leaving))) {
+				freq.ascension.orders.Ocean.restoreConvertedSnow(leaving);
+				freq.ascension.orders.Ocean.restoreRealBoots(leaving);
+			}
 		});
 
 		// Clear all disguises on server shutdown
@@ -290,6 +379,7 @@ public class Ascension implements ModInitializer {
 
 			try {
 				stoppingServer.getPlayerList().getPlayers().forEach(player -> {
+					freq.ascension.orders.Ocean.restoreConvertedSnow(player);
 					try {
 						xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
 						disguise.removeDisguise();
@@ -307,6 +397,7 @@ public class Ascension implements ModInitializer {
 			BindCommand.register(dispatcher);
 			GetInfluenceCommand.register(dispatcher);
 			GiveInfluenceCommand.register(dispatcher);
+			SetInfluenceCommand.register(dispatcher);
 			freq.ascension.commands.GiveSigilCommand.register(dispatcher);
 			UnbindCommand.register(dispatcher);
 			WithdrawCommand.register(dispatcher);
@@ -318,6 +409,7 @@ public class Ascension implements ModInitializer {
 			// Register click-action command for book UI
 			freq.ascension.commands.AscensionActionCommand.register(dispatcher);
 			freq.ascension.commands.ShapelistCommand.register(dispatcher);
+			ReloadConfigCommand.register(dispatcher);
 		});
 
 		LOGGER.info("Ascension SMP Mod Loaded!");

@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import eu.pb4.sgui.api.elements.GuiElementInterface;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import freq.ascension.Ascension;
+import freq.ascension.Config;
 import freq.ascension.managers.EnderRowManager;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -93,8 +94,8 @@ public class End implements Order {
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
             // extra[0] = maxBlocks for teleport
-            case "teleport" -> new SpellStats(30, "Teleport up to 10 blocks in your look direction.", 10);
-            case "desolation_of_time" -> new SpellStats(120,
+            case "teleport" -> new SpellStats(Config.endTeleportCD, "Teleport up to 10 blocks in your look direction.", Config.endTeleportRange);
+            case "desolation_of_time" -> new SpellStats(Config.endDesolationCD,
                     "Within 7 blocks: disable combat abilities 5 s, Weakness I 10 s.",
                     100, // disableDurationTicks (5 s)
                     200  // weaknessDurationTicks (10 s)
@@ -108,8 +109,8 @@ public class End implements Order {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
                 "End mobs neutral. Ender pearl cooldown halved. Ender chest +1 row.";
-            case "utility" -> "Teleport up to 10 blocks.";
-            case "combat" -> "Desolation of Time — disable combat + Weakness I in radius.";
+            case "utility" -> "TELEPORT: Teleport up to 10 blocks in your look direction. " + getSpellStats("teleport").getCooldownSecs() + "s cooldown.";
+            case "combat" -> "DESOLATION OF TIME: Disable combat abilities 5s + Weakness I 10s within 7 blocks. " + getSpellStats("desolation_of_time").getCooldownSecs() + "s cooldown.";
             default -> "";
         };
     }

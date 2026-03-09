@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import freq.ascension.Config;
 import freq.ascension.Utils;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -73,12 +74,12 @@ public class Sky implements Order {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "double_jump" -> new SpellStats(160, "Jump twice mid-air to double jump", 6, false);
+            case "double_jump" -> new SpellStats(Config.skyDoubleJumpCD, "Jump twice mid-air to double jump", Config.skyDoubleJumpRange, false);
             // Jump height, slam
-            case "dash" -> new SpellStats(225, "Dash forward 9 blocks", 9);
-            case "star_strike" -> new SpellStats(10,
+            case "dash" -> new SpellStats(Config.skyDashCD, "Dash forward 9 blocks", Config.skyDashDistance);
+            case "star_strike" -> new SpellStats(Config.skyStarStrikeCD,
                     "Summon a 2x2 beam of light that damages and launches entities",
-                    false); // 675
+                    false);
             default -> null;
         };
     }
@@ -86,9 +87,15 @@ public class Sky implements Order {
     @Override
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
-            case "passive" -> "Fall damage immunity. Double jump: Jump twice quickly to activate. Breezes are passive.";
-            case "utility" -> "Dash ability.";
-            case "combat" -> "Star Strike ability.";
+            case "passive" -> "Fall damage immunity. Dripstone deals 50% less. Double jump: press jump twice. Incoming projectiles slowed by 50%. Breezes are passive.";
+            case "utility" -> {
+                SpellStats s = getSpellStats("dash");
+                yield "DASH: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            }
+            case "combat" -> {
+                SpellStats s = getSpellStats("star_strike");
+                yield "STAR STRIKE: " + s.getDescription();
+            }
             default -> "";
         };
     }

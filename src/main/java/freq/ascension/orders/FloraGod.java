@@ -1,5 +1,6 @@
 package freq.ascension.orders;
 
+import freq.ascension.Config;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
@@ -65,10 +66,24 @@ public class FloraGod extends Flora {
     @Override
     public freq.ascension.managers.SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "thorns" -> new freq.ascension.managers.SpellStats(60,
+            case "thorns" -> new freq.ascension.managers.SpellStats(Config.floraGodThornsCD,
                     "Impale your opponents from the ground, freezing them for 4 seconds and giving them poison 1 for 10 seconds. Deals 25% max health. Pull-out damage: 15%.",
                     0);
             default -> null;
+        };
+    }
+
+    @Override
+    public String getDescription(String slotType) {
+        return switch (slotType.toLowerCase()) {
+            case "passive" ->
+                "Regen I. Poison immune. Double saturation. Bees and Creakings are passive. Golden apples grant +2 Absorption and extra Regen I for 15s.";
+            case "utility" -> "CREEPER TRUCE: Creepers are neutral near plants or while carrying any plant item.";
+            case "combat" -> {
+                freq.ascension.managers.SpellStats s = getSpellStats("thorns");
+                yield "THORNS: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            }
+            default -> "";
         };
     }
 

@@ -1,14 +1,10 @@
 package freq.ascension.managers;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
-
-import com.mojang.math.Transformation;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
@@ -20,16 +16,12 @@ import freq.ascension.weapons.MythicWeapon;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Brightness;
-import net.minecraft.world.entity.Display.BlockDisplay;
-import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.item.ItemStack;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
 
 /**
  * Server-wide persistent store that tracks which player is currently the god of each order.
@@ -365,7 +357,7 @@ public class GodManager extends SavedData {
     // ─── Promotion Animation ─────────────────────────────────────────────────
 
     void playPromotionAnimation(ServerPlayer player) {
-        net.minecraft.server.level.ServerLevel level = (net.minecraft.server.level.ServerLevel) player.level();
+        ServerLevel level = (ServerLevel) player.level();
 
         double px = player.getX(), py = player.getY(), pz = player.getZ();
 
@@ -373,55 +365,26 @@ public class GodManager extends SavedData {
         level.playSound(null, px, py, pz, net.minecraft.sounds.SoundEvents.BEACON_ACTIVATE,
                 net.minecraft.sounds.SoundSource.PLAYERS, 1.2f, 0.9f);
 
-        // Spawn 12 OCHRE_FROGLIGHT block displays orbiting the player in random circles
-        List<BlockDisplay> orbiters = new ArrayList<>();
-        List<double[]> orbitParams = new ArrayList<>(); // [radius, heightOffset, speed, angle]
-
-        ThreadLocalRandom rng = ThreadLocalRandom.current();
-        for (int i = 0; i < 12; i++) {
-            double radius = 1.5 + rng.nextDouble() * 2.0;       // 1.5 to 3.5
-            double heightOffset = -1.0 + rng.nextDouble() * 3.0; // -1 to +2
-            double speed = 0.05 + rng.nextDouble() * 0.10;       // 0.05 to 0.15 rad/tick
-            double startAngle = rng.nextDouble() * 2 * Math.PI;
-
-            double bx = px + radius * Math.cos(startAngle);
-            double by = py + heightOffset;
-            double bz = pz + radius * Math.sin(startAngle);
-
-            BlockDisplay bd = EntityType.BLOCK_DISPLAY.create(level, EntitySpawnReason.TRIGGERED);
-            if (bd != null) {
-                bd.setPos(bx, by, bz);
-                bd.setBlockState(Blocks.OCHRE_FROGLIGHT.defaultBlockState());
-                bd.setTransformation(new Transformation(
-                        new Vector3f(-0.15f, -0.15f, -0.15f),
-                        new Quaternionf(),
-                        new Vector3f(0.3f, 0.3f, 0.3f),
-                        new Quaternionf()));
-                bd.setBrightnessOverride(Brightness.FULL_BRIGHT);
-                level.addFreshEntity(bd);
-                orbiters.add(bd);
-                orbitParams.add(new double[]{radius, heightOffset, speed, startAngle});
-            }
-        }
-
-        // Orbit task: runs for 70 ticks, then discards all block displays
+        // Particle orbit task: 8 "orbs" of END_ROD particles rotating around the player,
+        // each trailed by ELECTRIC_SPARK particles. Runs for 70 ticks (3.5 s).
         int[] orbitTick = {0};
         ContinuousTask orbitTask = new ContinuousTask(1, () -> {
             orbitTick[0]++;
-            for (int i = 0; i < orbiters.size(); i++) {
-                BlockDisplay bd = orbiters.get(i);
-                if (bd.isRemoved()) continue;
-                double[] p = orbitParams.get(i);
-                p[3] += p[2]; // increment angle by speed
-                double nx = px + p[0] * Math.cos(p[3]);
-                double ny = py + p[1];
-                double nz = pz + p[0] * Math.sin(p[3]);
-                bd.setPos(nx, ny, nz);
-            }
-            if (orbitTick[0] >= 70) {
-                for (BlockDisplay bd : orbiters) {
-                    if (!bd.isRemoved()) bd.discard();
-                }
+            for (int i = 0; i < 8; i++) {
+                double angle = (Math.PI * 2.0 * i / 8) + (orbitTick[0] * 0.08);
+                double radius = 2.5;
+                double x = px + Math.cos(angle) * radius;
+                double y = py + 1.5 + Math.sin(orbitTick[0] * 0.05 + i) * 0.5;
+                double z = pz + Math.sin(angle) * radius;
+
+                level.sendParticles(ParticleTypes.END_ROD, x, y, z, 1, 0, 0, 0, 0);
+
+                // Electric spark trail slightly behind each orb
+                double trailAngle = angle - 0.15;
+                double trailX = px + Math.cos(trailAngle) * radius;
+                double trailZ = pz + Math.sin(trailAngle) * radius;
+                level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                        trailX, y, trailZ, 2, 0.05, 0.05, 0.05, 0.01);
             }
         }) {
             @Override
@@ -433,7 +396,7 @@ public class GodManager extends SavedData {
 
         // Totem particle ring task — unchanged, runs for 70 ticks
         int[] particleTick = {0};
-        freq.ascension.api.ContinuousTask particleTask = new freq.ascension.api.ContinuousTask(1, () -> {
+        ContinuousTask particleTask = new ContinuousTask(1, () -> {
             particleTick[0]++;
             if (particleTick[0] % 3 == 0) {
                 // Totem particles in a ring around the player
@@ -443,7 +406,7 @@ public class GodManager extends SavedData {
                     double angle = 2 * Math.PI * j / ringCount;
                     double tx = px + radius * Math.cos(angle);
                     double tz = pz + radius * Math.sin(angle);
-                    level.sendParticles(net.minecraft.core.particles.ParticleTypes.TOTEM_OF_UNDYING,
+                    level.sendParticles(ParticleTypes.TOTEM_OF_UNDYING,
                             tx, py + 1.0, tz, 2, 0.0, 0.4, 0.0, 0.05);
                 }
             }
