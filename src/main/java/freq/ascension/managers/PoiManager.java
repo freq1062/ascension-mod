@@ -168,6 +168,67 @@ public class PoiManager extends SavedData {
         return Collections.unmodifiableSet(packedPositions.keySet());
     }
 
+    /**
+     * Returns a map of all POI positions (for cleanup on server start).
+     */
+    public Map<String, BlockPos> getPoiLocations() {
+        Map<String, BlockPos> locations = new HashMap<>();
+        for (Map.Entry<String, Long> entry : packedPositions.entrySet()) {
+            locations.put(entry.getKey(), BlockPos.of(entry.getValue()));
+        }
+        return locations;
+    }
+
+    /**
+     * Cleans up ALL stale POI entities from previous server runs across all POI locations.
+     * Should be called once on SERVER_STARTED before spawning new POI entities.
+     */
+    public static void cleanupStalePOIs(ServerLevel overworld, PoiManager poi) {
+        List<net.minecraft.world.entity.Entity> staleDisplays = new ArrayList<>();
+        List<net.minecraft.world.entity.Entity> staleInteractions = new ArrayList<>();
+
+        Map<String, BlockPos> poiLocations = poi.getPoiLocations();
+
+        // Scan all entities in the overworld
+        for (net.minecraft.world.entity.Entity e : overworld.getAllEntities()) {
+            // Identify POI entities by their custom names matching our pattern
+            if (e instanceof Display.ItemDisplay && e.hasCustomName()) {
+                String name = e.getCustomName().getString();
+                if (name.startsWith("ascension_poi_display_")) {
+                    // Extract order key from name and check if it's near a known POI
+                    String key = name.substring("ascension_poi_display_".length());
+                    BlockPos poiPos = poiLocations.get(key);
+                    if (poiPos != null && e.blockPosition().distSqr(poiPos) < 16) {
+                        staleDisplays.add(e);
+                    }
+                }
+            } else if (e instanceof Interaction && e.hasCustomName()) {
+                String name = e.getCustomName().getString();
+                if (name.startsWith("ascension_poi_")) {
+                    // Extract order key from name and check if it's near a known POI
+                    String key = name.substring("ascension_poi_".length());
+                    BlockPos poiPos = poiLocations.get(key);
+                    if (poiPos != null && e.blockPosition().distSqr(poiPos) < 16) {
+                        staleInteractions.add(e);
+                    }
+                }
+            }
+        }
+
+        // Remove all stale POI entities
+        for (net.minecraft.world.entity.Entity e : staleDisplays) {
+            e.discard();
+        }
+        for (net.minecraft.world.entity.Entity e : staleInteractions) {
+            e.discard();
+        }
+
+        if (!staleDisplays.isEmpty() || !staleInteractions.isEmpty()) {
+            Ascension.LOGGER.info("[PoiManager] Cleaned up {} stale POI displays and {} interactions",
+                    staleDisplays.size(), staleInteractions.size());
+        }
+    }
+
     // ─── Mutation ─────────────────────────────────────────────────────────────
 
     public void setPoiRadius(String orderName, int radius) {
@@ -251,10 +312,9 @@ public class PoiManager extends SavedData {
         display.setItemStack(createOrderSkull(key));
         display.setCustomName(Component.literal("ascension_poi_display_" + key));
         display.setPos(cx, cy, cz);
-        // Scale 1.0; ItemDisplay in FIXED context centres the model at the entity origin,
-        // so no translation offset is needed.
+        // Player heads have their pivot at bottom-center; offset by (0, -0.5, 0) to rotate around visual center
         display.setTransformation(new Transformation(
-                new Vector3f(0f, 0f, 0f),
+                new Vector3f(0f, -0.5f, 0f),
                 new Quaternionf(),
                 new Vector3f(1.0f, 1.0f, 1.0f),
                 new Quaternionf()));
@@ -300,9 +360,9 @@ public class PoiManager extends SavedData {
                     .rotateY((float) Math.toRadians(angles[1]))
                     .rotateZ((float) Math.toRadians(angles[2]));
 
-            // FIXED context already centres the model at entity origin — no pivot correction needed.
+            // Player heads have their pivot at bottom-center; maintain (0, -0.5, 0) offset for centered rotation
             disp.setTransformation(
-                    new Transformation(new Vector3f(0f, 0f, 0f), rot, new Vector3f(1.0f, 1.0f, 1.0f), new Quaternionf()));
+                    new Transformation(new Vector3f(0f, -0.5f, 0f), rot, new Vector3f(1.0f, 1.0f, 1.0f), new Quaternionf()));
             disp.setTransformationInterpolationDuration(2);
             disp.setTransformationInterpolationDelay(0);
         });

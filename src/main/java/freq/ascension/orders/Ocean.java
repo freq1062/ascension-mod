@@ -1,10 +1,5 @@
 package freq.ascension.orders;
 
-import java.util.Collections;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
 import freq.ascension.Ascension;
 import freq.ascension.Config;
 import freq.ascension.managers.ActiveSpell;
@@ -31,22 +26,6 @@ import net.minecraft.world.level.block.Blocks;
 
 public class Ocean implements Order {
     public static final Ocean INSTANCE = new Ocean();
-
-    /** Tracks powder_snow blocks temporarily replaced with snow_block per-player. */
-    public static final ConcurrentHashMap<UUID, Set<BlockPos>> CONVERTED_SNOW = new ConcurrentHashMap<>();
-
-    /** Restores all converted snow_block positions back to powder_snow for a player. */
-    public static void restoreConvertedSnow(ServerPlayer player) {
-        Set<BlockPos> converted = CONVERTED_SNOW.remove(player.getUUID());
-        if (converted == null || converted.isEmpty()) return;
-        ServerLevel level = (ServerLevel) player.level();
-        for (BlockPos pos : converted) {
-            if (level.getBlockState(pos).is(Blocks.SNOW_BLOCK)) {
-                level.setBlock(pos, Blocks.POWDER_SNOW.defaultBlockState(), Block.UPDATE_ALL);
-                level.playSound(null, pos, SoundEvents.POWDER_SNOW_STEP, SoundSource.BLOCKS, 0.6f, 0.9f);
-            }
-        }
-    }
 
     @Override
     public Order getVersion(String rank) {
@@ -119,7 +98,6 @@ public class Ocean implements Order {
     @Override
     public void onUnequip(ServerPlayer player, String slotType) {
         if ("passive".equals(slotType)) {
-            restoreConvertedSnow(player);
             restoreRealBoots(player);
         }
     }

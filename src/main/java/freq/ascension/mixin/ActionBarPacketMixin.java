@@ -50,9 +50,10 @@ public class ActionBarPacketMixin {
         if (packet instanceof ClientboundSetActionBarTextPacket actionBarPacket) {
             Component message = actionBarPacket.text();
             String text = message.getString().toLowerCase();
-            return text.contains("disguised as") ||
-                    text.contains("you are disguised") ||
-                    (text.contains("disguised") && text.length() < 100);
+            // Only filter DisguiseLib's specific messages - be precise to avoid blocking spell cooldowns
+            return text.startsWith("you are disguised as") || 
+                   text.startsWith("you are now disguised as") ||
+                   text.startsWith("disguised as");
         }
         return false;
     }

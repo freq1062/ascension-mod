@@ -54,6 +54,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * <b>Why no Fabric API event exists:</b> There is no pre-join entity-load event
  * that provides access to the partially-loaded ServerPlayer entity before the
  * DisguiseLib injection runs; hence, a Mixin is the only viable option.
+ * 
+ * <p>
+ * <b>Compile warnings:</b> The Mixin annotation processor emits warnings about
+ * "Cannot find target method" for both {@code setGameProfile} and
+ * {@code disguiselib$constructFakePlayer}. These warnings are expected and safe
+ * to ignore — the methods are added by DisguiseLib at runtime via its own Mixins
+ * and do not exist at compile time. The {@code require = 0} parameter on both
+ * {@code @Inject} annotations ensures the game will not crash if DisguiseLib
+ * changes its implementation in future versions.
  */
 @Mixin(value = Entity.class, priority = 1100)
 public abstract class DisguiseLoadMixin {
@@ -76,8 +85,13 @@ public abstract class DisguiseLoadMixin {
      * {@code remap = false}: the target method ({@code setGameProfile}) is
      * added to {@code Entity} by DisguiseLib's Mixin and does not exist in the
      * vanilla class at compile time. Remapping is intentionally skipped.
+     * 
+     * <p>
+     * {@code require = 0}: This method is added by DisguiseLib at runtime and will not
+     * be found at compile time. The compile warning is expected and safe to ignore.
      */
-    @Inject(method = "setGameProfile(Lcom/mojang/authlib/GameProfile;)V", at = @At("HEAD"), cancellable = true, remap = false)
+    @SuppressWarnings("InvalidInjectorMethodSignature")
+    @Inject(method = "setGameProfile(Lcom/mojang/authlib/GameProfile;)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private void ascension$guardSetGameProfileDuringLoad(GameProfile profile, CallbackInfo ci) {
         if (!((Object) this instanceof ServerPlayer sp))
             return;
@@ -115,8 +129,13 @@ public abstract class DisguiseLoadMixin {
      * {@code remap = false}: {@code disguiselib$constructFakePlayer} is added to
      * {@code Entity} by DisguiseLib's own Mixin and does not exist in the vanilla
      * class at compile time.
+     * 
+     * <p>
+     * {@code require = 0}: This method is added by DisguiseLib at runtime and will not
+     * be found at compile time. The compile warning is expected and safe to ignore.
      */
-    @Inject(method = "disguiselib$constructFakePlayer(Lcom/mojang/authlib/GameProfile;)V", at = @At("HEAD"), cancellable = true, remap = false)
+    @SuppressWarnings("InvalidInjectorMethodSignature")
+    @Inject(method = "disguiselib$constructFakePlayer(Lcom/mojang/authlib/GameProfile;)V", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private void ascension$guardConstructFakePlayer(GameProfile profile, CallbackInfo ci) {
         if (profile == null || profile.id() == null || profile.name() == null) {
             freq.ascension.Ascension.LOGGER.warn(
