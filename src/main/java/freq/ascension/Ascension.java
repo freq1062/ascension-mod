@@ -35,6 +35,7 @@ import xyz.nucleoid.disguiselib.api.EntityDisguise;
 
 import freq.ascension.api.TaskScheduler;
 import freq.ascension.commands.AscendConfirmCommand;
+import freq.ascension.commands.ActivateSpellCommand;
 import freq.ascension.commands.AscensionMenuOpenCommand;
 import freq.ascension.commands.BindCommand;
 import freq.ascension.commands.GetInfluenceCommand;
@@ -106,38 +107,26 @@ public class Ascension implements ModInitializer {
 			scheduler.tick(s.getTickCount());
 			PromotionHandler.cleanExpired(s.getTickCount());
 
-			// Ocean passive: enable climbing in powder snow (mimics leather boots behavior)
-			// When not crouching, player can jump to climb upward through powder snow
+			// Ocean passive: prevent freeze ticks and provide scaffolding-like ascent in powder snow.
 			for (ServerPlayer player : s.getPlayerList().getPlayers()) {
 				if (!AbilityManager.anyMatch(player, order -> order.canWalkOnPowderSnow(player))) continue;
 
-				BlockPos feetPos = player.blockPosition();
-				BlockPos belowPos = feetPos.below();
-				ServerLevel level = (ServerLevel) player.level();
+				// Clear freeze ticks every tick — synced to client via SynchedEntityData,
+				// which eliminates the snowflake overlay without needing fake equipment packets.
+				if (player.getTicksFrozen() > 0) {
+					player.setTicksFrozen(0);
+				}
 
-				boolean insidePowderSnow = level.getBlockState(feetPos).is(Blocks.POWDER_SNOW)
-						|| level.getBlockState(belowPos).is(Blocks.POWDER_SNOW);
-
-				if (insidePowderSnow) {
-					if (player.isShiftKeyDown()) {
-						// Crouching: sink naturally (do nothing special)
-						continue;
-					}
-
-					// Not crouching + inside powder snow: enable climbing
-					// Check if player is jumping (moving upward)
-					net.minecraft.world.phys.Vec3 motion = player.getDeltaMovement();
-					if (motion.y > 0.05) {
-						// Player is jumping — boost them upward to climb like scaffolding
-						player.setDeltaMovement(motion.x, Math.max(motion.y, 0.3), motion.z);
-					} else if (motion.y < -0.1) {
-						// Player is falling — slow the descent
-						player.setDeltaMovement(motion.x, Math.max(motion.y, -0.15), motion.z);
-					}
-
-					// Apply SLOW_FALLING to prevent fall damage when exiting powder snow
-					player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-							net.minecraft.world.effect.MobEffects.SLOW_FALLING, 5, 0, true, false, false));
+				// When the player is inside powder snow and pressing jump (not crouching),
+				// apply upward velocity. This replicates the LivingEntity powder-snow ascent
+				// that normally requires wasInPowderSnow=true, which we suppress via the mixin.
+				if (!player.isShiftKeyDown()
+						&& player.isJumping()
+						&& player.getInBlockState().is(Blocks.POWDER_SNOW)) {
+					player.setDeltaMovement(
+							player.getDeltaMovement().x,
+							0.2,
+							player.getDeltaMovement().z);
 				}
 			}
 		});
@@ -188,10 +177,25 @@ public class Ascension implements ModInitializer {
 		// Spawn POI entities for all saved orders on server start
 		ServerLifecycleEvents.SERVER_STARTED.register(startedServer -> {
 			PoiManager poi = PoiManager.get(startedServer);
-			
-			// Clean up stale POI entities from previous server runs before spawning new ones
-			PoiManager.cleanupStalePOIs(startedServer.overworld(), poi);
-			
+
+			// Phase 1: force-load every POI chunk so that entities saved in the
+			// previous run are accessible to the entity query below.
+			for (String orderName : poi.getAllPoiOrders()) {
+				net.minecraft.core.BlockPos pos = poi.getPoiPosition(orderName);
+				if (pos == null) continue;
+				String dimKey = poi.getPoiDimension(orderName);
+				ResourceKey<Level> levelKey = ResourceKey.create(
+						Registries.DIMENSION, ResourceLocation.parse(dimKey));
+				ServerLevel level = startedServer.getLevel(levelKey);
+				if (level != null) {
+					level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
+				}
+			}
+
+			// Phase 2: discard stale POI entities across all POI dimensions (chunks now loaded).
+			PoiManager.cleanupStalePOIs(startedServer, poi);
+
+			// Phase 3: spawn fresh POI entities.
 			for (String orderName : poi.getAllPoiOrders()) {
 				net.minecraft.core.BlockPos pos = poi.getPoiPosition(orderName);
 				String dimKey = poi.getPoiDimension(orderName);
@@ -199,8 +203,6 @@ public class Ascension implements ModInitializer {
 						Registries.DIMENSION, ResourceLocation.parse(dimKey));
 				ServerLevel level = startedServer.getLevel(levelKey);
 				if (level != null && pos != null) {
-                    // Force-load the chunk so stale entities from the previous run are accessible
-                    level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
 					poi.spawnPoiEntities(orderName, level, pos, scheduler);
 				}
 			}
@@ -284,10 +286,9 @@ public class Ascension implements ModInitializer {
 			// Re-send fake leather boots on reconnect for Ocean passive players so
 			// the client immediately predicts powder-snow walk correctly.
 			ServerPlayer joining = handler.getPlayer();
-			if (AbilityManager.anyMatch(joining, order -> order.canWalkOnPowderSnow(joining))) {
-				// Defer by one tick to ensure the entity tracker is set up first.
-				server.execute(() -> freq.ascension.orders.Ocean.sendFakeLeatherBoots(joining));
-			}
+			// Defensively clear any stale stun from a previous session (e.g. if the
+			// server crashed while the stun DelayedTask was still pending).
+			freq.ascension.registry.SpellRegistry.clearStun(joining.getUUID());
 
 			// Grant custom recipe book unlocks on join (deferred 1 tick so the player
 			// entity is fully initialized before awardRecipes writes the advancement).
@@ -324,6 +325,8 @@ public class Ascension implements ModInitializer {
 			}
 
 			java.util.UUID disconnectedUUID = handler.getPlayer().getUUID();
+			// Clear any active stun so the player doesn't rejoin floating with no gravity
+			freq.ascension.registry.SpellRegistry.clearStun(disconnectedUUID);
 			// Clean up lava flight state so the next login doesn't inherit stale ability
 			// flags
 			freq.ascension.managers.LavaFlightManager.cleanup(disconnectedUUID);
@@ -331,13 +334,6 @@ public class Ascension implements ModInitializer {
 			freq.ascension.orders.Nether.clearFireTracking(disconnectedUUID);
 			// Clean up POI interact debounce map
 			lastPoiInteractTick.remove(disconnectedUUID);
-
-			// Restore real boots on the client before disconnect so the fake equipment
-			// state is not persisted in the client's session (cosmetic cleanup).
-			ServerPlayer leaving = handler.getPlayer();
-			if (AbilityManager.anyMatch(leaving, order -> order.canWalkOnPowderSnow(leaving))) {
-				freq.ascension.orders.Ocean.restoreRealBoots(leaving);
-			}
 		});
 
 		// Clear all disguises on server shutdown
@@ -382,6 +378,7 @@ public class Ascension implements ModInitializer {
 
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
 			AscensionMenuOpenCommand.register(dispatcher);
+			ActivateSpellCommand.register(dispatcher);
 			BindCommand.register(dispatcher);
 			GetInfluenceCommand.register(dispatcher);
 			GiveInfluenceCommand.register(dispatcher);
@@ -398,6 +395,7 @@ public class Ascension implements ModInitializer {
 			freq.ascension.commands.AscensionActionCommand.register(dispatcher);
 			freq.ascension.commands.ShapelistCommand.register(dispatcher);
 			ReloadConfigCommand.register(dispatcher);
+			freq.ascension.commands.ClearStunCommand.register(dispatcher);
 		});
 
 		LOGGER.info("Ascension SMP Mod Loaded!");

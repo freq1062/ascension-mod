@@ -1,28 +1,20 @@
 package freq.ascension.orders;
 
-import freq.ascension.Ascension;
 import freq.ascension.Config;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
 import freq.ascension.registry.SpellRegistry;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 
 public class Ocean implements Order {
     public static final Ocean INSTANCE = new Ocean();
@@ -96,54 +88,22 @@ public class Ocean implements Order {
     }
 
     @Override
-    public void onUnequip(ServerPlayer player, String slotType) {
-        if ("passive".equals(slotType)) {
-            restoreRealBoots(player);
-        }
-    }
-
-    /**
-     * Sends a fake leather-boots equipment packet to the client so it predicts
-     * walking on powder snow correctly. Does NOT change the server inventory.
-     */
-    public static void sendFakeLeatherBoots(ServerPlayer player) {
-        ClientboundSetEquipmentPacket pkt = new ClientboundSetEquipmentPacket(
-                player.getId(),
-                java.util.List.of(com.mojang.datafixers.util.Pair.of(
-                        EquipmentSlot.FEET,
-                        new ItemStack(Items.LEATHER_BOOTS)
-                ))
-        );
-        player.connection.send(pkt);
-        Ascension.LOGGER.debug("[PowderSnow] Sent fake leather boots to {}", player.getName().getString());
-    }
-
-    /**
-     * Restores the client's feet slot to match the server's actual item.
-     * Called on passive unequip and disconnect.
-     */
-    public static void restoreRealBoots(ServerPlayer player) {
-        ClientboundSetEquipmentPacket pkt = new ClientboundSetEquipmentPacket(
-                player.getId(),
-                java.util.List.of(com.mojang.datafixers.util.Pair.of(
-                        EquipmentSlot.FEET,
-                        player.getItemBySlot(EquipmentSlot.FEET).copy()
-                ))
-        );
-        player.connection.send(pkt);
-        Ascension.LOGGER.debug("[PowderSnow] Restored real boots to {}", player.getName().getString());
-    }
-
-    @Override
     public void onEntityDamageByEntity(ServerPlayer attacker, LivingEntity victim, DamageContext context) {
         float damage = context.getAmount();
-        // Ignore very low-damage (sweep) attacks
+        // Ignore very low-damage attacks
         if (damage < 0.1)
             return;
         ActiveSpell as = SpellCooldownManager.getActiveSpell(attacker, SpellCooldownManager.get("drown"));
-        if ((attacker.isInWaterOrRain() && hasCapability(attacker, "passive"))
-                || (as != null && as.isInUse())) {
-            context.setAmount((float) (context.getAmount() * 1.5));
+        // Autocrit in water (passive) or while drown is active — full-charge only, no double-crit
+        if (attacker.getAttackStrengthScale(0.5f) >= 0.9f
+                && ((attacker.isInWaterOrRain() && hasCapability(attacker, "passive"))
+                        || (as != null && as.isInUse()))) {
+            // Skip our 1.5× when vanilla already applied a crit (player falling, not sprinting, not in liquid)
+            boolean isVanillaCrit = !attacker.onGround() && !attacker.isSprinting()
+                    && !attacker.isInWater() && !attacker.isInLava();
+            if (!isVanillaCrit) {
+                context.setAmount((float) (context.getAmount() * 1.5));
+            }
             attacker.level().playSound(null, attacker.blockPosition(), SoundEvents.PLAYER_ATTACK_CRIT,
                     SoundSource.PLAYERS, 1.0f, 1.0f);
             if (attacker.level() instanceof ServerLevel serverLevel) {
