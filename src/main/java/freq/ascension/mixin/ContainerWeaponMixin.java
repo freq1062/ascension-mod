@@ -39,13 +39,13 @@ public class ContainerWeaponMixin {
                         slotId, clickType, isPlayerInventory, sp.hasPermissions(2));
                 if (!isPlayerInventory) {
                     // In any external container (chest, etc.) block ALL interactions with the weapon slot
-                    sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon!"));
+                    sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon with a container open!"));
                     ci.cancel();
                     return;
                 }
                 // In own inventory: block shift-click that would move it elsewhere
                 if (clickType == ClickType.QUICK_MOVE) {
-                    sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon!"));
+                    sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon with a container open!"));
                     ci.cancel();
                     return;
                 }
@@ -56,7 +56,7 @@ public class ContainerWeaponMixin {
         ItemStack cursor = ((AbstractContainerMenu) (Object) this).getCarried();
         if (WeaponRegistry.isMythicalWeapon(cursor)) {
             if (!isPlayerInventory) {
-                sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon!"));
+                sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon with a container open!"));
                 ci.cancel();
                 return;
             }
@@ -73,7 +73,7 @@ public class ContainerWeaponMixin {
         // Block QUICK_CRAFT (drag-split across slots) — covers dragging a weapon into a chest
         if (clickType == ClickType.QUICK_CRAFT && !isPlayerInventory) {
             if (WeaponRegistry.isMythicalWeapon(((AbstractContainerMenu) (Object) this).getCarried())) {
-                sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon!"));
+                sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon with a container open!"));
                 ci.cancel();
                 return;
             }

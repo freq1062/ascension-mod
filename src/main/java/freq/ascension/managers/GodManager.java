@@ -43,8 +43,8 @@ import net.minecraft.world.item.ItemStack;
  */
 public class GodManager extends SavedData {
 
-    // 24 hours in milliseconds
-    public static final long DEMOTION_COOLDOWN_MS = 24L * 60 * 60 * 1000;
+    // Demotion cooldown duration — driven by Config so admins can tune it
+    public static long DEMOTION_COOLDOWN_MS = 24L * 60 * 60 * 1000;
 
     private static final String KEY = "ascension_gods";
 
@@ -451,9 +451,9 @@ public class GodManager extends SavedData {
         data.setGodOrder(null);
         restorePreviousSlots(player);
 
-        // Step 4: record demotion cooldown
+        // Step 4: record demotion cooldown (duration from Config)
         demotionCooldowns.put(player.getStringUUID(),
-                System.currentTimeMillis() + DEMOTION_COOLDOWN_MS);
+                System.currentTimeMillis() + (long) freq.ascension.Config.godDeathCooldown * 1000L);
 
         // Step 5: update persistent map
         if (orderName != null) {

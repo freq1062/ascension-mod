@@ -221,7 +221,7 @@ public class Config {
         config.set("god_death_cooldown", godDeathCooldown);
         config.setComment("god_death_cooldown", "How long a player must wait after dying as a god (in seconds).");
         config.set("influence_ban_duration", influenceBanDuration);
-        config.setComment("influence_ban_duration", "How long a player is banned when their influence drops below -5.");
+        config.setComment("influence_ban_duration", "How long a player is banned when their influence drops below -5 (in seconds).");
 
         // Earth
         config.set("earth.supermine.cooldown_ticks", earthSupermineCD);

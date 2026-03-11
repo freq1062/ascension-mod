@@ -313,6 +313,17 @@ public class ChallengerTrialManager {
             return;
         }
 
+        // Prevent recently-demoted gods from immediately re-challenging
+        if (gm.isOnDemotionCooldown(challenger)) {
+            long remainingMs = gm.getDemotionCooldownRemainingMs(challenger);
+            long remainingHours = remainingMs / 3_600_000L;
+            long remainingMins = (remainingMs % 3_600_000L) / 60_000L;
+            challenger.sendSystemMessage(Component.literal(
+                    "§cYou must wait " + remainingHours + "h " + remainingMins
+                    + "m before challenging for godhood again."));
+            return;
+        }
+
         // Consume the sigil
         consumeSigil(challenger);
 

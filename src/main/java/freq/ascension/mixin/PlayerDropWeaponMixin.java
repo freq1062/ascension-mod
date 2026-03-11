@@ -38,6 +38,8 @@ public class PlayerDropWeaponMixin {
         Ascension.LOGGER.info("[WeaponDrop-2arg] called for {} item={} hasPermission2={}",
                 sp.getName().getString(), stack.getDisplayName().getString(), sp.hasPermissions(2));
         if (sp.hasPermissions(2)) return;
+        // Return the item to inventory — the Q-key flow removes the item before calling drop()
+        sp.getInventory().add(stack);
         sp.sendSystemMessage(Component.literal("§cYou cannot drop your mythical weapon!"));
         cir.setReturnValue(null);
     }
