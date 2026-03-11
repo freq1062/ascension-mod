@@ -35,6 +35,7 @@
 		"SculkSensorMixin",
 		"SculkShriekerMixin",
 		"ServerPlayerMixin",
+		"StunMixin",
 		"SwingHandlerMixin",
 		"ThrownTridentPickupMixin",
 		"TridentVisibilityMixin",

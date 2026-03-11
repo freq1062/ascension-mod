@@ -69,18 +69,24 @@ public class MagmaBubble {
         }
     }
 
-    // Sets the y coord of the input loc to the nearest solid block or lava
+    // Sets the y coord of the input loc to the nearest solid (non-passable) block or lava surface.
+    // Skips passable blocks like grass, flowers, and plants so thorns spawn on solid ground.
     public static void resolveSurface(Level level, Vector3f loc, int searchDepth) {
-        // Start at the player's feet/loc height
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(loc.x, loc.y, loc.z);
 
         for (int i = 0; i < searchDepth; i++) {
             BlockState state = level.getBlockState(pos);
-            if (!state.isAir() || level.getFluidState(pos).is(net.minecraft.tags.FluidTags.LAVA)) {
-                loc.y = pos.getY() + 1.0f; // Set loc to the top of the solid block
+            boolean isLava = level.getFluidState(pos).is(net.minecraft.tags.FluidTags.LAVA);
+            if (isLava) {
+                loc.y = pos.getY() + 1.0f;
                 return;
             }
-            pos.move(0, -1, 0); // Move down for the next check
+            // Skip air and passable blocks (grass, plants, flowers, etc.)
+            if (!state.isAir() && state.isSolid()) {
+                loc.y = pos.getY() + 1.0f; // spawn on top of the solid block
+                return;
+            }
+            pos.move(0, -1, 0);
         }
     }
 }

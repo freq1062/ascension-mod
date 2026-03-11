@@ -2,10 +2,10 @@ package freq.ascension.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.At;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -64,5 +64,11 @@ public abstract class DamageMixin {
             return modifiedAmount;
         }
         return amount;
+    }
+
+    @Inject(method = "hurtServer", at = @At("RETURN"))
+    private void ascension$clearDamageContext(ServerLevel level, DamageSource source, float amount,
+            CallbackInfoReturnable<Boolean> cir) {
+        ascension$currentDamageContext = null;
     }
 }

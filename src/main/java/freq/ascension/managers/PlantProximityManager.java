@@ -66,7 +66,13 @@ public class PlantProximityManager {
         }
 
         // Additional plant blocks not always in tags
-        return block == Blocks.WHEAT ||
+        return block == Blocks.SHORT_GRASS ||
+                block == Blocks.TALL_GRASS ||
+                block == Blocks.FERN ||
+                block == Blocks.LARGE_FERN ||
+                block == Blocks.DEAD_BUSH ||
+                block == Blocks.GRASS_BLOCK ||
+                block == Blocks.WHEAT ||
                 block == Blocks.CARROTS ||
                 block == Blocks.POTATOES ||
                 block == Blocks.BEETROOTS ||

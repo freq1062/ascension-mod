@@ -65,10 +65,10 @@ public class Flora implements Order {
         if (hasCapability(player, "passive")) {
             // ambient=true keeps HUD icon without particle spam; showIcon=true ensures it shows
             player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 80, 0, true, false, true));
-            // Spawn cherry leaf particles when near a plant block — 6 staggered spawns per 40-tick window (~3/s)
+            // Spawn cherry leaf particles when near a plant block — 3 staggered spawns per 40-tick window (~1.5/s)
             if (PlantProximityManager.isNearPlant(player) && player.level() instanceof ServerLevel sl) {
-                for (int i = 0; i < 6; i++) {
-                    final int tickDelay = i * 7;
+                for (int i = 0; i < 3; i++) {
+                    final int tickDelay = i * 14;
                     Ascension.scheduler.schedule(new DelayedTask(tickDelay, () -> {
                         if (!player.isAlive() || !PlantProximityManager.isNearPlant(player)) return;
                         sl.sendParticles(ParticleTypes.CHERRY_LEAVES,

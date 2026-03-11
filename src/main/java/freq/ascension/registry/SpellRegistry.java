@@ -644,6 +644,23 @@ public class SpellRegistry {
      */
 
     private static final Map<UUID, Long> THORNS_ACTIVE = new HashMap<>();
+    private static final Set<UUID> STUNNED_PLAYERS = ConcurrentHashMap.newKeySet();
+
+    public static void stunPlayer(ServerPlayer player, int durationTicks) {
+        STUNNED_PLAYERS.add(player.getUUID());
+        player.setNoGravity(false); // ensure normal gravity stays on
+        Ascension.scheduler.schedule(new DelayedTask(durationTicks, () -> {
+            STUNNED_PLAYERS.remove(player.getUUID());
+        }));
+    }
+
+    public static boolean isStunned(ServerPlayer player) {
+        return STUNNED_PLAYERS.contains(player.getUUID());
+    }
+
+    public static void clearStun(UUID uuid) {
+        STUNNED_PLAYERS.remove(uuid);
+    }
 
     public static void thorns(ServerPlayer player) {
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("thorns"));
@@ -691,22 +708,27 @@ public class SpellRegistry {
         }
         final boolean hadNoAi = tempHadNoAi;
         target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, freezeTicks, 255, false, false));
-        target.setDeltaMovement(0, 0, 0);
-        target.setNoGravity(true);
+        target.setDeltaMovement(0, Math.min(target.getDeltaMovement().y, 0), 0);
 
-        // Zero out velocity every tick for the full stun duration so no knockback applies
-        final int capTicks = freezeTicks;
-        int[] stunTicks = {0};
-        ContinuousTask[] stunTaskRef = {null};
-        stunTaskRef[0] = new ContinuousTask(1, () -> {
-            stunTicks[0]++;
-            if (!target.isAlive() || stunTicks[0] >= capTicks) {
-                stunTaskRef[0].stop();
-                return;
-            }
-            target.setDeltaMovement(0, 0, 0);
-        });
-        Ascension.scheduler.schedule(stunTaskRef[0]);
+        if (target instanceof ServerPlayer targetPlayer) {
+            // Flag-based stun: StunMixin suppresses travel/jump/knockback each tick
+            stunPlayer(targetPlayer, freezeTicks);
+        } else {
+            // For mobs: zero velocity every tick; setNoGravity keeps them in place
+            target.setNoGravity(true);
+            final int capTicks = freezeTicks;
+            int[] stunTicks = {0};
+            ContinuousTask[] stunTaskRef = {null};
+            stunTaskRef[0] = new ContinuousTask(1, () -> {
+                stunTicks[0]++;
+                if (!target.isAlive() || stunTicks[0] >= capTicks) {
+                    stunTaskRef[0].stop();
+                    return;
+                }
+                target.setDeltaMovement(0, 0, 0);
+            });
+            Ascension.scheduler.schedule(stunTaskRef[0]);
+        }
 
         // Apply poison 1 for 10 seconds
         target.addEffect(new MobEffectInstance(MobEffects.POISON, 200, 0, false, true));
@@ -717,6 +739,8 @@ public class SpellRegistry {
         // Play sound
         level.playSound(null, target.getX(), target.getY(), target.getZ(),
                 SoundEvents.WOOD_BREAK, SoundSource.PLAYERS, 1.0f, 0.8f);
+        level.playSound(null, target.getX(), target.getY(), target.getZ(),
+                SoundEvents.BEE_STING, SoundSource.PLAYERS, 1.0f, 0.8f + level.random.nextFloat() * 0.4f);
 
         // Schedule unfreeze + pull-out damage after freeze ends
         final float finalPullDamage = pullDamage;
@@ -1012,7 +1036,8 @@ public class SpellRegistry {
         }
 
         if (lastValid == null) {
-            player.sendSystemMessage(Component.literal("§cTeleport failed — no clear destination!"));
+            // No clear destination — silently teleport to current position (no-op, no message)
+            player.connection.teleport(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot());
             as.setInUse(false);
             return;
         }

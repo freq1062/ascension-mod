@@ -74,8 +74,12 @@ public abstract class DisguiseLoadMixin {
      *
      * <p>
      * During {@code PrepareSpawnTask.spawn()}, {@code ServerPlayer.connection}
-     * is {@code null}. This is the reliable signal that the player entity is in
-     * the entity-load phase and must not trigger any network broadcasts.
+     * is {@code null}. Carpet fake players ({@code EntityPlayerMPFake}) restore
+     * NBT — including {@code disguiselib$profile} — before the server reference
+     * is populated, so {@code getServer()} can return {@code null} even when
+     * {@code connection} is non-null. Both conditions are therefore checked.
+     * Either being {@code null} means the player is not yet in the PLAY phase
+     * and must not trigger any network broadcasts.
      *
      * <p>
      * Additionally, this guards against null or malformed GameProfiles that would
@@ -96,7 +100,12 @@ public abstract class DisguiseLoadMixin {
         if (!((Object) this instanceof ServerPlayer sp))
             return;
 
-        // Guard #1: Block setGameProfile during entity loading (connection is null)
+        // Guard #1: Block setGameProfile when the server or connection is null.
+        // Carpet fake players (EntityPlayerMPFake) restore NBT — including
+        // disguiselib$profile — before the server reference is populated, so
+        // sp.server can be null even when connection is non-null.
+        // DisguiseLib's sendProfileUpdates() unconditionally dereferences the
+        // server reference, which causes the NPE we are defending against.
         if (sp.connection == null) {
             ci.cancel();
             return;
