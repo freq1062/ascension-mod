@@ -102,11 +102,17 @@ public abstract class DisguiseLoadMixin {
 
         // Guard #1: Block setGameProfile when the server or connection is null.
         // Carpet fake players (EntityPlayerMPFake) restore NBT — including
-        // disguiselib$profile — before the server reference is populated, so
-        // sp.server can be null even when connection is non-null.
-        // DisguiseLib's sendProfileUpdates() unconditionally dereferences the
-        // server reference, which causes the NPE we are defending against.
-        if (sp.connection == null) {
+        // disguiselib$profile — via loadPlayerData() AFTER onPlayerConnect(), so
+        // their connection is non-null. However, their level's server reference
+        // may not be fully initialized yet. Either condition being null means it
+        // is not safe for DisguiseLib's sendProfileUpdates() to broadcast packets.
+        //
+        // Note: ServerPlayer.server is a private final field with no public
+        // accessor in Mojmap 1.21.10; we reach it via level().getServer() which
+        // delegates to the same server reference through the ServerLevel.
+        if (sp.connection == null
+                || sp.level() == null
+                || sp.level().getServer() == null) {
             ci.cancel();
             return;
         }
