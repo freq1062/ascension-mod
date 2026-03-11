@@ -268,8 +268,8 @@ public class GravitonGauntlet implements MythicWeapon {
         float size = 1.5f;
 
         DustParticleOptions dust = pullMode
-                ? new DustParticleOptions(0xFF0000FF, size)  // blue for PULL
-                : new DustParticleOptions(0xFFFF0000, size); // red for PUSH
+                ? new DustParticleOptions(0x0000FF, size)  // blue for PULL
+                : new DustParticleOptions(0xFF0000, size); // red for PUSH
 
         for (int i = 0; i < lineCount; i++) {
             double angle = 2 * Math.PI * i / lineCount;

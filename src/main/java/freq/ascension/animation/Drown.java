@@ -81,7 +81,7 @@ public class Drown {
                 long age = tick - droplet.spawnTick;
 
                 // Blue dust particle: 0xFF0000FF = opaque blue (ARGB), size 1.0
-                DustParticleOptions blueDust = new DustParticleOptions(0xFF0000FF, 1.0f);
+                DustParticleOptions blueDust = new DustParticleOptions(0x0000FF, 1.0f);
                 if (age < hoverTicks) {
                     // Hover phase: stay at spawn position
                     serverLevel.sendParticles(blueDust,
