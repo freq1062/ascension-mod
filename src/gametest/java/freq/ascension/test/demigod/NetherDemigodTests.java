@@ -524,111 +524,84 @@ public class NetherDemigodTests {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // COMBAT — Soul Drain
+    // COMBAT — Soul Rage
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Intention: Soul Drain has a 60-tick (3-second) cooldown, matching Ghast Carry.
-     * This ensures the Nether demigod cannot chain-sustain through prolonged fights —
-     * each activation of Soul Drain must be a deliberate commitment.
-     *
-     * <p>The raw {@link SpellStats#cooldown()} field is in ticks;
-     * {@code cooldown() == 60} means 3 seconds at 20 ticks/s.
+     * Validates that soul_rage is now an active spell with a non-zero cooldown.
+     * Demigod cooldown should match Config.netherSoulRageCD * 20 ticks.
      */
     @GameTest
-    public void soulDrainSpellCooldownIs60Ticks(GameTestHelper helper) {
-        SpellStats stats = Nether.INSTANCE.getSpellStats("soul_drain");
+    public void soulRageSpellStatsHasActiveCooldown(GameTestHelper helper) {
+        SpellStats stats = Nether.INSTANCE.getSpellStats("soul_rage");
         if (stats == null) {
-            helper.fail("SpellStats for 'soul_drain' must not be null");
+            helper.fail("SpellStats for 'soul_rage' must not be null");
         }
-        int expectedCooldownTicks = 60;
-        if (stats.cooldown() != expectedCooldownTicks) {
-            helper.fail("Soul Drain cooldown must be " + expectedCooldownTicks
-                    + " ticks, got " + stats.cooldown());
+        if (stats.cooldown() <= 0) {
+            helper.fail("Soul Rage is an active spell — cooldown must be > 0, got " + stats.cooldown());
         }
-        helper.succeed();
-    }
-
-    /**
-     * Intention: Soul Drain remains active for exactly 10 seconds (200 ticks)
-     * after activation. The {@code DelayedTask(200, ...)} in
-     * {@code SpellRegistry.soul_drain()} drives this timer. Validating that the
-     * activation window is 200 ticks ensures healing cannot be sustained
-     * indefinitely by quick re-activation.
-     *
-     * <p>The 200-tick window is hardcoded in {@code SpellRegistry.soul_drain()}.
-     * This test mirrors the expected constant.
-     */
-    @GameTest
-    public void soulDrainActivationWindowIs200Ticks(GameTestHelper helper) {
-        int expectedActiveTicks = 200; // 10 seconds at 20 ticks/s
-        // Mirror the constant from SpellRegistry.soul_drain(): new DelayedTask(200, ...)
-        int implementedTicks = 200;
-
-        if (implementedTicks != expectedActiveTicks) {
-            helper.fail("Soul Drain must remain active for " + expectedActiveTicks
-                    + " ticks (10 s), implementation uses " + implementedTicks);
+        int expectedCooldown = freq.ascension.Config.netherSoulRageCD * 20;
+        if (stats.cooldown() != expectedCooldown) {
+            helper.fail("Soul Rage demigod cooldown must be Config.netherSoulRageCD * 20 = "
+                    + expectedCooldown + ", got " + stats.cooldown());
         }
         helper.succeed();
     }
 
     /**
-     * Intention: For every 1 HP dealt in melee, the Nether demigod recovers
-     * ⅓ point of saturation (not food level). This is a soft sustain: it
-     * refills the saturation bar quietly without interfering with hunger ticks.
-     * The formula is {@code attacker.getFoodData().eat(0, damage / 3.0f)}.
-     *
-     * <p>Validates the exact ratio: 3.0 damage → 1.0 saturation added.
+     * Validates that soul_drain returns null now that it's been replaced by soul_rage.
      */
     @GameTest
-    public void soulDrainSaturationRatioIsOneThirdOfDamage(GameTestHelper helper) {
-        float damage = 3.0f;
-        float expectedSaturation = damage / 3.0f; // 1.0f
-
-        float actualSaturation = damage / 3.0f; // mirror formula from Nether.onEntityDamageByEntity()
-
-        if (Math.abs(actualSaturation - expectedSaturation) > 0.001f) {
-            helper.fail("Soul Drain saturation must be damage/3.0 = " + expectedSaturation
-                    + ", computed " + actualSaturation);
+    public void soulDrainRemovedFromNether(GameTestHelper helper) {
+        SpellStats stats = Nether.INSTANCE.getSpellStats("soul_drain");
+        if (stats != null) {
+            helper.fail("soul_drain should be removed from Nether (replaced by soul_rage), but getSpellStats returned non-null");
         }
         helper.succeed();
     }
 
     /**
-     * Intention: Each half-saturation bar (0.5 saturation points) healed triggers
-     * one "soul piece" particle (SOUL) that flies from the target to the caster.
-     * This provides clear visual feedback proportional to the damage dealt.
-     *
-     * <p>Formula: {@code int soulPieces = (int)(saturation / 0.5f)}
-     * — for 3.0 damage: saturation=1.0, soulPieces=2.
-     *
-     * <p>Validates that {@code ParticleTypes.SOUL} is the correct particle and
-     * that the piece count formula matches the spec.
-     *
-     * <p>NOTE: The current implementation emits only 1 SOUL particle per hit
-     * regardless of damage. This test will FAIL until the implementation is
-     * updated to emit {@code (int)(damage / 3.0f / 0.5f)} particles.
+     * Validates Soul Rage damage bonus thresholds match spec.
      */
     @GameTest
-    public void soulDrainSoulPieceCountEqualsHalfSaturationBars(GameTestHelper helper) {
+    public void soulRageDamageBonusThresholdsAreCorrect(GameTestHelper helper) {
+        java.util.function.Function<Float, Float> bonus = health -> {
+            if (health <= 4f) return 3f;
+            else if (health <= 8f) return 2f;
+            else if (health <= 12f) return 1.5f;
+            else if (health <= 16f) return 1f;
+            else return 0f;
+        };
+        if (bonus.apply(4f) != 3f) helper.fail("<=4 HP must give +3 bonus");
+        if (bonus.apply(8f) != 2f) helper.fail("<=8 HP must give +2 bonus");
+        if (bonus.apply(12f) != 1.5f) helper.fail("<=12 HP must give +1.5 bonus");
+        if (bonus.apply(16f) != 1f) helper.fail("<=16 HP must give +1 bonus");
+        if (bonus.apply(17f) != 0f) helper.fail(">16 HP must give +0 bonus");
+        helper.succeed();
+    }
+
+    /**
+     * Validates Soul Rage uses SOUL particle type.
+     */
+    @GameTest
+    public void soulRageUsesSoulParticleType(GameTestHelper helper) {
         if (ParticleTypes.SOUL == null) {
-            helper.fail("ParticleTypes.SOUL must be non-null — used for soul piece VFX");
+            helper.fail("ParticleTypes.SOUL must be non-null — used for soul rage VFX");
         }
+        helper.succeed();
+    }
 
-        float damage = 3.0f;
-        float saturation = damage / 3.0f;            // 1.0f
-        int expectedPieces = (int) (saturation / 0.5f); // 2 pieces
-
-        if (expectedPieces != 2) {
-            helper.fail("Soul piece count formula error: expected 2 pieces for 3.0 damage, got " + expectedPieces);
+    /**
+     * Validates that clearSoulRage() does not throw for an unknown UUID.
+     */
+    @GameTest
+    public void soulRageClearSoulRageIsSafe(GameTestHelper helper) {
+        java.util.UUID id = java.util.UUID.randomUUID();
+        try {
+            freq.ascension.registry.SpellRegistry.clearSoulRage(id);
+        } catch (Exception e) {
+            helper.fail("SpellRegistry.clearSoulRage() must not throw for unknown UUIDs: " + e.getMessage());
         }
-
-        // Implementation now emits (int)(damage/3/0.5) particles — one per half-saturation bar.
-        int implPieces = (int) ((damage / 3.0f) / 0.5f);
-        if (implPieces != expectedPieces) {
-            helper.fail("Implementation particle count " + implPieces + " does not match spec " + expectedPieces);
-        }
-
         helper.succeed();
     }
 

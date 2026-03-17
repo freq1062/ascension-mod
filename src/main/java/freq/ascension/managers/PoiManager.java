@@ -180,7 +180,8 @@ public class PoiManager extends SavedData {
     }
 
     /**
-     * Cleans up ALL stale POI entities from previous server runs across all POI locations.
+     * Cleans up ALL stale POI entities from previous server runs across all POI
+     * locations.
      * Should be called once on SERVER_STARTED before spawning new POI entities.
      */
     public static void cleanupStalePOIs(ServerLevel overworld, PoiManager poi) {
@@ -310,19 +311,26 @@ public class PoiManager extends SavedData {
             return;
         }
         display.setItemStack(createOrderSkull(key));
+        display.setItemTransform(net.minecraft.world.item.ItemDisplayContext.FIXED);
         display.setCustomName(Component.literal("ascension_poi_display_" + key));
-        display.setPos(cx, cy, cz);
-        // Player heads have their pivot at bottom-center; offset by (0, -0.5, 0) to rotate around visual center
+        // Move the entity half a block up.
+        // With ItemDisplayContext.FIXED, the visual centre of the 3D item model is
+        // exactly
+        // at the entity's position. This ensures perfectly centered 3D rotation and
+        // perfectly maps to the centre of our interaction hitbox.
+        display.setPos(cx, cy + 0.5, cz);
         display.setTransformation(new Transformation(
-                new Vector3f(0f, -0.5f, 0f),
+                new Vector3f(0f, 0f, 0f),
                 new Quaternionf(),
                 new Vector3f(1.0f, 1.0f, 1.0f),
                 new Quaternionf()));
         display.setBrightnessOverride(Brightness.FULL_BRIGHT);
         display.setTransformationInterpolationDuration(2);
 
-        level.addFreshEntity(display);
+        // Put in map BEFORE adding to level to prevent ENTITY_LOAD from discarding it
+        // as stale
         displayEntityUUIDs.put(key, display.getUUID());
+        level.addFreshEntity(display);
 
         // Spawn Interaction entity for right-click detection
         Interaction interaction = EntityType.INTERACTION.create(level, EntitySpawnReason.TRIGGERED);
@@ -330,11 +338,14 @@ public class PoiManager extends SavedData {
             Ascension.LOGGER.warn("[PoiManager] Failed to create Interaction entity for order: " + orderName);
             return;
         }
-        interaction.setPos(cx, cy - 0.5, cz);
+        // Interaction entity sits at the same height as the display entity centre.
+        interaction.setPos(cx, cy, cz);
         interaction.setCustomName(Component.literal("ascension_poi_" + key));
         interaction.setCustomNameVisible(false);
-        level.addFreshEntity(interaction);
+        // Put in map BEFORE adding to level to prevent ENTITY_LOAD from discarding it
+        // as stale
         interactionEntityUUIDs.put(key, interaction.getUUID());
+        level.addFreshEntity(interaction);
 
         // Stop any existing rotation task before scheduling a new one
         ContinuousTask old = rotationTasks.get(key);
@@ -360,9 +371,13 @@ public class PoiManager extends SavedData {
                     .rotateY((float) Math.toRadians(angles[1]))
                     .rotateZ((float) Math.toRadians(angles[2]));
 
-            // Player heads have their pivot at bottom-center; maintain (0, -0.5, 0) offset for centered rotation
+            // With ItemDisplayContext.FIXED, the origin of rotation (0,0,0) is exactly the
+            // centre of the model.
+            // Ergo, simply using the scale and rotation with no translation produces a
+            // perfect in-place spin.
             disp.setTransformation(
-                    new Transformation(new Vector3f(0f, -0.5f, 0f), rot, new Vector3f(1.0f, 1.0f, 1.0f), new Quaternionf()));
+                    new Transformation(new Vector3f(0f, 0f, 0f), rot, new Vector3f(1.0f, 1.0f, 1.0f),
+                            new Quaternionf()));
             disp.setTransformationInterpolationDuration(2);
             disp.setTransformationInterpolationDelay(0);
         });
@@ -370,7 +385,11 @@ public class PoiManager extends SavedData {
         scheduler.schedule(rotTask);
     }
 
-    private void removePreviousEntities(String key, ServerLevel level) {
+    public boolean isActivePoiEntity(UUID uuid) {
+        return displayEntityUUIDs.containsValue(uuid) || interactionEntityUUIDs.containsValue(uuid);
+    }
+
+    public void removePreviousEntities(String key, ServerLevel level) {
         UUID oldDisplay = displayEntityUUIDs.get(key);
         if (oldDisplay != null) {
             net.minecraft.world.entity.Entity e = level.getEntity(oldDisplay);

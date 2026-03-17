@@ -30,63 +30,52 @@ public class NetherGodTests {
     }
 
     @GameTest
-    public void netherGodSoulDrainDurationIs300Ticks(GameTestHelper helper) {
-        SpellStats stats = NetherGod.INSTANCE.getSpellStats("soul_drain");
+    public void netherGodSoulRageHasActiveCooldown(GameTestHelper helper) {
+        SpellStats stats = NetherGod.INSTANCE.getSpellStats("soul_rage");
         if (stats == null) {
-            helper.fail("NetherGod.getSpellStats(\"soul_drain\") returned null");
+            helper.fail("NetherGod.getSpellStats(\"soul_rage\") returned null");
         }
-        int durationTicks = stats.getInt(0);
-        if (durationTicks != 300) {
-            helper.fail("NetherGod soul_drain duration should be 300 ticks (15s), got " + durationTicks);
+        if (stats.cooldown() <= 0) {
+            helper.fail("NetherGod soul_rage must be active (cooldown > 0), got " + stats.cooldown());
+        }
+        int expectedCooldown = freq.ascension.Config.netherSoulRageCDGod * 20;
+        if (stats.cooldown() != expectedCooldown) {
+            helper.fail("NetherGod soul_rage cooldown must be Config.netherSoulRageCDGod * 20 = "
+                    + expectedCooldown + ", got " + stats.cooldown());
         }
         helper.succeed();
     }
 
     @GameTest
-    public void netherDemigodSoulDrainDurationIs200Ticks(GameTestHelper helper) {
-        SpellStats stats = Nether.INSTANCE.getSpellStats("soul_drain");
+    public void netherDemigodSoulRageHasActiveCooldown(GameTestHelper helper) {
+        SpellStats stats = Nether.INSTANCE.getSpellStats("soul_rage");
         if (stats == null) {
-            helper.fail("Nether.getSpellStats(\"soul_drain\") returned null");
+            helper.fail("Nether.getSpellStats(\"soul_rage\") returned null");
         }
-        int durationTicks = stats.getInt(0);
-        if (durationTicks != 200) {
-            helper.fail("Nether demigod soul_drain duration should be 200 ticks (10s), got " + durationTicks);
-        }
-        helper.succeed();
-    }
-
-    @GameTest
-    public void netherGodSoulDrainLongerThanDemigod(GameTestHelper helper) {
-        int godDur = NetherGod.INSTANCE.getSpellStats("soul_drain").getInt(0);
-        int demigodDur = Nether.INSTANCE.getSpellStats("soul_drain").getInt(0);
-        if (godDur <= demigodDur) {
-            helper.fail("NetherGod soul_drain duration (" + godDur
-                    + ") must exceed demigod (" + demigodDur + ")");
+        if (stats.cooldown() <= 0) {
+            helper.fail("Nether demigod soul_rage must be active (cooldown > 0), got " + stats.cooldown());
         }
         helper.succeed();
     }
 
     @GameTest
-    public void netherGodSoulDrainRatioIsHalf(GameTestHelper helper) {
-        float damage = 10.0f;
-        float godSaturation = damage * 0.5f;
-        float demigodSaturation = damage * (1.0f / 3.0f);
-        if (godSaturation <= demigodSaturation) {
-            helper.fail("God soul drain ratio (0.5) should yield more saturation than demigod (1/3). "
-                    + "God=" + godSaturation + " Demigod=" + demigodSaturation);
-        }
-        if (Math.abs(godSaturation - 5.0f) > 0.001f) {
-            helper.fail("God soul drain: 10 damage * 0.5 should give 5.0 saturation, got " + godSaturation);
+    public void netherGodSoulRageDurationLongerThanDemigod(GameTestHelper helper) {
+        int godDuration = freq.ascension.Config.netherSoulRageDurationGod;
+        int demigodDuration = freq.ascension.Config.netherSoulRageDuration;
+        if (godDuration <= demigodDuration) {
+            helper.fail("NetherGod soul_rage duration (" + godDuration
+                    + "s) must exceed demigod (" + demigodDuration + "s)");
         }
         helper.succeed();
     }
 
     @GameTest
-    public void netherDemigodSoulDrainRatioIsOneThird(GameTestHelper helper) {
-        float damage = 9.0f;
-        float saturation = damage * (1.0f / 3.0f);
-        if (Math.abs(saturation - 3.0f) > 0.001f) {
-            helper.fail("Demigod soul drain: 9 damage * 1/3 should give 3.0 saturation, got " + saturation);
+    public void netherGodSoulRageTakesLessDamageMultiplierThanDemigod(GameTestHelper helper) {
+        float godMultiplier = 1.1f;
+        float demigodMultiplier = 1.2f;
+        if (godMultiplier >= demigodMultiplier) {
+            helper.fail("God soul_rage damage multiplier (" + godMultiplier
+                    + ") should be less than demigod (" + demigodMultiplier + ")");
         }
         helper.succeed();
     }

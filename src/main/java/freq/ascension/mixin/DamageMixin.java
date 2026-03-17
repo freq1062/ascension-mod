@@ -48,6 +48,13 @@ public abstract class DamageMixin {
         if (victim instanceof ServerPlayer victimPlayer) {
             AbilityManager.broadcast(victimPlayer,
                     (ability) -> ability.onEntityDamage(victimPlayer, ascension$currentDamageContext));
+            // Soul Rage: player takes more damage while the buff is active
+            if (SpellRegistry.isSoulRageActive(victimPlayer)) {
+                freq.ascension.managers.AscensionData data = (freq.ascension.managers.AscensionData) victimPlayer;
+                boolean isGod = "god".equals(data.getRank());
+                ascension$currentDamageContext.setAmount(
+                        ascension$currentDamageContext.getAmount() * (isGod ? 1.1f : 1.2f));
+            }
         }
 
         // Check if cancelled

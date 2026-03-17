@@ -24,21 +24,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Implements {@code /setpoi <order> <x> <y> <z>} and {@code /setpoiradius <order> <radius>}.
+ * Implements {@code /setpoi <order> <x> <y> <z>},
+ * {@code /setpoiradius <order> <radius>}, and {@code /delpoi <order>}.
  *
- * <p>Requires operator level 2. The /setpoi command captures a terrain snapshot around the
+ * <p>
+ * Requires operator level 2. The /setpoi command captures a terrain snapshot
+ * around the
  * target position and spawns a spinning block display + interaction entity.
  */
 public class SetPoiCommand {
 
-    private static final SuggestionProvider<CommandSourceStack> ORDER_SUGGESTIONS =
-            (ctx, builder) -> {
-                List<String> orders = new ArrayList<>();
-                for (Order order : OrderRegistry.iterable()) {
-                    orders.add(order.getOrderName());
-                }
-                return SharedSuggestionProvider.suggest(orders, builder);
-            };
+    private static final SuggestionProvider<CommandSourceStack> ORDER_SUGGESTIONS = (ctx, builder) -> {
+        List<String> orders = new ArrayList<>();
+        for (Order order : OrderRegistry.iterable()) {
+            orders.add(order.getOrderName());
+        }
+        return SharedSuggestionProvider.suggest(orders, builder);
+    };
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("setpoi")
@@ -54,9 +56,16 @@ public class SetPoiCommand {
                         .suggests(ORDER_SUGGESTIONS)
                         .then(Commands.argument("radius", IntegerArgumentType.integer(1, 20))
                                 .executes(SetPoiCommand::setPoiRadiusExecute))));
+
+        dispatcher.register(Commands.literal("delpoi")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.argument("order", StringArgumentType.word())
+                        .suggests(ORDER_SUGGESTIONS)
+                        .executes(SetPoiCommand::delPoiExecute)));
     }
 
-    private static int setPoiExecute(CommandContext<CommandSourceStack> ctx) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    private static int setPoiExecute(CommandContext<CommandSourceStack> ctx)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         String orderName = StringArgumentType.getString(ctx, "order").toLowerCase();
         Order order = OrderRegistry.get(orderName);
         if (order == null) {
@@ -99,6 +108,33 @@ public class SetPoiCommand {
 
         ctx.getSource().sendSuccess(
                 () -> Component.literal("§aPOI radius for §e" + orderName + "§a set to " + radius + "."),
+                true);
+        return 1;
+    }
+
+    private static int delPoiExecute(CommandContext<CommandSourceStack> ctx) {
+        String orderName = StringArgumentType.getString(ctx, "order").toLowerCase();
+        Order order = OrderRegistry.get(orderName);
+        if (order == null) {
+            ctx.getSource().sendFailure(Component.literal("§cUnknown order: '" + orderName + "'."));
+            return 0;
+        }
+
+        MinecraftServer server = ctx.getSource().getServer();
+        PoiManager poi = PoiManager.get(server);
+        ServerLevel level = poi.getPoiLevel(server, orderName);
+
+        if (level != null) {
+            // First stop any tasks and remove entities from the world
+            poi.removePreviousEntities(orderName, level);
+        }
+
+        // Then clear data from saved state
+        poi.clearPoiData(orderName);
+
+        ctx.getSource().sendSuccess(
+                () -> Component
+                        .literal("§aPOI for §e" + orderName + "§a has been deleted from the world and saved data."),
                 true);
         return 1;
     }

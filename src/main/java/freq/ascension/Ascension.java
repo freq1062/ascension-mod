@@ -107,12 +107,15 @@ public class Ascension implements ModInitializer {
 			scheduler.tick(s.getTickCount());
 			PromotionHandler.cleanExpired(s.getTickCount());
 
-			// Ocean passive: prevent freeze ticks and provide scaffolding-like ascent in powder snow.
+			// Ocean passive: prevent freeze ticks and provide scaffolding-like ascent in
+			// powder snow.
 			for (ServerPlayer player : s.getPlayerList().getPlayers()) {
-				if (!AbilityManager.anyMatch(player, order -> order.canWalkOnPowderSnow(player))) continue;
+				if (!AbilityManager.anyMatch(player, order -> order.canWalkOnPowderSnow(player)))
+					continue;
 
 				// Clear freeze ticks every tick — synced to client via SynchedEntityData,
-				// which eliminates the snowflake overlay without needing fake equipment packets.
+				// which eliminates the snowflake overlay without needing fake equipment
+				// packets.
 				if (player.getTicksFrozen() > 0) {
 					player.setTicksFrozen(0);
 				}
@@ -168,7 +171,8 @@ public class Ascension implements ModInitializer {
 		WeaponRegistry.register(PrismWand.INSTANCE);
 		// Bug 5/12B: ChallengerTrialManager AFTER_DEATH must be registered BEFORE
 		// AbilityManager so it fires first on god death, promoting the challenger and
-		// demoting the god before AbilityManager sees gm.isGod(sp) — avoiding double-demotion.
+		// demoting the god before AbilityManager sees gm.isGod(sp) — avoiding
+		// double-demotion.
 		ChallengerTrialManager.get().registerEventListeners();
 		AbilityManager.init();
 		InfluenceManager.init();
@@ -182,7 +186,8 @@ public class Ascension implements ModInitializer {
 			// previous run are accessible to the entity query below.
 			for (String orderName : poi.getAllPoiOrders()) {
 				net.minecraft.core.BlockPos pos = poi.getPoiPosition(orderName);
-				if (pos == null) continue;
+				if (pos == null)
+					continue;
 				String dimKey = poi.getPoiDimension(orderName);
 				ResourceKey<Level> levelKey = ResourceKey.create(
 						Registries.DIMENSION, ResourceLocation.parse(dimKey));
@@ -192,8 +197,9 @@ public class Ascension implements ModInitializer {
 				}
 			}
 
-			// Phase 2: discard stale POI entities across all POI dimensions (chunks now loaded).
-			PoiManager.cleanupStalePOIs(startedServer, poi);
+			// Phase 2: discard stale POI entities across all POI dimensions (chunks now
+			// loaded).
+			PoiManager.cleanupStalePOIs(startedServer.overworld(), poi);
 
 			// Phase 3: spawn fresh POI entities.
 			for (String orderName : poi.getAllPoiOrders()) {
@@ -208,6 +214,27 @@ public class Ascension implements ModInitializer {
 			}
 			// Wire up server/scheduler references in the trial manager
 			ChallengerTrialManager.get().registerEvents(startedServer, scheduler);
+		});
+
+		// Discard stale POI entities that might have been saved into chunks
+		// (e.g. if the chunk unloaded during gameplay or after a crash)
+		net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+			if (entity instanceof net.minecraft.world.entity.Display.ItemDisplay
+					|| entity instanceof net.minecraft.world.entity.Interaction) {
+				if (entity.hasCustomName()) {
+					String name = entity.getCustomName().getString();
+					if (name.startsWith("ascension_poi_")) {
+						if (world instanceof ServerLevel sl) {
+							PoiManager poi = PoiManager.get(sl.getServer());
+							// If this entity's UUID is not the actively managed one in the PoiManager,
+							// discard it
+							if (!poi.isActivePoiEntity(entity.getUUID())) {
+								entity.discard();
+							}
+						}
+					}
+				}
+			}
 		});
 
 		// POI cube right-click → promotion request or challenger trial
@@ -297,12 +324,14 @@ public class Ascension implements ModInitializer {
 				server.getRecipeManager()
 						.byKey(net.minecraft.resources.ResourceKey.create(
 								net.minecraft.core.registries.Registries.RECIPE,
-								net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("ascension", "challengers_sigil")))
+								net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("ascension",
+										"challengers_sigil")))
 						.ifPresent(toUnlock::add);
 				server.getRecipeManager()
 						.byKey(net.minecraft.resources.ResourceKey.create(
 								net.minecraft.core.registries.Registries.RECIPE,
-								net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("ascension", "influence_restoration")))
+								net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("ascension",
+										"influence_restoration")))
 						.ifPresent(toUnlock::add);
 				if (!toUnlock.isEmpty()) {
 					joining.awardRecipes(toUnlock);
@@ -332,6 +361,8 @@ public class Ascension implements ModInitializer {
 			freq.ascension.managers.LavaFlightManager.cleanup(disconnectedUUID);
 			// Clean up fire-contact tracking for autocrit
 			freq.ascension.orders.Nether.clearFireTracking(disconnectedUUID);
+			// Clean up soul rage active state
+			freq.ascension.registry.SpellRegistry.clearSoulRage(disconnectedUUID);
 			// Clean up POI interact debounce map
 			lastPoiInteractTick.remove(disconnectedUUID);
 		});

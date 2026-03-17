@@ -74,17 +74,17 @@ public class InfluenceManager {
                 for (Map.Entry<String, AscensionData.OrderUnlock> entry : oldUnlocked.entrySet()) {
                     AscensionData.OrderUnlock u = entry.getValue();
                     String orderName = entry.getKey();
-                    if (u.hasPassive()) newData.unlock(orderName, "passive");
-                    if (u.hasUtility()) newData.unlock(orderName, "utility");
-                    if (u.hasCombat()) newData.unlock(orderName, "combat");
+                    if (u.hasPassive())
+                        newData.unlock(orderName, "passive");
+                    if (u.hasUtility())
+                        newData.unlock(orderName, "utility");
+                    if (u.hasCombat())
+                        newData.unlock(orderName, "combat");
                 }
             }
 
             // Note: If 'alive' is false, it means they died.
-            // If you want a "Death Penalty" (like losing influence), you do it here:
-            if (!alive) {
-                newData.addInfluence(-1);
-            }
+            // (Influence deduction is handled in AFTER_DEATH)
         });
 
         ServerLivingEntityEvents.AFTER_DEATH.register((ent, src) -> {
@@ -102,13 +102,12 @@ public class InfluenceManager {
                                     Component.literal(LOSE_INFLUENCE_MSG));
                             // Spawn influence item at the player's death location
                             ItemStack itemToDrop = InfluenceItem.createItem();
-                            net.minecraft.world.entity.item.ItemEntity itemEntity =
-                                    new net.minecraft.world.entity.item.ItemEntity(
-                                            victim.level(),
-                                            victim.getX(),
-                                            victim.getY(),
-                                            victim.getZ(),
-                                            itemToDrop);
+                            net.minecraft.world.entity.item.ItemEntity itemEntity = new net.minecraft.world.entity.item.ItemEntity(
+                                    victim.level(),
+                                    victim.getX(),
+                                    victim.getY(),
+                                    victim.getZ(),
+                                    itemToDrop);
                             itemEntity.setDefaultPickUpDelay();
                             victim.level().addFreshEntity(itemEntity);
                             data.addInfluence(-1);
@@ -135,7 +134,8 @@ public class InfluenceManager {
                     AbilityManager.broadcast(killer, order -> order.onPlayerKill(killer, victim));
                 }
             } else if (!ent.level().isClientSide() && ent instanceof LivingEntity victim) {
-                // Non-player entity died: check if killer is ServerPlayer for Shapeshift history
+                // Non-player entity died: check if killer is ServerPlayer for Shapeshift
+                // history
                 Entity attacker = src.getEntity();
                 if (attacker instanceof ServerPlayer killer) {
                     AbilityManager.broadcast(killer, order -> order.onPlayerKill(killer, victim));

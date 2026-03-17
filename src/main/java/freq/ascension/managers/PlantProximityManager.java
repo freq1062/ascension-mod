@@ -9,8 +9,16 @@ import freq.ascension.api.ContinuousTask;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.BushBlock;
+import net.minecraft.world.level.block.FlowerBlock;
+import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.block.SaplingBlock;
+import net.minecraft.world.level.block.TallFlowerBlock;
 
 public class PlantProximityManager {
     private static final Map<UUID, Boolean> NEAR_PLANTS = new ConcurrentHashMap<>();
@@ -36,6 +44,8 @@ public class PlantProximityManager {
     }
 
     private static boolean isPlayerNearPlant(ServerPlayer player) {
+        if (isHoldingPlant(player)) return true;
+
         BlockPos playerPos = player.blockPosition();
 
         // Check all blocks in a 5-block radius
@@ -52,6 +62,28 @@ public class PlantProximityManager {
             }
         }
 
+        return false;
+    }
+
+    /** Returns true if the player is holding a plant item in mainhand or offhand. */
+    public static boolean isHoldingPlant(ServerPlayer player) {
+        return isPlantItem(player.getMainHandItem()) || isPlantItem(player.getOffhandItem());
+    }
+
+    /** Returns true if the given ItemStack is a plant-type item. */
+    public static boolean isPlantItem(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        if (stack.is(ItemTags.FLOWERS) || stack.is(ItemTags.SAPLINGS) || stack.is(ItemTags.LEAVES))
+            return true;
+        if (stack.getItem() instanceof BlockItem bi) {
+            Block block = bi.getBlock();
+            if (block instanceof BushBlock
+                    || block instanceof FlowerBlock
+                    || block instanceof TallFlowerBlock
+                    || block instanceof SaplingBlock
+                    || block instanceof LeavesBlock)
+                return true;
+        }
         return false;
     }
 

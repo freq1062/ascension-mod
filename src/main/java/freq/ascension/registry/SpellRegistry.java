@@ -79,9 +79,12 @@ public class SpellRegistry {
     private static void addSpellsIfPresent(List<Spell> targetList, Order order, String type) {
         if (order == null)
             return;
-        // God-tier order instances (e.g. EarthGod) are not used as keys in BY_ORDER_AND_TYPE
-        // because spells are registered via OrderRegistry.registerAllSpells() which only iterates
-        // base orders. Normalize to the base order so god players can look up their spells.
+        // God-tier order instances (e.g. EarthGod) are not used as keys in
+        // BY_ORDER_AND_TYPE
+        // because spells are registered via OrderRegistry.registerAllSpells() which
+        // only iterates
+        // base orders. Normalize to the base order so god players can look up their
+        // spells.
         Order baseOrder = OrderRegistry.get(order.getOrderName());
         Map<String, List<Spell>> orderSpells = BY_ORDER_AND_TYPE.get(baseOrder != null ? baseOrder : order);
         if (orderSpells == null)
@@ -662,6 +665,10 @@ public class SpellRegistry {
         STUNNED_PLAYERS.remove(uuid);
     }
 
+    public static void clearAllStuns() {
+        STUNNED_PLAYERS.clear();
+    }
+
     public static void thorns(ServerPlayer player) {
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("thorns"));
 
@@ -717,8 +724,8 @@ public class SpellRegistry {
             // For mobs: zero velocity every tick; setNoGravity keeps them in place
             target.setNoGravity(true);
             final int capTicks = freezeTicks;
-            int[] stunTicks = {0};
-            ContinuousTask[] stunTaskRef = {null};
+            int[] stunTicks = { 0 };
+            ContinuousTask[] stunTaskRef = { null };
             stunTaskRef[0] = new ContinuousTask(1, () -> {
                 stunTicks[0]++;
                 if (!target.isAlive() || stunTicks[0] >= capTicks) {
@@ -772,6 +779,64 @@ public class SpellRegistry {
      * NETHER
      */
 
+    private static final Set<UUID> SOUL_RAGE_ACTIVE = ConcurrentHashMap.newKeySet();
+
+    public static boolean isSoulRageActive(ServerPlayer player) {
+        return SOUL_RAGE_ACTIVE.contains(player.getUUID());
+    }
+
+    public static void clearSoulRage(UUID uuid) {
+        SOUL_RAGE_ACTIVE.remove(uuid);
+    }
+
+    public static void soul_rage(ServerPlayer player, int durationTicks) {
+        UUID uid = player.getUUID();
+        SOUL_RAGE_ACTIVE.add(uid);
+
+        ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("soul_rage"));
+
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.SOUL_ESCAPE, SoundSource.PLAYERS, 1.0f, 0.5f);
+
+        player.displayClientMessage(
+                Component.literal("§4☠ Soul Rage Active! §7(you take more damage)"), true);
+
+        ContinuousTask particleTask = new ContinuousTask(5, () -> {
+            if (!SOUL_RAGE_ACTIVE.contains(uid) || !player.isAlive() || player.isRemoved()) {
+                return;
+            }
+            if (!(player.level() instanceof ServerLevel sl))
+                return;
+
+            float healthRatio = player.getHealth() / player.getMaxHealth();
+            int count = (int) Math.max(1, 15 * (1.0f - healthRatio));
+
+            for (int i = 0; i < count; i++) {
+                double angle = Math.random() * Math.PI * 2;
+                double r = 0.5 + Math.random() * 0.5;
+                sl.sendParticles(ParticleTypes.SOUL,
+                        player.getX() + Math.cos(angle) * r,
+                        player.getY() + Math.random() * 2,
+                        player.getZ() + Math.sin(angle) * r,
+                        1, 0, 0.1, 0, 0.05);
+            }
+        });
+        Ascension.scheduler.schedule(particleTask);
+
+        Ascension.scheduler.schedule(new DelayedTask(durationTicks, () -> {
+            SOUL_RAGE_ACTIVE.remove(uid);
+            particleTask.stop();
+            if (player.isAlive()) {
+                player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                        SoundEvents.SOUL_ESCAPE, SoundSource.PLAYERS, 1.0f, 0.5f);
+                player.displayClientMessage(Component.literal("§7Soul Rage has ended."), true);
+            }
+            if (as != null) {
+                as.setInUse(false);
+            }
+        }));
+    }
+
     private static final Map<UUID, HappyGhast> ACTIVE_GHASTS = new HashMap<>();
 
     public static void ghast_carry(ServerPlayer player, boolean doubleHealth, double speedMultiplier) {
@@ -802,16 +867,16 @@ public class SpellRegistry {
 
         // Apply god-tier modifiers before adding to world
         if (doubleHealth) {
-            net.minecraft.world.entity.ai.attributes.AttributeInstance maxHp =
-                    ghast.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+            net.minecraft.world.entity.ai.attributes.AttributeInstance maxHp = ghast
+                    .getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
             if (maxHp != null) {
                 maxHp.setBaseValue(maxHp.getBaseValue() * 2.0);
                 ghast.setHealth(ghast.getMaxHealth());
             }
         }
         if (speedMultiplier != 1.0) {
-            net.minecraft.world.entity.ai.attributes.AttributeInstance flyingSpd =
-                    ghast.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.FLYING_SPEED);
+            net.minecraft.world.entity.ai.attributes.AttributeInstance flyingSpd = ghast
+                    .getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.FLYING_SPEED);
             if (flyingSpd != null) {
                 flyingSpd.setBaseValue(flyingSpd.getBaseValue() * speedMultiplier);
             }
@@ -869,7 +934,8 @@ public class SpellRegistry {
                 return;
             }
 
-            // Drive ghast velocity when player is riding it so it moves in the look direction
+            // Drive ghast velocity when player is riding it so it moves in the look
+            // direction
             // at the correct speed: Demigod = 0.3 b/t (6 b/s), God = 0.5 b/t (10 b/s).
             if (player.getVehicle() == ghast) {
                 Vec3 look = player.getLookAngle();
@@ -1036,7 +1102,8 @@ public class SpellRegistry {
         }
 
         if (lastValid == null) {
-            // No clear destination — silently teleport to current position (no-op, no message)
+            // No clear destination — silently teleport to current position (no-op, no
+            // message)
             player.connection.teleport(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot());
             as.setInUse(false);
             return;

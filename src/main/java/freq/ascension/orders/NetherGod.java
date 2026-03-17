@@ -23,11 +23,6 @@ public class NetherGod extends Nether {
         // vs 0.12 b/t for demigods)
     }
 
-    @Override
-    protected float getSoulDrainRatio() {
-        return 0.5f;
-    }
-
     /**
      * God: nether mobs are truly passive (isIgnoredBy = never attack under any
      * circumstances).
@@ -43,9 +38,8 @@ public class NetherGod extends Nether {
         SpellCooldownManager.register(new Spell("ghast_carry", this, "utility", (player, stats) -> {
             SpellRegistry.ghast_carry(player, true, 11.5 / 6.0);
         }));
-        SpellCooldownManager.register(new Spell("soul_drain", this, "combat", (player, stats) -> {
-            SpellRegistry.soul_drain(player, stats.getInt(0));
-        }));
+        // soul_rage registration is handled by Nether.registerSpells() (the only tier called by OrderRegistry).
+        // NetherGod.getSpellStats("soul_rage") provides god-tier cooldown via Spell.getStats(player).
     }
 
     @Override
@@ -54,9 +48,10 @@ public class NetherGod extends Nether {
             case "ghast_carry" -> new SpellStats(Config.netherGodGhastCarryCD,
                     "Summons a double-health happy ghast you can fly using. 11.5 b/s.",
                     0);
-            case "soul_drain" -> new SpellStats(Config.netherGodSoulDrainCD,
-                    "For 15 seconds you gain saturation equivalent to 1/2 of the damage that you deal.",
-                    Config.netherGodSoulDrainDuration);
+            case "soul_rage" -> new SpellStats(Config.netherSoulRageCDGod * 20,
+                    "Activate a fury that enhances damage when low on health for " + Config.netherSoulRageDurationGod + "s. " +
+                    "\u22648h: +1 | \u22646h: +1.5 | \u22644h: +2 | \u22642h: +3. You take 10% more damage while active.",
+                    0);
             default -> null;
         };
     }
@@ -70,10 +65,10 @@ public class NetherGod extends Nether {
                 SpellStats s = getSpellStats("ghast_carry");
                 yield "GHAST CARRY: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
             }
-            case "combat" -> {
-                SpellStats s = getSpellStats("soul_drain");
-                yield "SOUL DRAIN: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
-            }
+            case "combat" ->
+                "SOUL RAGE: Activate to gain bonus damage when low on health for " + Config.netherSoulRageDurationGod + "s. " +
+                "\u22648h: +1 | \u22646h: +1.5 | \u22644h: +2 | \u22642h: +3. You take 10% more damage while active. " +
+                Config.netherSoulRageCDGod + "s cooldown.";
             default -> "";
         };
     }

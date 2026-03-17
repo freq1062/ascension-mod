@@ -259,4 +259,41 @@ public final class SpellCooldownManager {
         }
         return null;
     }
+
+    /**
+     * Triggers the spell of the given slot type ("passive", "utility", "combat") for the player.
+     * Finds the first bound spell matching that slot type, checks cooldown, and activates it.
+     *
+     * @return true if the spell was successfully triggered; false if none found or on cooldown.
+     */
+    public static boolean triggerSpell(ServerPlayer player, String slotType) {
+        freq.ascension.managers.AscensionData data = (freq.ascension.managers.AscensionData) player;
+        java.util.Map<Integer, String> bindings = data.getSpellBindings();
+        if (bindings == null) return false;
+
+        for (String spellId : bindings.values()) {
+            if (spellId == null || spellId.isEmpty()) continue;
+            Spell spell = get(spellId);
+            if (spell == null || !slotType.equals(spell.getType())) continue;
+
+            if (isSpellOnCooldown(player, spell)) return false;
+
+            // Check Desolation of Time
+            if (freq.ascension.orders.End.isAffectedByDesolation(player) && "combat".equals(slotType)) {
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                        "§cYour combat abilities are disabled by Desolation of Time!"));
+                return false;
+            }
+
+            try {
+                spell.getOrder().executeActiveSpell(spellId, player);
+                return true;
+            } catch (Exception e) {
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                        "Error activating spell: " + e.getMessage()));
+                return false;
+            }
+        }
+        return false;
+    }
 }

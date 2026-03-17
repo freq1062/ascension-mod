@@ -1,7 +1,6 @@
 package freq.ascension.orders;
 
 import freq.ascension.Config;
-import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
@@ -64,8 +63,10 @@ public class Nether implements Order {
         SpellCooldownManager.register(new Spell("ghast_carry", this, "utility", (player, stats) -> {
             SpellRegistry.ghast_carry(player, false, 1.0);
         }));
-        SpellCooldownManager.register(new Spell("soul_drain", this, "combat", (player, stats) -> {
-            SpellRegistry.soul_drain(player, stats.getInt(0));
+        SpellCooldownManager.register(new Spell("soul_rage", this, "combat", (player, stats) -> {
+            boolean isGod = "god".equals(((freq.ascension.managers.AscensionData) player).getRank());
+            int durationTicks = (isGod ? Config.netherSoulRageDurationGod : Config.netherSoulRageDuration) * 20;
+            SpellRegistry.soul_rage(player, durationTicks);
         }));
     }
 
@@ -75,9 +76,10 @@ public class Nether implements Order {
             case "ghast_carry" -> new SpellStats(Config.netherGhastCarryCD,
                     "Summons a normal health ghast you can control and fly using. 6 b/s",
                     0);
-            case "soul_drain" -> new SpellStats(Config.netherSoulDrainCD,
-                    "For 10 seconds you gain saturation equivalent to 1/3 of the damage that you deal.",
-                    Config.netherSoulDrainDuration);
+            case "soul_rage" -> new SpellStats(Config.netherSoulRageCD * 20,
+                    "Activate a fury that enhances damage when low on health for " + Config.netherSoulRageDuration + "s. " +
+                    "≤8h: +1 | ≤6h: +1.5 | ≤4h: +2 | ≤2h: +3. You take 20% more damage while active.",
+                    0);
             default -> null;
         };
     }
@@ -92,8 +94,10 @@ public class Nether implements Order {
                 yield "GHAST CARRY: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
             }
             case "combat" -> {
-                SpellStats s = getSpellStats("soul_drain");
-                yield "SOUL DRAIN: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+                SpellStats s = getSpellStats("soul_rage");
+                yield "SOUL RAGE: Activate to gain bonus damage when low on health for " + Config.netherSoulRageDuration + "s. " +
+                    "≤8h: +1 | ≤6h: +1.5 | ≤4h: +2 | ≤2h: +3. You take 20% more damage while active. " +
+                    Config.netherSoulRageCD + "s cooldown.";
             }
             default -> "";
         };
@@ -136,20 +140,16 @@ public class Nether implements Order {
         if (damage < 0.1)
             return;
 
-        // Soul Drain healing effect
-        ActiveSpell soulDrain = SpellCooldownManager.getActiveSpell(attacker, SpellCooldownManager.get("soul_drain"));
-        if (soulDrain != null && soulDrain.isInUse() && hasCapability(attacker, "combat")) {
-            float saturation = damage * getSoulDrainRatio();
-            attacker.getFoodData().eat(0, saturation); // Restore saturation
-
-            // One SOUL particle per half-saturation bar healed
-            int soulPieces = (int) (saturation / 0.5f);
-            for (int i = 0; i < soulPieces; i++) {
-                attacker.level().addParticle(ParticleTypes.SOUL,
-                        victim.getX() + (attacker.level().getRandom().nextFloat() - 0.5f),
-                        victim.getY() + 1 + (attacker.level().getRandom().nextFloat() * 0.5f),
-                        victim.getZ() + (attacker.level().getRandom().nextFloat() - 0.5f),
-                        0.0, 0.1, 0.0);
+        // Soul Rage: health-based damage bonus when the buff is active
+        if (SpellRegistry.isSoulRageActive(attacker) && hasCapability(attacker, "combat")) {
+            float health = attacker.getHealth();
+            float bonus = 0;
+            if (health <= 4f) bonus = 3f;
+            else if (health <= 8f) bonus = 2f;
+            else if (health <= 12f) bonus = 1.5f;
+            else if (health <= 16f) bonus = 1f;
+            if (bonus > 0) {
+                context.setAmount(context.getAmount() + bonus);
             }
         }
 
@@ -162,11 +162,6 @@ public class Nether implements Order {
             attacker.level().addParticle(ParticleTypes.CRIT, victim.getX(), victim.getY(), victim.getZ(), 0.0, 0.0,
                     0.0);
         }
-    }
-
-    /** Returns the fraction of damage dealt that becomes saturation during soul drain. */
-    protected float getSoulDrainRatio() {
-        return 1.0f / 3.0f;
     }
 
     public String getOrderName() {

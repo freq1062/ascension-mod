@@ -79,6 +79,10 @@ public class Config {
     public static int netherGodGhastCarryCD = 60;
     public static int netherGodSoulDrainCD = 60;
     public static int netherGodSoulDrainDuration = 300;
+    public static int netherSoulRageCD = 90;          // demigod soul rage cooldown (seconds)
+    public static int netherSoulRageDuration = 20;    // demigod soul rage duration (seconds)
+    public static int netherSoulRageCDGod = 60;       // god soul rage cooldown (seconds)
+    public static int netherSoulRageDurationGod = 30; // god soul rage duration (seconds)
 
     // === END ===
     public static int endTeleportCD = 30;
@@ -176,6 +180,10 @@ public class Config {
         netherGodGhastCarryCD = config.getOrElse("nether_god.ghast_carry.cooldown_ticks", 60);
         netherGodSoulDrainCD = config.getOrElse("nether_god.soul_drain.cooldown_ticks", 60);
         netherGodSoulDrainDuration = config.getOrElse("nether_god.soul_drain.duration_ticks", 300);
+        netherSoulRageCD = config.getOrElse("nether.soul_rage.cooldown_seconds", 90);
+        netherSoulRageDuration = config.getOrElse("nether.soul_rage.duration_seconds", 20);
+        netherSoulRageCDGod = config.getOrElse("nether_god.soul_rage.cooldown_seconds", 60);
+        netherSoulRageDurationGod = config.getOrElse("nether_god.soul_rage.duration_seconds", 30);
 
         // End
         endTeleportCD = config.getOrElse("end.teleport.cooldown_ticks", 30);
@@ -276,6 +284,14 @@ public class Config {
         config.set("nether_god.ghast_carry.cooldown_ticks", netherGodGhastCarryCD);
         config.set("nether_god.soul_drain.cooldown_ticks", netherGodSoulDrainCD);
         config.set("nether_god.soul_drain.duration_ticks", netherGodSoulDrainDuration);
+        config.set("nether.soul_rage.cooldown_seconds", netherSoulRageCD);
+        config.setComment("nether.soul_rage.cooldown_seconds", "Soul Rage cooldown for demigod (seconds).");
+        config.set("nether.soul_rage.duration_seconds", netherSoulRageDuration);
+        config.setComment("nether.soul_rage.duration_seconds", "Soul Rage duration for demigod (seconds).");
+        config.set("nether_god.soul_rage.cooldown_seconds", netherSoulRageCDGod);
+        config.setComment("nether_god.soul_rage.cooldown_seconds", "Soul Rage cooldown for god (seconds).");
+        config.set("nether_god.soul_rage.duration_seconds", netherSoulRageDurationGod);
+        config.setComment("nether_god.soul_rage.duration_seconds", "Soul Rage duration for god (seconds).");
 
         // End
         config.set("end.teleport.cooldown_ticks", endTeleportCD);
