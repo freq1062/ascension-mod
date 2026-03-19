@@ -22,7 +22,8 @@ import net.minecraft.world.level.block.TallFlowerBlock;
 
 public class PlantProximityManager {
     private static final Map<UUID, Boolean> NEAR_PLANTS = new ConcurrentHashMap<>();
-    private static final int PLANT_CHECK_RADIUS = 5;
+    private static final int PLANT_CHECK_RADIUS_DEMIGOD = 5;
+    private static final int PLANT_CHECK_RADIUS_GOD = 7;
 
     public static void init() {
         // Check every 5 ticks for more responsive plant proximity detection
@@ -38,20 +39,26 @@ public class PlantProximityManager {
         return NEAR_PLANTS.getOrDefault(player.getUUID(), false);
     }
 
-    /** Synchronous on-demand check — bypasses the cache for time-critical callers like sculk mixins. */
+    /**
+     * Synchronous on-demand check — bypasses the cache for time-critical callers
+     * like sculk mixins.
+     */
     public static boolean isNearPlantSync(ServerPlayer player) {
         return isPlayerNearPlant(player);
     }
 
     private static boolean isPlayerNearPlant(ServerPlayer player) {
-        if (isHoldingPlant(player)) return true;
+        if (isHoldingPlant(player))
+            return true;
 
         BlockPos playerPos = player.blockPosition();
+        AscensionData data = (AscensionData) player;
+        int radius = data.getRank() == "god" ? PLANT_CHECK_RADIUS_DEMIGOD : PLANT_CHECK_RADIUS_GOD;
 
-        // Check all blocks in a 5-block radius
-        for (int x = -PLANT_CHECK_RADIUS; x <= PLANT_CHECK_RADIUS; x++) {
-            for (int y = -PLANT_CHECK_RADIUS; y <= PLANT_CHECK_RADIUS; y++) {
-                for (int z = -PLANT_CHECK_RADIUS; z <= PLANT_CHECK_RADIUS; z++) {
+        // Check all blocks in the radius
+        for (int x = -radius; x <= radius; x++) {
+            for (int y = -radius; y <= radius; y++) {
+                for (int z = -radius; z <= radius; z++) {
                     BlockPos checkPos = playerPos.offset(x, y, z);
                     Block block = player.level().getBlockState(checkPos).getBlock();
 
@@ -65,14 +72,17 @@ public class PlantProximityManager {
         return false;
     }
 
-    /** Returns true if the player is holding a plant item in mainhand or offhand. */
+    /**
+     * Returns true if the player is holding a plant item in mainhand or offhand.
+     */
     public static boolean isHoldingPlant(ServerPlayer player) {
         return isPlantItem(player.getMainHandItem()) || isPlantItem(player.getOffhandItem());
     }
 
     /** Returns true if the given ItemStack is a plant-type item. */
     public static boolean isPlantItem(ItemStack stack) {
-        if (stack.isEmpty()) return false;
+        if (stack.isEmpty())
+            return false;
         if (stack.is(ItemTags.FLOWERS) || stack.is(ItemTags.SAPLINGS) || stack.is(ItemTags.LEAVES))
             return true;
         if (stack.getItem() instanceof BlockItem bi) {

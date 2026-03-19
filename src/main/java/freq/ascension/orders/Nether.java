@@ -30,18 +30,24 @@ public class Nether implements Order {
      */
     private static final Map<UUID, Long> NETHER_FIRE_TIMESTAMP = new java.util.concurrent.ConcurrentHashMap<>();
 
-    /** Record that {@code player} was in contact with fire (call when fire damage is cancelled). */
+    /**
+     * Record that {@code player} was in contact with fire (call when fire damage is
+     * cancelled).
+     */
     public static void recordFireContact(ServerPlayer player) {
         NETHER_FIRE_TIMESTAMP.put(player.getUUID(), player.level().getGameTime());
     }
 
     /**
-     * Returns {@code true} if the player received fire contact within the last 5 seconds (100 ticks).
-     * Used in place of {@link net.minecraft.world.entity.Entity#isOnFire()} for the autocrit check.
+     * Returns {@code true} if the player received fire contact within the last 5
+     * seconds (100 ticks).
+     * Used in place of {@link net.minecraft.world.entity.Entity#isOnFire()} for the
+     * autocrit check.
      */
     public static boolean wasRecentlyOnFire(ServerPlayer player) {
         Long time = NETHER_FIRE_TIMESTAMP.get(player.getUUID());
-        if (time == null) return false;
+        if (time == null)
+            return false;
         return player.level().getGameTime() - time < 100;
     }
 
@@ -77,8 +83,9 @@ public class Nether implements Order {
                     "Summons a normal health ghast you can control and fly using. 6 b/s",
                     0);
             case "soul_rage" -> new SpellStats(Config.netherSoulRageCD * 20,
-                    "Activate a fury that enhances damage when low on health for " + Config.netherSoulRageDuration + "s. " +
-                    "≤8h: +1 | ≤6h: +1.5 | ≤4h: +2 | ≤2h: +3. You take 20% more damage while active.",
+                    "Activate a fury that enhances damage when low on health for " + Config.netherSoulRageDuration
+                            + "s. " +
+                            "≤8h: +1 | ≤6h: +1.5 | ≤4h: +2 | ≤2h: +3. You take 20% more damage while active.",
                     0);
             default -> null;
         };
@@ -88,16 +95,14 @@ public class Nether implements Order {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Permanent fire resistance. Nether mobs are neutral. Ability to swim in lava. Autocrit when on fire. ";
+                "Permanent fire resistance.\nMobs in the nether are neutral.\nAbility to swim in lava.\nAutocrit when on fire. ";
             case "utility" -> {
                 SpellStats s = getSpellStats("ghast_carry");
                 yield "GHAST CARRY: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
             }
             case "combat" -> {
                 SpellStats s = getSpellStats("soul_rage");
-                yield "SOUL RAGE: Activate to gain bonus damage when low on health for " + Config.netherSoulRageDuration + "s. " +
-                    "≤8h: +1 | ≤6h: +1.5 | ≤4h: +2 | ≤2h: +3. You take 20% more damage while active. " +
-                    Config.netherSoulRageCD + "s cooldown.";
+                yield "SOUL RAGE: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
             }
             default -> "";
         };
@@ -105,8 +110,10 @@ public class Nether implements Order {
 
     @Override
     public void applyEffect(ServerPlayer player) {
-        // Show a persistent FIRE_RESISTANCE icon (ambient so it has beacon styling, not visible
-        // particles, but the icon appears in the HUD). Duration 80 ticks — refreshed every 40 ticks.
+        // Show a persistent FIRE_RESISTANCE icon (ambient so it has beacon styling, not
+        // visible
+        // particles, but the icon appears in the HUD). Duration 80 ticks — refreshed
+        // every 40 ticks.
         if (hasCapability(player, "passive")) {
             player.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 80, 0, true, false, true));
         }
@@ -144,10 +151,14 @@ public class Nether implements Order {
         if (SpellRegistry.isSoulRageActive(attacker) && hasCapability(attacker, "combat")) {
             float health = attacker.getHealth();
             float bonus = 0;
-            if (health <= 4f) bonus = 3f;
-            else if (health <= 8f) bonus = 2f;
-            else if (health <= 12f) bonus = 1.5f;
-            else if (health <= 16f) bonus = 1f;
+            if (health <= 4f)
+                bonus = 3f;
+            else if (health <= 8f)
+                bonus = 2f;
+            else if (health <= 12f)
+                bonus = 1.5f;
+            else if (health <= 16f)
+                bonus = 1f;
             if (bonus > 0) {
                 context.setAmount(context.getAmount() + bonus);
             }

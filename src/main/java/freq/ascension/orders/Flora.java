@@ -50,8 +50,9 @@ public class Flora implements Order {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Regeneration I every 3s. Immune to negative potion effects. Double saturation from food.";
-            case "utility" -> "PLANT WARD: Cherry blossom particles while near a plant or holding one. Within 5 blocks of a plant or holding a plant: Sculk sensors and shriekers ignore you, mob aggro distance reduced by 50%, Creepers are neutral.";
+                "Permanent regeneration 1.\nImmunity to negative potion effects.\n1.5x saturation from food.\n Bees are passive.\nCrops cannot be trampled.";
+            case "utility" ->
+                "While holding or being within 5 blocks of a plant block: Sculk sensors and shriekers ignore you, mob aggro distance reduced by 50%, Creepers are neutral.";
             case "combat" -> {
                 SpellStats s = getSpellStats("thorns");
                 yield "THORNS: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
@@ -63,15 +64,18 @@ public class Flora implements Order {
     @Override
     public void applyEffect(ServerPlayer player) {
         if (hasCapability(player, "passive")) {
-            // ambient=true keeps HUD icon without particle spam; showIcon=true ensures it shows
+            // ambient=true keeps HUD icon without particle spam; showIcon=true ensures it
+            // shows
             player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 80, 0, true, false, true));
         }
         // Cherry leaf particles for utility slot near/holding plant
-        if (hasCapability(player, "utility") && PlantProximityManager.isNearPlant(player) && player.level() instanceof ServerLevel sl) {
+        if (hasCapability(player, "utility") && PlantProximityManager.isNearPlant(player)
+                && player.level() instanceof ServerLevel sl) {
             for (int i = 0; i < 3; i++) {
                 final int tickDelay = i * 14;
                 Ascension.scheduler.schedule(new DelayedTask(tickDelay, () -> {
-                    if (!player.isAlive() || !PlantProximityManager.isNearPlant(player)) return;
+                    if (!player.isAlive() || !PlantProximityManager.isNearPlant(player))
+                        return;
                     sl.sendParticles(ParticleTypes.CHERRY_LEAVES,
                             player.getX() + (sl.getRandom().nextFloat() - 0.5f) * 1.5,
                             player.getY() + 1.5,
@@ -152,7 +156,7 @@ public class Flora implements Order {
                     0.5,
                     0.5,
                     0.1);
-            return saturation * 2.0f;
+            return saturation * 1.5f;
         }
         return saturation;
     }

@@ -2,11 +2,9 @@ package freq.ascension.orders;
 
 import freq.ascension.Config;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.Bee;
 import net.minecraft.world.entity.monster.Creeper;
@@ -37,7 +35,8 @@ public class FloraGod extends Flora {
 
     @Override
     public boolean isNeutralBy(ServerPlayer player, Mob mob) {
-        // Creepers neutral when utility is equipped and player is near a plant (or has plant in inventory for gods)
+        // Creepers neutral when utility is equipped and player is near a plant (or has
+        // plant in inventory for gods)
         if (mob instanceof Creeper && hasCapability(player, "utility")
                 && (freq.ascension.managers.PlantProximityManager.isNearPlant(player)
                         || hasPlantBlockInInventory(player)))
@@ -59,8 +58,6 @@ public class FloraGod extends Flora {
 
         // +2 extra absorption hearts (4 half-hearts = 2 full hearts)
         player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 2400, 1, false, true, true));
-        // +15 seconds of Regeneration I
-        player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 300, 0, false, true, true));
     }
 
     @Override
@@ -77,8 +74,9 @@ public class FloraGod extends Flora {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Regen I. Poison immune. Double saturation. Bees and Creakings are passive. Golden apples grant +2 Absorption and extra Regen I for 15s.";
-            case "utility" -> "CREEPER TRUCE: Creepers are neutral near plants or while carrying any plant item.";
+                "Permanent regeneration 1.\nImmunity to negative potion effects.\n2x saturation from food.\nGolden apples give 4 absorption hearts instead of 2.\n Bees are passive.\nCrops cannot be trampled.";
+            case "utility" ->
+                "While carrying or being within 7 blocks of a plant block: Sculk sensors and shriekers ignore you, mob aggro distance reduced by 50%, Creepers are neutral.";
             case "combat" -> {
                 freq.ascension.managers.SpellStats s = getSpellStats("thorns");
                 yield "THORNS: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";

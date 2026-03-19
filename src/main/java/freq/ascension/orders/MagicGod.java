@@ -1,7 +1,7 @@
 package freq.ascension.orders;
 
-import freq.ascension.animation.PotionFlame;
 import freq.ascension.Config;
+import freq.ascension.animation.PotionFlame;
 import freq.ascension.managers.SpellStats;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.EntityTypeTags;
@@ -71,8 +71,8 @@ public class MagicGod extends Magic {
 
         // Identify effect source via heuristics:
         // - !ambient && visible → from potion/arrow/splash
-        //   - dur <= 220 ticks (~11s max for tipped arrows) → tipped arrow
-        //   - dur > 220 ticks and <= 10 min → regular potion or splash
+        // - dur <= 220 ticks (~11s max for tipped arrows) → tipped arrow
+        // - dur > 220 ticks and <= 10 min → regular potion or splash
         // - Otherwise → "other source" → cap to 1m30s
         boolean fromPotionOrArrow = effectInstance.isVisible();
 
@@ -119,8 +119,9 @@ public class MagicGod extends Magic {
     @Override
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
-            case "passive" -> "Speed 2. Enchantments cost 90% less. All Illagers and Raiders fully ignore you.";
-            case "utility" -> "Beneficial potion effects extended to 10 minutes. Tipped arrows extended to 1 minute.";
+            case "passive" -> "Permanent Speed 2.\nEnchantments are 90% cheaper.\nIllagers are passive.";
+            case "utility" ->
+                "Potions are extended to 10 minutes. Tipped arrows are extended to 1 minute 30 seconds. Excludes resistance and negative effects.";
             case "combat" -> {
                 SpellStats s = getSpellStats("shapeshift");
                 yield "SHAPESHIFT: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";

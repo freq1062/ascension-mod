@@ -21,7 +21,8 @@ public class SkyGod extends Sky {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "double_jump" -> new SpellStats(Config.skyGodDoubleJumpCD, "Jump twice mid-air. Upon landing, nearby entities take damage.", Config.skyDoubleJumpRange, true);
+            case "double_jump" -> new SpellStats(Config.skyGodDoubleJumpCD,
+                    "Jump twice mid-air. Upon landing, nearby entities take damage.", Config.skyDoubleJumpRange, true);
             // Jump height, slam=true for landing AoE
             case "dash" -> new SpellStats(Config.skyGodDashCD, "Dash forward 12 blocks", Config.skyGodDashDistance);
             case "star_strike" -> new SpellStats(Config.skyGodStarStrikeCD,
@@ -35,7 +36,7 @@ public class SkyGod extends Sky {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Full fall, dripstone, and projectile immunity. Projectiles are deflected. Double jump slams nearby entities on landing. Breezes are passive.";
+                "Full fall, projectile and dripstone damage immunity.\nBreezes are passive.\nDouble jump ability: Tap jump twice to activate.";
             case "utility" -> {
                 SpellStats s = getSpellStats("dash");
                 yield "DASH: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
@@ -61,8 +62,10 @@ public class SkyGod extends Sky {
 
     @Override
     public void applyProjectileShield(ServerPlayer player, Projectile projectile) {
-        if (nonHarmfulProjectiles(projectile)) return;
-        if (projectile.getTags().contains("sky_slowed") || projectile.getOwner() == player) return;
+        if (nonHarmfulProjectiles(projectile))
+            return;
+        if (projectile.getTags().contains("sky_slowed") || projectile.getOwner() == player)
+            return;
 
         if (projectile.level() instanceof ServerLevel serverLevel) {
             // Gods: deflect projectiles by reversing horizontal velocity.

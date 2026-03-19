@@ -22,7 +22,7 @@ public class EarthGod extends Earth {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Haste 2. Ore drops doubled and auto-smelted without silk touch. Anvils cost 80% less, never break, and have no level limit.";
+                "Permanent Haste 2.\nOre drops are doubled and automatically smelted without silk touch.\nAnvils cost 90% less, do not break, and have no limit.";
             case "utility" -> {
                 SpellStats s = getSpellStats("supermine");
                 yield "SUPERMINE: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";

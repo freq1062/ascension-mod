@@ -2,7 +2,6 @@ package freq.ascension.orders;
 
 import freq.ascension.animation.PotionFlame;
 import freq.ascension.Config;
-import freq.ascension.managers.AbilityManager;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -28,7 +27,9 @@ public class Magic implements Order {
         return this;
     }
 
-    /** Returns the maximum number of shapeshift forms a player can store in history. */
+    /**
+     * Returns the maximum number of shapeshift forms a player can store in history.
+     */
     protected int getMaxShapeshiftHistory() {
         return 5;
     }
@@ -45,9 +46,9 @@ public class Magic implements Order {
     @Override
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
-            case "passive" -> "Permanent Speed 1. Enchantments are 50% cheaper.";
+            case "passive" -> "Permanent Speed 1.\nEnchantments are 50% cheaper.\nIllagers are neutral.";
             case "utility" ->
-                "All potion effects shorter than 5 minutes become 5 minutes, excluding negative effects and resistance.";
+                "Potions under 5 minutes are extended to 5 minutes. Tipped arrows are extended to 1 minute. Excludes resistance and negative effects.";
             case "combat" -> {
                 SpellStats s = getSpellStats("shapeshift");
                 yield "SHAPESHIFT: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";

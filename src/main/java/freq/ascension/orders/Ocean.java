@@ -53,7 +53,8 @@ public class Ocean implements Order {
                     "Toggle between normal swimming speed and Dolphin's Grace 1.",
                     0);
             case "molecular_flux" ->
-                new SpellStats(Config.oceanMolecularFluxCD, "Transforms water related blocks between states", Config.oceanMolecularFluxRange, Config.oceanMolecularFluxDuration);
+                new SpellStats(Config.oceanMolecularFluxCD, "Transforms water related blocks between states",
+                        Config.oceanMolecularFluxRange, Config.oceanMolecularFluxDuration);
             case "drown" -> new SpellStats(Config.oceanDrownCD,
                     "Drowns players within 8 blocks and activates passives on land for 7s",
                     Config.oceanDrownDuration, Config.oceanDrownRadius);
@@ -64,8 +65,9 @@ public class Ocean implements Order {
     @Override
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
-            case "passive" -> "Permanent Conduit Power. Autocrit in water. DOLPHIN'S GRACE:"
-                    + getSpellStats("dolphins_grace").getDescription();
+            case "passive" ->
+                "Permanent Water Breathing.\nAutocrit in water.\nWalk over powdered snow with any boots.\nDOLPHIN'S GRACE: "
+                        + getSpellStats("dolphins_grace").getDescription();
             case "utility" -> {
                 SpellStats s = getSpellStats("molecular_flux");
                 yield "MOLECULAR FLUX: Transform water-related blocks in a " + s.getInt(0)
@@ -94,11 +96,13 @@ public class Ocean implements Order {
         if (damage < 0.1)
             return;
         ActiveSpell as = SpellCooldownManager.getActiveSpell(attacker, SpellCooldownManager.get("drown"));
-        // Autocrit in water (passive) or while drown is active — full-charge only, no double-crit
+        // Autocrit in water (passive) or while drown is active — full-charge only, no
+        // double-crit
         if (attacker.getAttackStrengthScale(0.5f) >= 0.9f
                 && ((attacker.isInWaterOrRain() && hasCapability(attacker, "passive"))
                         || (as != null && as.isInUse()))) {
-            // Skip our 1.5× when vanilla already applied a crit (player falling, not sprinting, not in liquid)
+            // Skip our 1.5× when vanilla already applied a crit (player falling, not
+            // sprinting, not in liquid)
             boolean isVanillaCrit = !attacker.onGround() && !attacker.isSprinting()
                     && !attacker.isInWater() && !attacker.isInLava();
             if (!isVanillaCrit) {

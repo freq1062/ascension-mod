@@ -17,7 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class OceanGod extends Ocean {
     public static final OceanGod INSTANCE = new OceanGod();
 
-    // Tracks dolphins grace cycle state per player: 0=off, 1=DG1(amp=0), 2=DG2(amp=1)
+    // Tracks dolphins grace cycle state per player: 0=off, 1=DG1(amp=0),
+    // 2=DG2(amp=1)
     private static final Map<UUID, Integer> DOLPHINS_GRACE_STATE = new ConcurrentHashMap<>();
 
     private OceanGod() {
@@ -57,7 +58,8 @@ public class OceanGod extends Ocean {
                         MobEffects.DOLPHINS_GRACE, Integer.MAX_VALUE, 0, true, false, true));
                 case 2 -> player.addEffect(new MobEffectInstance(
                         MobEffects.DOLPHINS_GRACE, Integer.MAX_VALUE, 1, true, false, true));
-                default -> { /* state 0 = off, already removed */ }
+                default -> {
+                    /* state 0 = off, already removed */ }
             }
             as.setInUse(false);
         }));
@@ -96,7 +98,8 @@ public class OceanGod extends Ocean {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Conduit Power. Haste 2 while submerged. Autocrit in water or during Drown. DOLPHIN'S GRACE: Cycle off \u2192 DG1 \u2192 DG2.";
+                "Permanent Conduit Power.\nHaste 2 while submerged.\nAutocrit in water.\nWalk over powdered snow with any boots.\nDOLPHIN'S GRACE: "
+                        + getSpellStats("dolphins_grace").getDescription();
             case "utility" -> {
                 SpellStats s = getSpellStats("molecular_flux");
                 yield "MOLECULAR FLUX: Transform water-related blocks in a " + s.getInt(0)

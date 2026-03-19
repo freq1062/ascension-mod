@@ -74,7 +74,8 @@ public class Sky implements Order {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "double_jump" -> new SpellStats(Config.skyDoubleJumpCD, "Jump twice mid-air to double jump", Config.skyDoubleJumpRange, false);
+            case "double_jump" -> new SpellStats(Config.skyDoubleJumpCD, "Jump twice mid-air to double jump",
+                    Config.skyDoubleJumpRange, false);
             // Jump height, slam
             case "dash" -> new SpellStats(Config.skyDashCD, "Dash forward 9 blocks", Config.skyDashDistance);
             case "star_strike" -> new SpellStats(Config.skyStarStrikeCD,
@@ -87,7 +88,8 @@ public class Sky implements Order {
     @Override
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
-            case "passive" -> "Fall damage immunity. Dripstone deals 50% less. Double jump: press jump twice. Incoming projectiles slowed by 50%. Breezes are passive.";
+            case "passive" ->
+                "Fall damage immunity.\nDripstone deals 50% less damage.\n Harmful projectiles slowed by 50%.\nBreezes are passive.\nDouble jump ability: Tap jump twice to activate.";
             case "utility" -> {
                 SpellStats s = getSpellStats("dash");
                 yield "DASH: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
