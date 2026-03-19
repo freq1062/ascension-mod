@@ -119,7 +119,7 @@ public class MagicGod extends Magic {
     @Override
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
-            case "passive" -> "Permanent Speed 2.\nEnchantments are 90% cheaper.\nIllagers are passive.";
+            case "passive" -> "Permanent Speed 2. Enchantments are 90% cheaper. Illagers are passive.";
             case "utility" ->
                 "Potions are extended to 10 minutes. Tipped arrows are extended to 1 minute 30 seconds. Excludes resistance and negative effects.";
             case "combat" -> {

@@ -38,8 +38,10 @@ public class NetherGod extends Nether {
         SpellCooldownManager.register(new Spell("ghast_carry", this, "utility", (player, stats) -> {
             SpellRegistry.ghast_carry(player, true, 11.5 / 6.0);
         }));
-        // soul_rage registration is handled by Nether.registerSpells() (the only tier called by OrderRegistry).
-        // NetherGod.getSpellStats("soul_rage") provides god-tier cooldown via Spell.getStats(player).
+        // soul_rage registration is handled by Nether.registerSpells() (the only tier
+        // called by OrderRegistry).
+        // NetherGod.getSpellStats("soul_rage") provides god-tier cooldown via
+        // Spell.getStats(player).
     }
 
     @Override
@@ -49,8 +51,9 @@ public class NetherGod extends Nether {
                     "Summons a double-health happy ghast you can fly using. 11.5 b/s.",
                     0);
             case "soul_rage" -> new SpellStats(Config.netherSoulRageCDGod * 20,
-                    "Activate a fury that enhances damage when low on health for " + Config.netherSoulRageDurationGod + "s. " +
-                    "\u22648h: +1 | \u22646h: +1.5 | \u22644h: +2 | \u22642h: +3. You take 10% more damage while active.",
+                    "Activate a fury that enhances damage when low on health for " + Config.netherSoulRageDurationGod
+                            + "s. " +
+                            "\u22648h: +1 | \u22646h: +1.5 | \u22644h: +2 | \u22642h: +3. You take 10% more damage while active.",
                     0);
             default -> null;
         };
@@ -60,15 +63,15 @@ public class NetherGod extends Nether {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Fire resistance. All Nether mobs fully passive (never aggro). Swim in lava. Autocrit when on fire.";
+                "Permanent fire resistance. Mobs in the nether are neutral. Ability to swim in lava. Autocrit when on fire.";
             case "utility" -> {
                 SpellStats s = getSpellStats("ghast_carry");
                 yield "GHAST CARRY: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
             }
-            case "combat" ->
-                "SOUL RAGE: Activate to gain bonus damage when low on health for " + Config.netherSoulRageDurationGod + "s. " +
-                "\u22648h: +1 | \u22646h: +1.5 | \u22644h: +2 | \u22642h: +3. You take 10% more damage while active. " +
-                Config.netherSoulRageCDGod + "s cooldown.";
+            case "combat" -> {
+                SpellStats s = getSpellStats("soul_rage");
+                yield "SOUL RAGE: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            }
             default -> "";
         };
     }

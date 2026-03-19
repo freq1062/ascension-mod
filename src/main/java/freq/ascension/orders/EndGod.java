@@ -7,11 +7,14 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 
 /**
- * God-tier End order. Extends the demigod End order with stronger ability values.
+ * God-tier End order. Extends the demigod End order with stronger ability
+ * values.
  * <ul>
- *   <li><b>Passive</b>: End mobs neutral; ¼ ender pearl cooldown (instead of ½).</li>
- *   <li><b>Utility</b>: Teleport 15 blocks through up to 4 solid blocks.</li>
- *   <li><b>Combat</b>: Desolation of Time — 10s disable + Weakness I 15s in 7-block radius.</li>
+ * <li><b>Passive</b>: End mobs neutral; ¼ ender pearl cooldown (instead of
+ * ½).</li>
+ * <li><b>Utility</b>: Teleport 15 blocks through up to 4 solid blocks.</li>
+ * <li><b>Combat</b>: Desolation of Time — 10s disable + Weakness I 15s in
+ * 7-block radius.</li>
  * </ul>
  */
 public class EndGod extends End {
@@ -30,12 +33,13 @@ public class EndGod extends End {
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
             // extra[0] = maxBlocks for teleport, extra[1] = maxSolidBlocks
-            case "teleport" -> new SpellStats(Config.endGodTeleportCD, "Teleport up to 15 blocks in your look direction.", Config.endGodTeleportRange, 4);
+            case "teleport" -> new SpellStats(Config.endGodTeleportCD,
+                    "Teleport up to 15 blocks in your look direction.", Config.endGodTeleportRange, 4);
             case "desolation_of_time" -> new SpellStats(Config.endGodDesolationCD,
                     "Within 7 blocks: disable combat abilities 10 s, Weakness I 15 s.",
                     200, // disableDurationTicks (10 s)
-                    300  // weaknessDurationTicks (15 s)
-            );
+                    300 // weaknessDurationTicks (15 s)
+                );
             default -> null;
         };
     }
@@ -43,9 +47,11 @@ public class EndGod extends End {
     @Override
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
-            case "passive" -> "End mobs neutral. Ender pearl cooldown quartered. Ender chest +1 row.";
-            case "utility" -> "TELEPORT: Teleport up to 15 blocks through up to 4 solid blocks. " + getSpellStats("teleport").getCooldownSecs() + "s cooldown.";
-            case "combat" -> "DESOLATION OF TIME: Disable combat abilities 10s + Weakness I 15s within 7 blocks. " + getSpellStats("desolation_of_time").getCooldownSecs() + "s cooldown.";
+            case "passive" -> "End mobs are neutral. Ender pearl cooldown halved. Extra row in your enderchest.";
+            case "utility" -> "TELEPORT: Teleport up to 15 blocks through up to 4 solid blocks. "
+                    + getSpellStats("teleport").getCooldownSecs() + "s cooldown.";
+            case "combat" -> "DESOLATION OF TIME: Disable combat abilities 10s + Weakness I 15s within 7 blocks. "
+                    + getSpellStats("desolation_of_time").getCooldownSecs() + "s cooldown.";
             default -> "";
         };
     }

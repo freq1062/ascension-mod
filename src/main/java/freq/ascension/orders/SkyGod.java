@@ -36,7 +36,7 @@ public class SkyGod extends Sky {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Full fall, projectile and dripstone damage immunity.\nBreezes are passive.\nDouble jump ability: Tap jump twice to activate.";
+                "Full fall, projectile and dripstone damage immunity.Breezes are passive.Double jump ability: Tap jump twice to activate.";
             case "utility" -> {
                 SpellStats s = getSpellStats("dash");
                 yield "DASH: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";

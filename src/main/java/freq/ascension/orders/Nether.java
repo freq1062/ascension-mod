@@ -95,7 +95,7 @@ public class Nether implements Order {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Permanent fire resistance.\nMobs in the nether are neutral.\nAbility to swim in lava.\nAutocrit when on fire. ";
+                "Permanent fire resistance. Mobs in the nether are neutral. Ability to swim in lava. Autocrit when on fire.";
             case "utility" -> {
                 SpellStats s = getSpellStats("ghast_carry");
                 yield "GHAST CARRY: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";

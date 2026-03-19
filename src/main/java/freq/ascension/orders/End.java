@@ -4,7 +4,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import eu.pb4.sgui.api.elements.GuiElementInterface;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import freq.ascension.Ascension;
 import freq.ascension.Config;
@@ -13,7 +12,6 @@ import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
 import freq.ascension.registry.SpellRegistry;
-import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.MinecraftServer;
@@ -28,20 +26,22 @@ import net.minecraft.world.item.ItemStack;
 /**
  * Stub scaffold for the End Order (Demigod tier).
  *
- * <p>This file exists so that {@code EndDemigodTests} compiles and fails on
+ * <p>
+ * This file exists so that {@code EndDemigodTests} compiles and fails on
  * assertion (not on missing class). All methods return safe defaults; the
  * actual implementation is Phase 2 work.
  *
- * <p><b>Abilities (to be implemented):</b>
+ * <p>
+ * <b>Abilities (to be implemented):</b>
  * <ul>
- *   <li><b>Passive</b>: Non-boss End mobs neutral (Enderman, Endermite,
- *       Shulker); ender pearl cooldown −50%; ender chest +1 extra row;
- *       custom purple+bold chest title; unequip guard while extra row
- *       contains items.</li>
- *   <li><b>Utility</b>: Teleport — 10-block ray trace, stops at 2nd solid
- *       block, teleports to farthest valid position, enderman particles.</li>
- *   <li><b>Combat</b>: Desolation of Time — 7-block radius disables combat
- *       abilities for 5 s + Weakness I for 10 s; DragonCurve VFX.</li>
+ * <li><b>Passive</b>: Non-boss End mobs neutral (Enderman, Endermite,
+ * Shulker); ender pearl cooldown −50%; ender chest +1 extra row;
+ * custom purple+bold chest title; unequip guard while extra row
+ * contains items.</li>
+ * <li><b>Utility</b>: Teleport — 10-block ray trace, stops at 2nd solid
+ * block, teleports to farthest valid position, enderman particles.</li>
+ * <li><b>Combat</b>: Desolation of Time — 7-block radius disables combat
+ * abilities for 5 s + Weakness I for 10 s; DragonCurve VFX.</li>
  * </ul>
  */
 public class End implements Order {
@@ -94,12 +94,13 @@ public class End implements Order {
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
             // extra[0] = maxBlocks for teleport
-            case "teleport" -> new SpellStats(Config.endTeleportCD, "Teleport up to 10 blocks in your look direction.", Config.endTeleportRange);
+            case "teleport" -> new SpellStats(Config.endTeleportCD, "Teleport up to 10 blocks in your look direction.",
+                    Config.endTeleportRange);
             case "desolation_of_time" -> new SpellStats(Config.endDesolationCD,
                     "Within 7 blocks: disable combat abilities 5 s, Weakness I 10 s.",
                     100, // disableDurationTicks (5 s)
-                    200  // weaknessDurationTicks (10 s)
-            );
+                    200 // weaknessDurationTicks (10 s)
+                );
             default -> null;
         };
     }
@@ -108,9 +109,12 @@ public class End implements Order {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "End mobs neutral. Ender pearl cooldown halved. Ender chest +1 row.";
-            case "utility" -> "TELEPORT: Teleport up to 10 blocks in your look direction. " + getSpellStats("teleport").getCooldownSecs() + "s cooldown.";
-            case "combat" -> "DESOLATION OF TIME: Disable combat abilities 5s + Weakness I 10s within 7 blocks. " + getSpellStats("desolation_of_time").getCooldownSecs() + "s cooldown.";
+                "End mobs are neutral. Ender pearl cooldown halved. Extra row in your enderchest.";
+            case "utility" -> "Teleport up to 10 blocks through up to 2 solid blocks. "
+                    + getSpellStats("teleport").getCooldownSecs() + "s cooldown.";
+            case "combat" ->
+                "DESOLATION OF TIME: Disable combat abilities 5s + Weakness I 10s within 7 blocks. Excludes god weapons."
+                        + getSpellStats("desolation_of_time").getCooldownSecs() + "s cooldown.";
             default -> "";
         };
     }
@@ -122,7 +126,8 @@ public class End implements Order {
     @Override
     public boolean isNeutralBy(ServerPlayer player, Mob mob) {
         // MobTargetMixin only reaches here when the player has End equipped.
-        // Enderman, Endermite, and Shulker are neutral; Ender Dragon (boss) is excluded.
+        // Enderman, Endermite, and Shulker are neutral; Ender Dragon (boss) is
+        // excluded.
         EntityType<?> type = mob.getType();
         return type == EntityType.ENDERMAN
                 || type == EntityType.ENDERMITE
@@ -140,9 +145,10 @@ public class End implements Order {
     /**
      * Opens a custom 4-row chest GUI for the player:
      * <ul>
-     *   <li>Rows 0–2 (slots 0–26) redirect to the player's vanilla ender-chest inventory.</li>
-     *   <li>Row 3 (slots 27–35) redirects to a temporary container backed by
-     *       {@link EnderRowManager}; changes are persisted when the GUI closes.</li>
+     * <li>Rows 0–2 (slots 0–26) redirect to the player's vanilla ender-chest
+     * inventory.</li>
+     * <li>Row 3 (slots 27–35) redirects to a temporary container backed by
+     * {@link EnderRowManager}; changes are persisted when the GUI closes.</li>
      * </ul>
      */
     public void openEnderChestWithExtraRow(ServerPlayer player) {
@@ -192,12 +198,15 @@ public class End implements Order {
     // ─── Unequip guard ────────────────────────────────────────────────────────
 
     /**
-     * Prevents the player from unequipping the End passive while their extra ender-chest
-     * row still contains items.  All other slots (utility, combat) are always allowed.
+     * Prevents the player from unequipping the End passive while their extra
+     * ender-chest
+     * row still contains items. All other slots (utility, combat) are always
+     * allowed.
      */
     @Override
     public boolean canUnequip(ServerPlayer player) {
-        if (!hasCapability(player, "passive")) return true;
+        if (!hasCapability(player, "passive"))
+            return true;
         EnderRowManager mgr = EnderRowManager.get(Ascension.getServer());
         if (mgr.hasItems(player.getUUID())) {
             player.sendSystemMessage(Component.literal(

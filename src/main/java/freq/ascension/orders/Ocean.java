@@ -66,7 +66,7 @@ public class Ocean implements Order {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Permanent Water Breathing.\nAutocrit in water.\nWalk over powdered snow with any boots.\nDOLPHIN'S GRACE: "
+                "Permanent Water Breathing. Autocrit in water. Walk over powdered snow with any boots. DOLPHIN'S GRACE: "
                         + getSpellStats("dolphins_grace").getDescription();
             case "utility" -> {
                 SpellStats s = getSpellStats("molecular_flux");

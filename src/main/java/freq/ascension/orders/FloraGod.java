@@ -74,7 +74,7 @@ public class FloraGod extends Flora {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Permanent regeneration 1.\nImmunity to negative potion effects.\n2x saturation from food.\nGolden apples give 4 absorption hearts instead of 2.\n Bees are passive.\nCrops cannot be trampled.";
+                "Permanent regeneration 1. Immunity to negative potion effects. 2x saturation from food. Golden apples give 4 absorption hearts instead of 2. Bees are passive. Crops cannot be trampled.";
             case "utility" ->
                 "While carrying or being within 7 blocks of a plant block: Sculk sensors and shriekers ignore you, mob aggro distance reduced by 50%, Creepers are neutral.";
             case "combat" -> {

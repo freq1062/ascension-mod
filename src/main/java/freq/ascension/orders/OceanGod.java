@@ -98,7 +98,7 @@ public class OceanGod extends Ocean {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Permanent Conduit Power.\nHaste 2 while submerged.\nAutocrit in water.\nWalk over powdered snow with any boots.\nDOLPHIN'S GRACE: "
+                "Permanent Conduit Power. Haste 2 while submerged. Autocrit in water. Walk over powdered snow with any boots. DOLPHIN'S GRACE: "
                         + getSpellStats("dolphins_grace").getDescription();
             case "utility" -> {
                 SpellStats s = getSpellStats("molecular_flux");

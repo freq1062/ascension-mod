@@ -50,7 +50,7 @@ public class Flora implements Order {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Permanent regeneration 1.\nImmunity to negative potion effects.\n1.5x saturation from food.\n Bees are passive.\nCrops cannot be trampled.";
+                "Permanent regeneration 1. Immunity to negative potion effects. 1.5x saturation from food. Bees are passive. Crops cannot be trampled.";
             case "utility" ->
                 "While holding or being within 5 blocks of a plant block: Sculk sensors and shriekers ignore you, mob aggro distance reduced by 50%, Creepers are neutral.";
             case "combat" -> {

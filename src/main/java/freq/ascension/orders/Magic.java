@@ -46,7 +46,7 @@ public class Magic implements Order {
     @Override
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
-            case "passive" -> "Permanent Speed 1.\nEnchantments are 50% cheaper.\nIllagers are neutral.";
+            case "passive" -> "Permanent Speed 1. Enchantments are 50% cheaper. Illagers are neutral.";
             case "utility" ->
                 "Potions under 5 minutes are extended to 5 minutes. Tipped arrows are extended to 1 minute. Excludes resistance and negative effects.";
             case "combat" -> {

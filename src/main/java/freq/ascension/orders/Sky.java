@@ -89,7 +89,7 @@ public class Sky implements Order {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Fall damage immunity.\nDripstone deals 50% less damage.\n Harmful projectiles slowed by 50%.\nBreezes are passive.\nDouble jump ability: Tap jump twice to activate.";
+                "No fall damage. Dripstone deals 50% less damage. Harmful projectiles slowed by 50%. Breezes are passive.Double jump ability: Tap jump twice to activate.";
             case "utility" -> {
                 SpellStats s = getSpellStats("dash");
                 yield "DASH: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
