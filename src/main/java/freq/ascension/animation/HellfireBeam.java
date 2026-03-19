@@ -73,9 +73,10 @@ public class HellfireBeam {
 
         // Rotate + animate the outer glass entity — width-only fade; length stays constant.
         // Phase: 0–3  = grow width (0 → G)
-        //        3–13 = hold full width
-        //        13–23 = shrink width (G → 0)
-        // Total lifetime: 23 ticks (matches SHROOMLIGHT core lifetime of 3+10+10).
+        //        3–20 = hold full width  (shroomlight core discards at ~27 ticks; glass holds
+        //                                 longer so it fades out AFTER the core disappears)
+        //        20–30 = shrink width (G → 0)
+        // Total lifetime: 30 ticks.
         if (glowData != null) {
             final float beamLength = (float) actualRange;
             final float G = glowData.g;
@@ -92,28 +93,33 @@ public class HellfireBeam {
                 float scaleXZ;
                 if (t <= 3) {
                     scaleXZ = (t / 3f) * G;
-                } else if (t <= 13) {
+                } else if (t <= 20) {
                     scaleXZ = G;
                 } else {
-                    scaleXZ = Math.max(0f, ((23f - t) / 10f) * G);
+                    scaleXZ = Math.max(0f, ((30f - t) / 10f) * G);
                 }
 
-                // Dynamic centering: offset scales with scaleXZ so the block shrinks toward
-                // its center rather than its corner. When scaleXZ=S the local extent is [0,S]
-                // in X and Z, so we translate by baseRot × (-S/2, 0, -S/2).
-                Vector3f dynamicCenter = glowData.baseRot.transform(
-                        new Vector3f(-scaleXZ * 0.5f, 0f, -scaleXZ * 0.5f), new Vector3f());
+                // Pin the block's geometric centre (scaleXZ/2, beamLength/2, scaleXZ/2 in
+                // local space) to the beam-axis midpoint at every rotation angle.
+                // translation = beamMid - rotY.transform(blockCenter)
+                // This mirrors how PoiManager keeps its ItemDisplay spinning in-place:
+                // the desired pivot point is subtracted from where the block centre would
+                // end up after the combined rotation, so the block spins about its own centre.
                 org.joml.Quaternionf rotY = new org.joml.Quaternionf(baseRot).rotateY((float) Math.toRadians(glassAngle[0]));
+                Vector3f beamMid = baseRot.transform(new Vector3f(0f, beamLength * 0.5f, 0f), new Vector3f());
+                Vector3f blockCenterAfterRot = rotY.transform(
+                        new Vector3f(scaleXZ * 0.5f, beamLength * 0.5f, scaleXZ * 0.5f), new Vector3f());
+                Vector3f dynamicCenter = new Vector3f(beamMid).sub(blockCenterAfterRot);
                 gd.setTransformation(new com.mojang.math.Transformation(
                     dynamicCenter, rotY, new Vector3f(scaleXZ, beamLength, scaleXZ), new Quaternionf()));
                 gd.setTransformationInterpolationDelay(0);
                 gd.setTransformationInterpolationDuration(1);
 
-                if (t >= 23) gd.discard();
+                if (t >= 30) gd.discard();
             }) {
                 @Override
                 public boolean isFinished() {
-                    return glassTick[0] >= 23;
+                    return glassTick[0] >= 30;
                 }
             });
         }
@@ -149,13 +155,16 @@ public class HellfireBeam {
         Quaternionf rotation = GeometrySource.faceVector(dirVec);
 
         // Core — SHROOMLIGHT, 0.5 × 0.5 wide. Full length from the start; width fades in/out.
+        // Two keyframes only: grow (3 ticks) then shrink (10 ticks) with a 10-tick client-side
+        // delay on the shrink. Using a delay avoids sending a redundant setTransformation packet
+        // for the hold phase, which would snap the client's interpolation state and cause a
+        // visible "snap back and grow again" artefact.
         float T = 0.5f;
         Vector3f coreCenter = rotation.transform(new Vector3f(-T * 0.5f, 0f, -T * 0.5f), new Vector3f());
         new VFXBuilder(level, startVec, Blocks.SHROOMLIGHT.defaultBlockState(),
-                VFXBuilder.instant(new Vector3f(0f), rotation, new Vector3f(0f, length, 0f)))  // 0 width, 0 translation
-                .addKeyframeS(coreCenter, null, new Vector3f(T, length, T), 3)           // grow width in 3 ticks
-                .addKeyframeS(coreCenter, null, new Vector3f(T, length, T), 10)          // hold 10 ticks
-                .addKeyframeS(new Vector3f(0f), null, new Vector3f(0f, length, 0f), 10, 0);   // shrink width in 10 ticks
+                VFXBuilder.instant(new Vector3f(0f), rotation, new Vector3f(0f, length, 0f)))
+                .addKeyframeS(coreCenter, null, new Vector3f(T, length, T), 3)                      // grow 3 ticks
+                .addKeyframeS(new Vector3f(0f), null, new Vector3f(0f, length, 0f), 10, 10); // hold 10 (delay), shrink 10
 
         // Glow — ORANGE_STAINED_GLASS, 0.8 × 0.8 wide. Created directly so rotation task
         // can manage both scale and rotation without conflicting with VFXBuilder.
