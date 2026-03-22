@@ -203,6 +203,15 @@ public class Sky implements Order {
     }
 
     @Override
+    public void onUnequip(ServerPlayer player, String slotType) {
+        if ("passive".equals(slotType)) {
+            player.getAbilities().mayfly = false;
+            player.getAbilities().flying = false;
+            player.onUpdateAbilities();
+        }
+    }
+
+    @Override
     public String getOrderIcon() {
         return "\uE182";
     }

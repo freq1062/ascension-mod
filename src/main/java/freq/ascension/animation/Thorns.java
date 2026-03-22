@@ -27,45 +27,53 @@ public class Thorns {
         float targetMinY = (float) targetBox.minY;
 
         for (int i = 0; i < numSpikes; i++) {
-            // 1. Starting position: within 0.3-0.8 blocks of target center, at ground level
+            // Compute all random values for this spike BEFORE the lambda
             float angle = random.nextFloat() * (float) (Math.PI * 2);
             float dist = 1.3f + random.nextFloat() * 0.5f;
             float startX = targetCenterX + (float) Math.cos(angle) * dist;
             float startZ = targetCenterZ + (float) Math.sin(angle) * dist;
             Vector3f startPos = new Vector3f(startX, targetMinY, startZ);
-
             MagmaBubble.resolveSurface(level, startPos, 4);
-
-            // 2. Target point: random height 0.2-2.0 above target.minY at target center
             float targetHeight = targetMinY + 0.2f + random.nextFloat() * 1.8f;
             Vector3f targetPoint = new Vector3f(targetCenterX, targetHeight, targetCenterZ);
-
-            // 3. Direction: from start toward target, normalized
             Vector3f dir = new Vector3f(targetPoint).sub(startPos).normalize();
-
             float distance = startPos.distance(targetPoint);
             float vineLength = distance + 0.5f + random.nextFloat() * 0.5f;
-
             float thickness = 0.07f + random.nextFloat() * 0.04f;
             int growDelay = random.nextInt(3);
             int growDuration = 5 + random.nextInt(4);
             int retractDuration = 6 + random.nextInt(4);
-
-            // Main branch (segmented for natural curvature)
-            spawnBranch(level, startPos, dir, vineLength, thickness, growDelay, growDuration, durationTicks,
-                    retractDuration);
-
-            // 1-2 sub-branches with slight rotation to simulate real branch splits
             int branchCount = 1 + random.nextInt(2);
+            // Pre-compute branch directions
+            Vector3f[] branchDirs = new Vector3f[branchCount];
+            float[] branchLengths = new float[branchCount];
             for (int b = 0; b < branchCount; b++) {
-                Vector3f branchDir = rotateVector(dir,
+                branchDirs[b] = rotateVector(dir,
                         (random.nextFloat() - 0.5f) * 0.4f,
                         (random.nextFloat() - 0.5f) * 0.3f);
-                float branchLength = vineLength * (0.5f + random.nextFloat() * 0.3f);
-                int branchDelay = growDelay + growDuration / 2;
-                spawnBranch(level, startPos, branchDir, branchLength, thickness * 0.7f,
-                        branchDelay, growDuration, durationTicks, retractDuration);
+                branchLengths[b] = vineLength * (0.5f + random.nextFloat() * 0.3f);
             }
+
+            // Capture finals for lambda
+            final Vector3f fStartPos = startPos;
+            final Vector3f fDir = dir;
+            final float fVineLength = vineLength;
+            final float fThickness = thickness;
+            final int fGrowDelay = growDelay;
+            final int fGrowDuration = growDuration;
+            final int fRetractDuration = retractDuration;
+            final Vector3f[] fBranchDirs = branchDirs;
+            final float[] fBranchLengths = branchLengths;
+            final int fBranchCount = branchCount;
+
+            Ascension.scheduler.schedule(new DelayedTask(i, () -> {
+                spawnBranch(level, fStartPos, fDir, fVineLength, fThickness, fGrowDelay, fGrowDuration, durationTicks, fRetractDuration);
+                for (int b = 0; b < fBranchCount; b++) {
+                    int bDelay = fGrowDelay + fGrowDuration / 2;
+                    spawnBranch(level, fStartPos, fBranchDirs[b], fBranchLengths[b], fThickness * 0.7f,
+                            bDelay, fGrowDuration, durationTicks, fRetractDuration);
+                }
+            }));
         }
 
         // Vine growth sound + delayed impact

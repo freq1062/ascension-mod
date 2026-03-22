@@ -21,8 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * reads the saved profile and calls
  * {@code Entity.setGameProfile(GameProfile)}.</li>
  * <li>{@code setGameProfile} calls {@code disguiselib$sendProfileUpdates()},
- * which
- * constructs a {@code ClientboundPlayerInfoUpdatePacket} using DisguiseLib's
+ * which constructs a {@code ClientboundPlayerInfoUpdatePacket} using DisguiseLib's
  * internal {@code serverPlayer} reference — a field that is only populated
  * when the entity is tracked by the chunk-loading manager.</li>
  * <li>Because the player has not entered the PLAY phase yet, that reference is
@@ -30,17 +29,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * </ol>
  *
  * <p>
- * <b>Why this Mixin is necessary:</b> No Fabric API hook fires between
- * {@code Entity.load()} and DisguiseLib's {@code fromTag} injection.
- * The
- * {@link net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents#JOIN}
- * event fires too late. The only safe interception point is the
- * {@code setGameProfile} method itself, which DisguiseLib adds to
- * {@code Entity}
- * via its own Mixin. Using {@code remap = false} prevents the compile-time
- * Mixin annotation processor from rejecting the target (the method does not
- * exist on {@code Entity} at compile time; it is present at runtime after
- * DisguiseLib's Mixin has been applied).
+ * <b>Carpet bot variant:</b> {@code EntityPlayerMPFake.loadPlayerData()} calls
+ * {@code Entity.readFromNbt()} inside a delayed task that runs <em>after</em>
+ * {@code onPlayerConnect()} — so {@code connection} and
+ * {@code level().getServer()} are both non-null. The entity is, however, not yet
+ * registered in the {@code ServerLevel}'s entity lookup (
+ * {@code ServerLevel.getEntity(id)} returns {@code null}). Guard #3 detects this
+ * condition and cancels the profile update, preventing the
+ * {@code ClientboundPlayerInfoUpdatePacket} NPE.
  *
  * <p>
  * <b>Prevention:</b> The DISCONNECT handler in {@link freq.ascension.Ascension}
@@ -113,6 +109,20 @@ public abstract class DisguiseLoadMixin {
         if (sp.connection == null
                 || sp.level() == null
                 || sp.level().getServer() == null) {
+            ci.cancel();
+            return;
+        }
+
+        // Guard #3: Block setGameProfile if the entity is not yet registered in
+        // the level's entity lookup. This catches carpet fake players whose
+        // connection and server are both non-null during loadPlayerData(), but
+        // who have not yet been added to the ServerLevel via addNewPlayer().
+        // Before addNewPlayer() runs, sendProfileUpdates() would iterate tracked
+        // entities and crash with a NullPointerException constructing the
+        // ClientboundPlayerInfoUpdatePacket because the entity tracker entry is
+        // absent. ServerLevel.getEntity(id) returns null until the entity is
+        // registered, making this a reliable in-world membership check.
+        if (sp.level().getEntity(sp.getId()) != (Object) this) {
             ci.cancel();
             return;
         }

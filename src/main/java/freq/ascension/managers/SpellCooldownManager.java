@@ -261,6 +261,43 @@ public final class SpellCooldownManager {
     }
 
     /**
+     * Triggers the spell bound to the player's currently held hotbar slot.
+     * Reads the selected slot index, looks up the bound spell, checks cooldown, and activates it.
+     *
+     * @return true if the spell was successfully triggered; false if no spell bound or on cooldown.
+     */
+    public static boolean triggerSpellAtCurrentSlot(ServerPlayer player) {
+        freq.ascension.managers.AscensionData data = (freq.ascension.managers.AscensionData) player;
+        java.util.Map<Integer, String> bindings = data.getSpellBindings();
+        if (bindings == null) return false;
+
+        int selectedSlot = player.getInventory().getSelectedSlot();
+        String spellId = bindings.get(selectedSlot);
+        if (spellId == null || spellId.isEmpty()) return false;
+
+        Spell spell = get(spellId);
+        if (spell == null) return false;
+
+        if (isSpellOnCooldown(player, spell)) return false;
+
+        // Check Desolation of Time for combat spells
+        if (freq.ascension.orders.End.isAffectedByDesolation(player) && "combat".equals(spell.getType())) {
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "§cYour combat abilities are disabled by Desolation of Time!"));
+            return false;
+        }
+
+        try {
+            spell.getOrder().executeActiveSpell(spellId, player);
+            return true;
+        } catch (Exception e) {
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "Error activating spell: " + e.getMessage()));
+            return false;
+        }
+    }
+
+    /**
      * Triggers the spell of the given slot type ("passive", "utility", "combat") for the player.
      * Finds the first bound spell matching that slot type, checks cooldown, and activates it.
      *

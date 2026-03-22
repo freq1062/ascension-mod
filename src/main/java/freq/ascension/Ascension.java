@@ -316,6 +316,13 @@ public class Ascension implements ModInitializer {
 			// Defensively clear any stale stun from a previous session (e.g. if the
 			// server crashed while the stun DelayedTask was still pending).
 			freq.ascension.registry.SpellRegistry.clearStun(joining.getUUID());
+			// Strip any poison that was saved to NBT before the disconnect event could
+			// clear it. PlayerList.remove() (which writes NBT) fires before DISCONNECT,
+			// so removeEffect in the DISCONNECT handler is too late to prevent the effect
+			// from persisting into the save file. Clearing it here on join is the only
+			// reliable way to prevent players (and carpet bots reusing a saved file)
+			// from spawning with a stale poison effect from a prior Thorns hit.
+			joining.removeEffect(net.minecraft.world.effect.MobEffects.POISON);
 
 			// Grant custom recipe book unlocks on join (deferred 1 tick so the player
 			// entity is fully initialized before awardRecipes writes the advancement).
@@ -363,6 +370,21 @@ public class Ascension implements ModInitializer {
 			freq.ascension.orders.Nether.clearFireTracking(disconnectedUUID);
 			// Clean up soul rage active state
 			freq.ascension.registry.SpellRegistry.clearSoulRage(disconnectedUUID);
+			// Clear thorns targeting mode
+			freq.ascension.registry.SpellRegistry.clearThorns(disconnectedUUID);
+			// Strip lingering poison from thorns before NBT save
+			handler.getPlayer().removeEffect(net.minecraft.world.effect.MobEffects.POISON);
+			// Clear flight ability so mayfly/flying flags are not saved to NBT.
+			// Sky.applyEffect will re-enable mayfly on the next AbilityManager tick after rejoin.
+			{
+				ServerPlayer leavingPlayer = handler.getPlayer();
+				if (leavingPlayer.gameMode() == net.minecraft.world.level.GameType.SURVIVAL
+						|| leavingPlayer.gameMode() == net.minecraft.world.level.GameType.ADVENTURE) {
+					leavingPlayer.getAbilities().mayfly = false;
+					leavingPlayer.getAbilities().flying = false;
+					leavingPlayer.onUpdateAbilities();
+				}
+			}
 			// Clean up POI interact debounce map
 			lastPoiInteractTick.remove(disconnectedUUID);
 		});

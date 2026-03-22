@@ -789,6 +789,10 @@ public class SpellRegistry {
         SOUL_RAGE_ACTIVE.remove(uuid);
     }
 
+    public static void clearThorns(UUID uuid) {
+        THORNS_ACTIVE.remove(uuid);
+    }
+
     public static void soul_rage(ServerPlayer player, int durationTicks) {
         UUID uid = player.getUUID();
         SOUL_RAGE_ACTIVE.add(uid);
@@ -1020,13 +1024,26 @@ public class SpellRegistry {
 
             Ascension.scheduler.schedule(new DelayedTask(durationTicks, () -> {
                 try {
+                    xyz.nucleoid.disguiselib.api.EntityDisguise freshDisguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
                     if (!player.isAlive() || player.isRemoved()) {
+                        // Player disconnected or died while shapeshifted. We cannot send
+                        // profile-update packets to watchers (the entity is gone), but we
+                        // must still clear DisguiseLib's in-memory state so the NBT that was
+                        // already written on disconnect does not accumulate stale entries.
+                        // tryRemoveDisguiseSilently clears the disguise fields without
+                        // broadcasting any packets, preventing an NPE on the next load.
+                        if (freshDisguise.isDisguised()) {
+                            try {
+                                freshDisguise.removeDisguise();
+                            } catch (Exception ignored) {
+                                // Packet broadcast may fail on a removed entity; ignore.
+                            }
+                        }
                         if (as != null)
                             as.setInUse(false);
                         return;
                     }
-                    // Re-cast player to EntityDisguise to avoid stale reference issues
-                    xyz.nucleoid.disguiselib.api.EntityDisguise freshDisguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
+                    // Re-cast player to EntityDisguise to avoid stale reference issues.
                     // Use removeDisguise() instead of disguiseAs(PLAYER) to prevent a
                     // persistent PLAYER disguise from being saved in NBT on disconnect.
                     freshDisguise.removeDisguise();

@@ -162,8 +162,8 @@ public class PrismWand implements MythicWeapon {
             // Play a chime to confirm lock-on before the bolt launches
             level.playSound(null, player.blockPosition(),
                     SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1.0f, 1.5f);
-            BlockDisplay beam = spawnLockOnBeam(level, eyePos, target);
-            spawnPrismBolt(level, eyePos, target, beam);
+            BeamContext beamCtx = spawnLockOnBeam(level, eyePos, target);
+            spawnPrismBolt(level, eyePos, target, beamCtx);
         } else {
             fireNormalArrow(player, level);
         }
@@ -218,7 +218,11 @@ public class PrismWand implements MythicWeapon {
 
     // ─── VFX: lock-on beam ────────────────────────────────────────────────────
 
-    private static BlockDisplay spawnLockOnBeam(ServerLevel level, Vec3 eyePos, LivingEntity target) {
+    /** Carries the spawned beam entity together with the transform components used to create
+     *  it so the shrink animation can preserve rotation without calling getTransformation(). */
+    private record BeamContext(BlockDisplay beam, Quaternionf rotation, Vector3f offset) {}
+
+    private static BeamContext spawnLockOnBeam(ServerLevel level, Vec3 eyePos, LivingEntity target) {
         Vec3 targetEye = target.getEyePosition();
 
         Vector3f from = new Vector3f((float) eyePos.x, (float) eyePos.y, (float) eyePos.z);
@@ -250,13 +254,14 @@ public class PrismWand implements MythicWeapon {
             if (!beam.isRemoved()) beam.discard();
         }));
 
-        return beam;
+        return new BeamContext(beam, rotation, offset);
     }
 
     // ─── VFX: homing PrismBolt ────────────────────────────────────────────────
 
     private static void spawnPrismBolt(ServerLevel level, Vec3 startPos, LivingEntity target,
-            BlockDisplay lockOnBeam) {
+            BeamContext beamCtx) {
+        BlockDisplay lockOnBeam = beamCtx != null ? beamCtx.beam() : null;
         float half = BOLT_HALF;
 
         BlockDisplay bolt = EntityType.BLOCK_DISPLAY.create(level, EntitySpawnReason.TRIGGERED);
@@ -316,11 +321,14 @@ public class PrismWand implements MythicWeapon {
                 float dmg = target.getMaxHealth() * Config.prismWandDamageFraction;
                 target.hurtServer(level, level.damageSources().magic(), dmg);
                 impacted[0] = true;
-                // Shrink the lock-on beam to zero width over 5 ticks, then discard it.
+                // Shrink the lock-on beam to zero scale over 5 ticks, then discard it.
+                // Preserve the beam's original rotation and translation so the interpolation
+                // only changes scale — using identity rotation here would cause the beam to
+                // visually rotate as it shrinks (interpolating from beam-facing to identity).
                 // The 40-tick auto-remove DelayedTask is harmless if it fires after discard.
                 if (lockOnBeam != null && !lockOnBeam.isRemoved()) {
                     lockOnBeam.setTransformation(new Transformation(
-                            new Vector3f(), new Quaternionf(), new Vector3f(0, 0, 0), null));
+                            beamCtx.offset(), beamCtx.rotation(), new Vector3f(0, 0, 0), null));
                     lockOnBeam.setTransformationInterpolationDelay(0);
                     lockOnBeam.setTransformationInterpolationDuration(5);
                     Ascension.scheduler.schedule(new DelayedTask(6, () -> {

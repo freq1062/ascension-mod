@@ -120,12 +120,17 @@ public class RuinousScythe implements MythicWeapon {
 
     @Override
     public void onAttack(ServerPlayer attacker, LivingEntity victim, Order.DamageContext ctx) {
+        // Only trigger when the scythe is held in main hand
+        if (!isItem(attacker.getMainHandItem())) return;
+
+        // Ignore weak/spam hits — attack cooldown must be at least 90% charged.
+        // getAttackStrengthScale is read here (inside hurtServer HEAD) before
+        // resetAttackStrengthTicker() is called later in Player.attack(), so the
+        // value correctly reflects the charge level of this swing.
+        if (attacker.getAttackStrengthScale(0.5f) < 0.9f) return;
+
         // Don't count hits that were blocked by a shield
         if (victim instanceof ServerPlayer victimPlayer && victimPlayer.isBlocking()) return;
-
-        // Only count fully charged swings (attack strength ≥ 0.9).
-        // Spam clicks and any residual sweep-damage calls at low charge are ignored.
-        if (attacker.getAttackStrengthScale(0.5f) < 0.9f) return;
 
         UUID attackerId = attacker.getUUID();
         UUID targetId = victim.getUUID();
