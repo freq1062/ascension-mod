@@ -8,7 +8,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
-import net.minecraft.server.network.ServerGamePacketListenerImpl;
 
 /**
  * Mixin to intercept and cancel DisguiseLib action bar messages
@@ -30,15 +29,16 @@ public class ActionBarPacketMixin {
     }
 
     /**
-     * DisguiseLib may also route through the 2-arg send(Packet, ChannelFutureListener)
+     * DisguiseLib may also route through the 2-arg send(Packet,
+     * ChannelFutureListener)
      * overload. Intercept that path too so the "You are disguised as..." action bar
      * message is filtered regardless of which send overload is used.
      *
-     * <p>Rationale: No Fabric API event exists for this overload, and DisguiseLib
+     * <p>
+     * Rationale: No Fabric API event exists for this overload, and DisguiseLib
      * does not provide a way to disable its action bar messages via its own API.
      */
-    @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;Lio/netty/channel/ChannelFutureListener;)V",
-            at = @At("HEAD"), cancellable = true)
+    @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;Lio/netty/channel/ChannelFutureListener;)V", at = @At("HEAD"), cancellable = true)
     private void onSendPacketWithListener(net.minecraft.network.protocol.Packet<?> packet,
             io.netty.channel.ChannelFutureListener listener, CallbackInfo ci) {
         if (cancelIfDisguiseMessage(packet)) {
@@ -50,10 +50,11 @@ public class ActionBarPacketMixin {
         if (packet instanceof ClientboundSetActionBarTextPacket actionBarPacket) {
             Component message = actionBarPacket.text();
             String text = message.getString().toLowerCase();
-            // Only filter DisguiseLib's specific messages - be precise to avoid blocking spell cooldowns
-            return text.startsWith("you are disguised as") || 
-                   text.startsWith("you are now disguised as") ||
-                   text.startsWith("disguised as");
+            // Only filter DisguiseLib's specific messages - be precise to avoid blocking
+            // spell cooldowns
+            return text.startsWith("you are disguised as") ||
+                    text.startsWith("you are now disguised as") ||
+                    text.startsWith("disguised as");
         }
         return false;
     }

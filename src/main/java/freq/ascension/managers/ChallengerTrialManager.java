@@ -30,7 +30,6 @@ import net.minecraft.world.entity.Interaction;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.level.Level;
 
 import java.util.*;
 import java.util.Queue;
@@ -38,9 +37,13 @@ import java.util.Queue;
 /**
  * Runtime-only (not persisted) manager for Order god-challenge trials.
  *
- * <p>Tracks the trial lifecycle for each order. Full trial logic (F2-F12) is implemented here.
+ * <p>
+ * Tracks the trial lifecycle for each order. Full trial logic (F2-F12) is
+ * implemented here.
  *
- * <p>Lifecycle phases:
+ * <p>
+ * Lifecycle phases:
+ * 
  * <pre>
  *   IDLE → (challenger right-clicks POI with Sigil) → PENDING_GOD
  *   PENDING_GOD → (god approaches shrine) → ACTIVE
@@ -53,30 +56,41 @@ public class ChallengerTrialManager {
     private static ChallengerTrialManager INSTANCE;
 
     public static ChallengerTrialManager get() {
-        if (INSTANCE == null) INSTANCE = new ChallengerTrialManager();
+        if (INSTANCE == null)
+            INSTANCE = new ChallengerTrialManager();
         return INSTANCE;
     }
 
     // ─── Phase ───────────────────────────────────────────────────────────────
 
-    public enum Phase { IDLE, PENDING_GOD, ACTIVE, COOLDOWN }
+    public enum Phase {
+        IDLE, PENDING_GOD, ACTIVE, COOLDOWN
+    }
 
     // ─── TrialResult ─────────────────────────────────────────────────────────
 
-    public enum TrialResult { CUBE_DESTROYED, GOD_DEATH, CHALLENGER_DEATH, FORFEIT, TIMEOUT, GOD_LOGOUT }
+    public enum TrialResult {
+        CUBE_DESTROYED, GOD_DEATH, CHALLENGER_DEATH, FORFEIT, TIMEOUT, GOD_LOGOUT
+    }
 
     // ─── TrialState ──────────────────────────────────────────────────────────
 
     public static class TrialState {
         public final String orderName;
         public UUID challengerUUID;
-        /** UUID of the god at trial start — used to identify god-death events after demotion. */
+        /**
+         * UUID of the god at trial start — used to identify god-death events after
+         * demotion.
+         */
         public UUID godUUID;
         public Phase phase = Phase.IDLE;
         public int cubeHealth = 500;
         public long pendingStartMs;
         public long activeStartMs;
-        /** -1 means challenger is currently in range; any other value is the ms when they left. */
+        /**
+         * -1 means challenger is currently in range; any other value is the ms when
+         * they left.
+         */
         public long lastChallengerOutOfRangeMs = -1L;
         public long lastOfflineLossMs = 0L;
         public ServerBossEvent bossBar;
@@ -89,7 +103,10 @@ public class ChallengerTrialManager {
         public ContinuousTask blockScanTask;
         /** Queue of block positions placed during the trial that must be broken. */
         public Queue<BlockPos> pendingBreakQueue = new java.util.LinkedList<>();
-        /** Reference to the POI cube ItemDisplay entity for applying glow / glow removal. */
+        /**
+         * Reference to the POI cube ItemDisplay entity for applying glow / glow
+         * removal.
+         */
         public Display.ItemDisplay cubeDisplay;
         /** Reference to the Interaction entity for damage detection. */
         public Interaction cubeInteraction;
@@ -105,14 +122,34 @@ public class ChallengerTrialManager {
             return System.currentTimeMillis() < cooldownEndsMs;
         }
 
-        /** Stops all running tasks for this trial (safe to call even if tasks are null). */
+        /**
+         * Stops all running tasks for this trial (safe to call even if tasks are null).
+         */
         public void stopAllTasks() {
-            if (healTask != null) { healTask.stop(); healTask = null; }
-            if (proximityTask != null) { proximityTask.stop(); proximityTask = null; }
-            if (bossBarTask != null) { bossBarTask.stop(); bossBarTask = null; }
-            if (leashTask != null) { leashTask.stop(); leashTask = null; }
-            if (cooldownTask != null) { cooldownTask.stop(); cooldownTask = null; }
-            if (blockScanTask != null) { blockScanTask.stop(); blockScanTask = null; }
+            if (healTask != null) {
+                healTask.stop();
+                healTask = null;
+            }
+            if (proximityTask != null) {
+                proximityTask.stop();
+                proximityTask = null;
+            }
+            if (bossBarTask != null) {
+                bossBarTask.stop();
+                bossBarTask = null;
+            }
+            if (leashTask != null) {
+                leashTask.stop();
+                leashTask = null;
+            }
+            if (cooldownTask != null) {
+                cooldownTask.stop();
+                cooldownTask = null;
+            }
+            if (blockScanTask != null) {
+                blockScanTask.stop();
+                blockScanTask = null;
+            }
             pendingBreakQueue.clear();
         }
     }
@@ -132,18 +169,22 @@ public class ChallengerTrialManager {
     // ─── Proximity check ─────────────────────────────────────────────────────
 
     /**
-     * Returns {@code true} if the given player is a god with an active trial whose POI is
+     * Returns {@code true} if the given player is a god with an active trial whose
+     * POI is
      * within the POI radius. Used for god-protection mechanics.
      */
     public boolean isActiveTrialInRadius(ServerPlayer player, MinecraftServer server) {
         GodManager gm = GodManager.get(server);
         String godOrder = gm.getGodOrderName(player);
-        if (godOrder == null) return false;
+        if (godOrder == null)
+            return false;
         TrialState state = get(godOrder);
-        if (state == null || state.phase != Phase.ACTIVE) return false;
+        if (state == null || state.phase != Phase.ACTIVE)
+            return false;
         PoiManager poi = PoiManager.get(server);
         BlockPos poiPos = poi.getPoiPosition(godOrder);
-        if (poiPos == null) return false;
+        if (poiPos == null)
+            return false;
         int radius = poi.getPoiRadius(godOrder);
         return player.blockPosition().distSqr(poiPos) <= (double) (radius * radius);
     }
@@ -154,26 +195,35 @@ public class ChallengerTrialManager {
      * Registers all static Fabric event listeners. Must be called once from
      * {@code Ascension.onInitialize()}.
      *
-     * <p>Separate from {@link #registerEvents} so that events can be registered before the
+     * <p>
+     * Separate from {@link #registerEvents} so that events can be registered before
+     * the
      * server starts, which is required by the Fabric event system.
      */
     public void registerEventListeners() {
 
         // F5: Cube melee attack → damage the cube
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
-            if (!(world instanceof ServerLevel)) return InteractionResult.PASS;
-            if (!(player instanceof ServerPlayer sp)) return InteractionResult.PASS;
-            if (!(entity instanceof Interaction)) return InteractionResult.PASS;
+            if (!(world instanceof ServerLevel))
+                return InteractionResult.PASS;
+            if (!(player instanceof ServerPlayer sp))
+                return InteractionResult.PASS;
+            if (!(entity instanceof Interaction))
+                return InteractionResult.PASS;
             Component name = entity.getCustomName();
-            if (name == null) return InteractionResult.PASS;
+            if (name == null)
+                return InteractionResult.PASS;
             String nameStr = name.getString();
-            if (!nameStr.startsWith("ascension_poi_")) return InteractionResult.PASS;
+            if (!nameStr.startsWith("ascension_poi_"))
+                return InteractionResult.PASS;
             String orderName = nameStr.substring("ascension_poi_".length());
 
             TrialState state = get(orderName);
-            if (state == null || state.phase != Phase.ACTIVE) return InteractionResult.PASS;
+            if (state == null || state.phase != Phase.ACTIVE)
+                return InteractionResult.PASS;
 
-            if (!(sp.level() instanceof ServerLevel spLevel)) return InteractionResult.PASS;
+            if (!(sp.level() instanceof ServerLevel spLevel))
+                return InteractionResult.PASS;
             MinecraftServer srv = spLevel.getServer();
 
             float damage = (float) sp.getAttributeValue(Attributes.ATTACK_DAMAGE);
@@ -184,9 +234,11 @@ public class ChallengerTrialManager {
 
         // F12: Death detection — god death and challenger death
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
-            if (!(entity instanceof ServerPlayer dead)) return;
+            if (!(entity instanceof ServerPlayer dead))
+                return;
             MinecraftServer srv = Ascension.getServer();
-            if (srv == null) return;
+            if (srv == null)
+                return;
 
             // Check if the dead player is a god who killed during active trial
             // (heal the cube on behalf of whoever killed someone during the trial)
@@ -203,7 +255,8 @@ public class ChallengerTrialManager {
             }
 
             // Check if dead player was the god of an active trial.
-            // AbilityManager.AFTER_DEATH may have already demoted the god, clearing godsByOrder,
+            // AbilityManager.AFTER_DEATH may have already demoted the god, clearing
+            // godsByOrder,
             // so we use the stored godUUID in TrialState rather than GodManager.
             for (TrialState state : trials.values()) {
                 if (state.phase == Phase.ACTIVE
@@ -255,7 +308,8 @@ public class ChallengerTrialManager {
         ServerLifecycleEvents.SERVER_STOPPING.register(srv -> {
             for (TrialState state : trials.values()) {
                 state.stopAllTasks();
-                if (state.bossBar != null) state.bossBar.removeAllPlayers();
+                if (state.bossBar != null)
+                    state.bossBar.removeAllPlayers();
             }
         });
     }
@@ -272,11 +326,13 @@ public class ChallengerTrialManager {
     // ─── F2: Trial Initiation ─────────────────────────────────────────────────
 
     /**
-     * Called when a challenger right-clicks the POI cube while holding a Challenger's Sigil.
+     * Called when a challenger right-clicks the POI cube while holding a
+     * Challenger's Sigil.
      * Validates preconditions, consumes the sigil, and either:
      * <ul>
-     *   <li>Records an offline absence if the god is not online, or</li>
-     *   <li>Transitions to {@code PENDING_GOD} and starts the proximity-check task.</li>
+     * <li>Records an offline absence if the god is not online, or</li>
+     * <li>Transitions to {@code PENDING_GOD} and starts the proximity-check
+     * task.</li>
      * </ul>
      */
     public void initiateTrial(ServerPlayer challenger, String orderName, ServerLevel level) {
@@ -294,7 +350,7 @@ public class ChallengerTrialManager {
             long minutes = (remaining / 60_000L) + 1;
             challenger.sendSystemMessage(Component.literal(
                     "§cChallenges for " + capitalize(orderName)
-                    + " are on cooldown for " + minutes + " more minutes."));
+                            + " are on cooldown for " + minutes + " more minutes."));
             return;
         }
 
@@ -320,7 +376,7 @@ public class ChallengerTrialManager {
             long remainingMins = (remainingMs % 3_600_000L) / 60_000L;
             challenger.sendSystemMessage(Component.literal(
                     "§cYou must wait " + remainingHours + "h " + remainingMins
-                    + "m before challenging for godhood again."));
+                            + "m before challenging for godhood again."));
             return;
         }
 
@@ -343,14 +399,14 @@ public class ChallengerTrialManager {
                     server.getPlayerList().broadcastSystemMessage(
                             Component.literal(
                                     "§c⚔ The God of " + capitalize(orderName)
-                                    + " has been demoted for abandonment!"),
+                                            + " has been demoted for abandonment!"),
                             false);
                     state.cooldownEndsMs = System.currentTimeMillis() + 3_600_000L;
                 }
             } else {
                 challenger.sendSystemMessage(Component.literal(
                         "§cThe god of " + capitalize(orderName)
-                        + " has already been counted absent today."));
+                                + " has already been counted absent today."));
             }
             return;
         }
@@ -391,12 +447,14 @@ public class ChallengerTrialManager {
     // ─── F3: Start Active Trial ───────────────────────────────────────────────
 
     /**
-     * Transitions from {@code PENDING_GOD} to {@code ACTIVE}, resets terrain, spawns the boss
+     * Transitions from {@code PENDING_GOD} to {@code ACTIVE}, resets terrain,
+     * spawns the boss
      * bar, and starts the heal / leash / boss-bar update tasks.
      */
     private void startActiveTrial(String orderName, MinecraftServer server) {
         TrialState state = get(orderName);
-        if (state == null) return;
+        if (state == null)
+            return;
 
         if (state.proximityTask != null) {
             state.proximityTask.stop();
@@ -429,14 +487,14 @@ public class ChallengerTrialManager {
 
         // ── Boss bar ──────────────────────────────────────────────────────────
         BossEvent.BossBarColor barColor = switch (orderName) {
-            case "sky"    -> BossEvent.BossBarColor.BLUE;
-            case "earth"  -> BossEvent.BossBarColor.GREEN;
-            case "ocean"  -> BossEvent.BossBarColor.BLUE;
-            case "magic"  -> BossEvent.BossBarColor.PURPLE;
-            case "flora"  -> BossEvent.BossBarColor.GREEN;
+            case "sky" -> BossEvent.BossBarColor.BLUE;
+            case "earth" -> BossEvent.BossBarColor.GREEN;
+            case "ocean" -> BossEvent.BossBarColor.BLUE;
+            case "magic" -> BossEvent.BossBarColor.PURPLE;
+            case "flora" -> BossEvent.BossBarColor.GREEN;
             case "nether" -> BossEvent.BossBarColor.RED;
-            case "end"    -> BossEvent.BossBarColor.PURPLE;
-            default       -> BossEvent.BossBarColor.WHITE;
+            case "end" -> BossEvent.BossBarColor.PURPLE;
+            default -> BossEvent.BossBarColor.WHITE;
         };
         state.bossBar = new ServerBossEvent(
                 Component.literal("Challenger Trial — " + capitalize(orderName)),
@@ -451,10 +509,11 @@ public class ChallengerTrialManager {
                 return;
             }
             BlockPos pPos = poi.getPoiPosition(orderName);
-            if (pPos == null) return;
+            if (pPos == null)
+                return;
 
             Set<ServerPlayer> viewers = new HashSet<>(state.bossBar.getPlayers());
-            double visRadiusSq = (double)(bossBarRadius * 2) * (bossBarRadius * 2);
+            double visRadiusSq = (double) (bossBarRadius * 2) * (bossBarRadius * 2);
             for (ServerPlayer p : server.getPlayerList().getPlayers()) {
                 boolean inRange = p.blockPosition().distSqr(pPos) <= visRadiusSq;
                 if (inRange && !viewers.contains(p)) {
@@ -489,14 +548,20 @@ public class ChallengerTrialManager {
                 return;
             }
             BlockPos pPos = poi.getPoiPosition(orderName);
-            if (pPos == null) return;
+            if (pPos == null)
+                return;
             double dist = Math.sqrt(godPlayer.blockPosition().distSqr(pPos));
             int healAmount;
-            if (dist <= 10)      healAmount = 3;
-            else if (dist <= 20) healAmount = 2;
-            else if (dist <= 30) healAmount = 1;
-            else                 healAmount = 0;
-            if (healAmount > 0) healCube(orderName, healAmount, server);
+            if (dist <= 10)
+                healAmount = 3;
+            else if (dist <= 20)
+                healAmount = 2;
+            else if (dist <= 30)
+                healAmount = 1;
+            else
+                healAmount = 0;
+            if (healAmount > 0)
+                healCube(orderName, healAmount, server);
         });
         Ascension.scheduler.schedule(state.healTask);
 
@@ -513,9 +578,10 @@ public class ChallengerTrialManager {
                 return;
             }
             BlockPos pPos = poi.getPoiPosition(orderName);
-            if (pPos == null) return;
+            if (pPos == null)
+                return;
             double distSq = challenger.blockPosition().distSqr(pPos);
-            double leashRadiusSq = (double)(leashRadius * 2) * (leashRadius * 2);
+            double leashRadiusSq = (double) (leashRadius * 2) * (leashRadius * 2);
             if (distSq > leashRadiusSq) {
                 long now = System.currentTimeMillis();
                 if (state.lastChallengerOutOfRangeMs == -1L) {
@@ -528,7 +594,7 @@ public class ChallengerTrialManager {
                         long remaining = (10_000L - elapsed) / 1000L;
                         challenger.sendSystemMessage(Component.literal(
                                 "§cReturn to the shrine within " + remaining
-                                + " seconds or you forfeit!"));
+                                        + " seconds or you forfeit!"));
                     }
                 }
             } else {
@@ -549,18 +615,20 @@ public class ChallengerTrialManager {
         final BlockPos scanCenter = poiPos;
         final int scanRadius = Math.min(poi.getPoiRadius(orderName), 20);
         final List<PoiManager.SnapshotEntry> snap = poi.getTerrainSnapshot(orderName);
-        // Pre-build snapshot lookup (offset → state) once — cheaply reused each scan cycle
+        // Pre-build snapshot lookup (offset → state) once — cheaply reused each scan
+        // cycle
         final Map<Long, net.minecraft.world.level.block.state.BlockState> snapshotStates = new HashMap<>();
         for (PoiManager.SnapshotEntry entry : snap) {
             snapshotStates.put(BlockPos.asLong(entry.dx(), entry.dy(), entry.dz()), entry.state());
         }
-        final int[] scanTick = {0};
+        final int[] scanTick = { 0 };
         state.blockScanTask = new ContinuousTask(2, () -> {
             if (state.phase != Phase.ACTIVE) {
                 state.blockScanTask.stop();
                 return;
             }
-            if (scanLevel == null || scanCenter == null) return;
+            if (scanLevel == null || scanCenter == null)
+                return;
 
             // Re-scan for placed blocks once every 20 ticks (every 10th 2-tick interval)
             scanTick[0]++;
@@ -569,14 +637,14 @@ public class ChallengerTrialManager {
                 for (int dx = -scanRadius; dx <= scanRadius; dx++) {
                     for (int dy = -scanRadius; dy <= scanRadius; dy++) {
                         for (int dz = -scanRadius; dz <= scanRadius; dz++) {
-                            if (dx * dx + dy * dy + dz * dz > rSq) continue;
+                            if (dx * dx + dy * dy + dz * dz > rSq)
+                                continue;
                             BlockPos bp = scanCenter.offset(dx, dy, dz);
-                            net.minecraft.world.level.block.state.BlockState current =
-                                    scanLevel.getBlockState(bp);
-                            if (current.isAir()) continue;
+                            net.minecraft.world.level.block.state.BlockState current = scanLevel.getBlockState(bp);
+                            if (current.isAir())
+                                continue;
                             long offset = BlockPos.asLong(dx, dy, dz);
-                            net.minecraft.world.level.block.state.BlockState blockSnap =
-                                    snapshotStates.get(offset);
+                            net.minecraft.world.level.block.state.BlockState blockSnap = snapshotStates.get(offset);
                             // Block differs from snapshot → was placed during the trial
                             if (blockSnap == null || !current.equals(blockSnap)) {
                                 if (!state.pendingBreakQueue.contains(bp)) {
@@ -591,8 +659,7 @@ public class ChallengerTrialManager {
             // Break one queued block per 2-tick interval
             BlockPos toBreak = state.pendingBreakQueue.poll();
             if (toBreak != null) {
-                net.minecraft.world.level.block.state.BlockState current =
-                        scanLevel.getBlockState(toBreak);
+                net.minecraft.world.level.block.state.BlockState current = scanLevel.getBlockState(toBreak);
                 if (!current.isAir()) {
                     scanLevel.setBlock(toBreak,
                             net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
@@ -610,11 +677,13 @@ public class ChallengerTrialManager {
     // ─── F5b: Cube Damage ────────────────────────────────────────────────────
 
     /**
-     * Decrements cube health by {@code damage}. Ends the trial if health reaches zero.
+     * Decrements cube health by {@code damage}. Ends the trial if health reaches
+     * zero.
      */
     public void damageCube(String orderName, ServerPlayer attacker, float damage, MinecraftServer server) {
         TrialState state = get(orderName);
-        if (state == null || state.phase != Phase.ACTIVE) return;
+        if (state == null || state.phase != Phase.ACTIVE)
+            return;
         state.cubeHealth = Math.max(0, state.cubeHealth - (int) damage);
 
         // Bug 9E: immediately sync boss bar progress on each hit
@@ -646,14 +715,16 @@ public class ChallengerTrialManager {
      */
     public void healCube(String orderName, int amount, MinecraftServer server) {
         TrialState state = get(orderName);
-        if (state == null || state.phase != Phase.ACTIVE) return;
+        if (state == null || state.phase != Phase.ACTIVE)
+            return;
         state.cubeHealth = Math.min(500, state.cubeHealth + amount);
     }
 
     // ─── F9: Cube Glow ───────────────────────────────────────────────────────
 
     private void applyCubeGlow(TrialState state) {
-        if (state.cubeDisplay == null || state.cubeDisplay.isRemoved()) return;
+        if (state.cubeDisplay == null || state.cubeDisplay.isRemoved())
+            return;
         state.cubeDisplay.setGlowingTag(true);
         state.cubeDisplay.setGlowColorOverride(0xFFFFFF);
         Ascension.scheduler.schedule(new DelayedTask(5, () -> {
@@ -667,12 +738,14 @@ public class ChallengerTrialManager {
     // ─── F11: End Trial ───────────────────────────────────────────────────────
 
     /**
-     * Ends the trial with the given result, applies consequences, and starts the cooldown phase.
+     * Ends the trial with the given result, applies consequences, and starts the
+     * cooldown phase.
      */
     public void endTrial(String orderName, TrialResult result, MinecraftServer server) {
         orderName = orderName.toLowerCase();
         TrialState state = get(orderName);
-        if (state == null || state.phase == Phase.IDLE || state.phase == Phase.COOLDOWN) return;
+        if (state == null || state.phase == Phase.IDLE || state.phase == Phase.COOLDOWN)
+            return;
 
         // Cancel all tasks
         state.stopAllTasks();
@@ -724,7 +797,8 @@ public class ChallengerTrialManager {
                 }
                 // Defeat sound for old god (if still online and alive)
                 ServerPlayer oldGod = (state.godUUID != null)
-                        ? server.getPlayerList().getPlayer(state.godUUID) : null;
+                        ? server.getPlayerList().getPlayer(state.godUUID)
+                        : null;
                 if (oldGod != null && triLevel != null) {
                     triLevel.playSound(null, oldGod.getX(), oldGod.getY(), oldGod.getZ(),
                             SoundEvents.WITHER_SHOOT, SoundSource.PLAYERS, 1.0f, 1.5f);
@@ -745,9 +819,11 @@ public class ChallengerTrialManager {
                             SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 1.0f, 0.8f);
                 }
                 ServerPlayer defeatedChallenger = (state.challengerUUID != null)
-                        ? server.getPlayerList().getPlayer(state.challengerUUID) : null;
+                        ? server.getPlayerList().getPlayer(state.challengerUUID)
+                        : null;
                 if (defeatedChallenger != null && triLevel2 != null) {
-                    triLevel2.playSound(null, defeatedChallenger.getX(), defeatedChallenger.getY(), defeatedChallenger.getZ(),
+                    triLevel2.playSound(null, defeatedChallenger.getX(), defeatedChallenger.getY(),
+                            defeatedChallenger.getZ(),
                             SoundEvents.WITHER_SHOOT, SoundSource.PLAYERS, 1.0f, 1.5f);
                 }
             }
@@ -817,7 +893,7 @@ public class ChallengerTrialManager {
                 gm.demoteFromGod(god, server);
                 god.sendSystemMessage(Component.literal(
                         "§cYou have been demoted as God of " + capitalize(orderName)
-                        + " for repeated forfeits!"));
+                                + " for repeated forfeits!"));
             } else {
                 gm.clearGod(orderName);
                 server.getPlayerList().broadcastSystemMessage(
@@ -847,17 +923,20 @@ public class ChallengerTrialManager {
     private void spawnCooldownDisplay(TrialState state, String orderName, MinecraftServer server) {
         ServerLevel level = getPoiLevel(orderName, server);
         BlockPos poiPos = PoiManager.get(server).getPoiPosition(orderName);
-        if (level == null || poiPos == null) return;
+        if (level == null || poiPos == null)
+            return;
 
         // Discard any existing cooldown display
         if (state.cooldownDisplayUUID != null) {
             net.minecraft.world.entity.Entity old = level.getEntity(state.cooldownDisplayUUID);
-            if (old != null) old.discard();
+            if (old != null)
+                old.discard();
             state.cooldownDisplayUUID = null;
         }
 
         Display.TextDisplay td = EntityType.TEXT_DISPLAY.create(level, EntitySpawnReason.TRIGGERED);
-        if (td == null) return;
+        if (td == null)
+            return;
         td.setPos(poiPos.getX() + 0.5, poiPos.getY() + 1.5, poiPos.getZ() + 0.5);
         td.setBillboardConstraints(Display.BillboardConstraints.CENTER);
         td.setText(Component.literal(formatCountdown(state.cooldownEndsMs))
@@ -886,7 +965,8 @@ public class ChallengerTrialManager {
             state.cooldownTask.stop();
             state.cooldownTask = null;
         }
-        if (state.cooldownDisplayUUID == null) return;
+        if (state.cooldownDisplayUUID == null)
+            return;
         // Search across all loaded levels
         for (ServerLevel level : server.getAllLevels()) {
             net.minecraft.world.entity.Entity e = level.getEntity(state.cooldownDisplayUUID);
@@ -901,12 +981,15 @@ public class ChallengerTrialManager {
     // ─── Bug 8: Reposition Cooldown Display ──────────────────────────────────
 
     /**
-     * Teleports the cooldown countdown TextDisplay to a new POI position after a /setpoi command.
-     * Called from {@link freq.ascension.commands.SetPoiCommand} after the position is updated.
+     * Teleports the cooldown countdown TextDisplay to a new POI position after a
+     * /setpoi command.
+     * Called from {@link freq.ascension.commands.SetPoiCommand} after the position
+     * is updated.
      */
     public void repositionCooldownDisplay(String orderName, BlockPos newPos, MinecraftServer server) {
         TrialState state = get(orderName.toLowerCase());
-        if (state == null || state.cooldownDisplayUUID == null) return;
+        if (state == null || state.cooldownDisplayUUID == null)
+            return;
         for (ServerLevel level : server.getAllLevels()) {
             net.minecraft.world.entity.Entity e = level.getEntity(state.cooldownDisplayUUID);
             if (e instanceof Display.TextDisplay td && !td.isRemoved()) {
@@ -943,11 +1026,14 @@ public class ChallengerTrialManager {
     }
 
     private static String capitalize(String s) {
-        if (s == null || s.isEmpty()) return s;
+        if (s == null || s.isEmpty())
+            return s;
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
-    /** Stops all running tasks across all active trials. Called on server shutdown. */
+    /**
+     * Stops all running tasks across all active trials. Called on server shutdown.
+     */
     public void stopAllTasks() {
         for (TrialState state : trials.values()) {
             state.stopAllTasks();

@@ -1,7 +1,6 @@
 package freq.ascension.managers;
 
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.ItemStack;
@@ -16,10 +15,15 @@ import java.util.UUID;
 /**
  * Persistent storage for the End passive's extra ender-chest row.
  *
- * <p>Each player UUID maps to a 9-slot {@link ItemStack} array (one extra ender-chest row).
- * Data survives restarts and dimension changes, keyed to the server's overworld data storage.
+ * <p>
+ * Each player UUID maps to a 9-slot {@link ItemStack} array (one extra
+ * ender-chest row).
+ * Data survives restarts and dimension changes, keyed to the server's overworld
+ * data storage.
  *
- * <p>Only non-empty stacks are written to disk (stored as a UUID→slot-index→ItemStack map).
+ * <p>
+ * Only non-empty stacks are written to disk (stored as a
+ * UUID→slot-index→ItemStack map).
  * Absent slots deserialise as {@link ItemStack#EMPTY}.
  */
 public class EnderRowManager extends SavedData {
@@ -29,7 +33,8 @@ public class EnderRowManager extends SavedData {
 
     private final Map<UUID, ItemStack[]> extraRows = new HashMap<>();
 
-    private EnderRowManager() {}
+    private EnderRowManager() {
+    }
 
     // ─── Codec ───────────────────────────────────────────────────────────────
 
@@ -42,15 +47,13 @@ public class EnderRowManager extends SavedData {
             Codec.unboundedMap(
                     Codec.STRING.xmap(Integer::parseInt, i -> Integer.toString(i)), // slot index
                     ItemStack.CODEC // only non-empty stacks
-            )
-    ).xmap(EnderRowManager::fromRawMap, EnderRowManager::toRawMap);
+            )).xmap(EnderRowManager::fromRawMap, EnderRowManager::toRawMap);
 
     public static final SavedDataType<EnderRowManager> TYPE = new SavedDataType<>(
             KEY,
             EnderRowManager::new,
             CODEC,
-            null
-    );
+            null);
 
     // ─── Factory helpers ──────────────────────────────────────────────────────
 
@@ -63,7 +66,8 @@ public class EnderRowManager extends SavedData {
                 Arrays.fill(row, ItemStack.EMPTY);
                 for (Map.Entry<Integer, ItemStack> slot : e.getValue().entrySet()) {
                     int i = slot.getKey();
-                    if (i >= 0 && i < ROW_SIZE) row[i] = slot.getValue().copy();
+                    if (i >= 0 && i < ROW_SIZE)
+                        row[i] = slot.getValue().copy();
                 }
                 m.extraRows.put(uuid, row);
             } catch (IllegalArgumentException ignored) {
@@ -120,13 +124,16 @@ public class EnderRowManager extends SavedData {
     }
 
     /**
-     * Returns {@code true} if the player's extra row contains at least one non-empty stack.
+     * Returns {@code true} if the player's extra row contains at least one
+     * non-empty stack.
      */
     public boolean hasItems(UUID uuid) {
         ItemStack[] row = extraRows.get(uuid);
-        if (row == null) return false;
+        if (row == null)
+            return false;
         for (ItemStack s : row) {
-            if (s != null && !s.isEmpty()) return true;
+            if (s != null && !s.isEmpty())
+                return true;
         }
         return false;
     }

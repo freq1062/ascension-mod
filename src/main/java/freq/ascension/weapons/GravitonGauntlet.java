@@ -10,7 +10,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.world.item.component.ItemLore;
 
 import freq.ascension.Ascension;
@@ -37,9 +36,13 @@ import net.minecraft.world.phys.Vec3;
 /**
  * The Graviton Gauntlet — Sky order mythical weapon.
  *
- * <p>A retextured Diamond Axe with Sharpness V, Efficiency V, and Curse of Vanishing.
- * Its active ability toggles between PULL and PUSH mode (shift+left-click), then
- * launches all nearby living entities in the chosen direction (shift+right-click).
+ * <p>
+ * A retextured Diamond Axe with Sharpness V, Efficiency V, and Curse of
+ * Vanishing.
+ * Its active ability toggles between PULL and PUSH mode (shift+left-click),
+ * then
+ * launches all nearby living entities in the chosen direction
+ * (shift+right-click).
  */
 public class GravitonGauntlet implements MythicWeapon {
 
@@ -48,10 +51,16 @@ public class GravitonGauntlet implements MythicWeapon {
     /** Per-player mode map. {@code true} = PULL (default), {@code false} = PUSH. */
     private static final ConcurrentHashMap<UUID, Boolean> PULL_MODE = new ConcurrentHashMap<>();
 
-    /** Per-player cooldown map: stores the server tick at which the cooldown expires. */
+    /**
+     * Per-player cooldown map: stores the server tick at which the cooldown
+     * expires.
+     */
     private static final ConcurrentHashMap<UUID, Long> COOLDOWN_ENDS = new ConcurrentHashMap<>();
 
-    /** Debounce map: stores the last server tick on which the mode-switch fired per player. */
+    /**
+     * Debounce map: stores the last server tick on which the mode-switch fired per
+     * player.
+     */
     private static final ConcurrentHashMap<UUID, Long> LAST_MODE_SWITCH_TICK = new ConcurrentHashMap<>();
 
     /** Cooldown duration in ticks (20 seconds). */
@@ -86,10 +95,12 @@ public class GravitonGauntlet implements MythicWeapon {
         stack.enchant(registries.getOrThrow(Enchantments.VANISHING_CURSE), 1);
 
         stack.set(DataComponents.LORE, new ItemLore(List.of(
-            Component.literal("Shift+Right-Click: launch nearby entities in the").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
-            Component.literal("current mode's direction (push or pull).").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
-            Component.literal("Shift+Left-Click: toggle between PUSH and PULL mode.").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY))
-        )));
+                Component.literal("Shift+Right-Click: launch nearby entities in the")
+                        .withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+                Component.literal("current mode's direction (push or pull).")
+                        .withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+                Component.literal("Shift+Left-Click: toggle between PUSH and PULL mode.")
+                        .withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)))));
 
         return stack;
     }
@@ -97,10 +108,12 @@ public class GravitonGauntlet implements MythicWeapon {
     // ═══ COOLDOWN MANAGEMENT ═══
 
     /**
-     * Returns {@code true} if the given player's push/pull ability is currently on cooldown.
+     * Returns {@code true} if the given player's push/pull ability is currently on
+     * cooldown.
      *
      * @param playerId    the player's UUID
-     * @param currentTick the server's current tick count (from {@code MinecraftServer.getTickCount()})
+     * @param currentTick the server's current tick count (from
+     *                    {@code MinecraftServer.getTickCount()})
      */
     public static boolean isOnCooldown(UUID playerId, long currentTick) {
         return currentTick < COOLDOWN_ENDS.getOrDefault(playerId, 0L);
@@ -131,8 +144,10 @@ public class GravitonGauntlet implements MythicWeapon {
     // ═══ VELOCITY HELPERS (static for testability) ═══
 
     /**
-     * Calculates the pull velocity that moves an entity at {@code entityPos} toward a
-     * player at {@code playerPos}. Pull strength scales linearly with distance — stronger
+     * Calculates the pull velocity that moves an entity at {@code entityPos} toward
+     * a
+     * player at {@code playerPos}. Pull strength scales linearly with distance —
+     * stronger
      * at the far end of the 10-block range.
      */
     public static Vec3 calcPullVelocity(Vec3 playerPos, Vec3 entityPos) {
@@ -143,8 +158,10 @@ public class GravitonGauntlet implements MythicWeapon {
     }
 
     /**
-     * Calculates the push velocity that moves an entity at {@code entityPos} away from a
-     * player at {@code playerPos}. Push strength scales inversely with distance — stronger
+     * Calculates the push velocity that moves an entity at {@code entityPos} away
+     * from a
+     * player at {@code playerPos}. Push strength scales inversely with distance —
+     * stronger
      * close to the player.
      */
     public static Vec3 calcPushVelocity(Vec3 playerPos, Vec3 entityPos) {
@@ -158,7 +175,8 @@ public class GravitonGauntlet implements MythicWeapon {
 
     /** Registers disconnect/server-stop cleanup for per-player debounce state. */
     public static void register() {
-        if (cleanupRegistered) return;
+        if (cleanupRegistered)
+            return;
         cleanupRegistered = true;
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
@@ -172,14 +190,16 @@ public class GravitonGauntlet implements MythicWeapon {
     }
 
     /**
-     * Shift+left-click: unbind any spell occupying the active hotbar slot (to avoid conflict),
+     * Shift+left-click: unbind any spell occupying the active hotbar slot (to avoid
+     * conflict),
      * then toggle between PULL and PUSH mode.
      */
     @Override
     public void onShiftLeftClick(ServerPlayer player) {
         UUID pid = player.getUUID();
         long currentTick = Ascension.getServer().getTickCount();
-        if (currentTick == LAST_MODE_SWITCH_TICK.getOrDefault(pid, -1L)) return;
+        if (currentTick == LAST_MODE_SWITCH_TICK.getOrDefault(pid, -1L))
+            return;
         LAST_MODE_SWITCH_TICK.put(pid, currentTick);
 
         AscensionData data = (AscensionData) player;
@@ -207,8 +227,10 @@ public class GravitonGauntlet implements MythicWeapon {
     }
 
     /**
-     * Shift+right-click: launch all living entities within a 10-block sphere either toward
-     * or away from the player depending on the current mode. Creative-mode players and the
+     * Shift+right-click: launch all living entities within a 10-block sphere either
+     * toward
+     * or away from the player depending on the current mode. Creative-mode players
+     * and the
      * weapon holder are excluded.
      */
     @Override
@@ -238,7 +260,8 @@ public class GravitonGauntlet implements MythicWeapon {
                     SoundEvents.BEACON_AMBIENT, SoundSource.PLAYERS, 1.0f, 1.5f);
         }
 
-        AABB box = AABB.ofSize(playerPos, Config.gravitonGauntletRange * 2, Config.gravitonGauntletRange * 2, Config.gravitonGauntletRange * 2);
+        AABB box = AABB.ofSize(playerPos, Config.gravitonGauntletRange * 2, Config.gravitonGauntletRange * 2,
+                Config.gravitonGauntletRange * 2);
         List<LivingEntity> targets = player.level().getEntitiesOfClass(
                 LivingEntity.class, box,
                 e -> !e.equals(player)
@@ -259,15 +282,17 @@ public class GravitonGauntlet implements MythicWeapon {
     // ═══ PRIVATE HELPERS ═══
 
     private static void spawnVfx(ServerPlayer player, Vec3 playerPos, boolean pullMode) {
-        if (!(player.level() instanceof ServerLevel serverLevel)) return;
+        if (!(player.level() instanceof ServerLevel serverLevel))
+            return;
 
-        // 8 lines evenly spaced around a circle, each with 6 particles along the radial direction
+        // 8 lines evenly spaced around a circle, each with 6 particles along the radial
+        // direction
         int lineCount = 8;
         int particlesPerLine = 6;
         float size = 1.5f;
 
         DustParticleOptions dust = pullMode
-                ? new DustParticleOptions(0x0000FF, size)  // blue for PULL
+                ? new DustParticleOptions(0x0000FF, size) // blue for PULL
                 : new DustParticleOptions(0xFF0000, size); // red for PUSH
 
         for (int i = 0; i < lineCount; i++) {
@@ -277,8 +302,12 @@ public class GravitonGauntlet implements MythicWeapon {
 
             for (int j = 1; j <= particlesPerLine; j++) {
                 double t = pullMode
-                        ? (Config.gravitonGauntletRange - j * (Config.gravitonGauntletRange / particlesPerLine))  // PULL: start far, move inward
-                        : (j * (Config.gravitonGauntletRange / particlesPerLine));          // PUSH: start near, go outward
+                        ? (Config.gravitonGauntletRange - j * (Config.gravitonGauntletRange / particlesPerLine)) // PULL:
+                                                                                                                 // start
+                                                                                                                 // far,
+                                                                                                                 // move
+                                                                                                                 // inward
+                        : (j * (Config.gravitonGauntletRange / particlesPerLine)); // PUSH: start near, go outward
                 double px = playerPos.x + dx * t;
                 double py = playerPos.y + 1.0;
                 double pz = playerPos.z + dz * t;

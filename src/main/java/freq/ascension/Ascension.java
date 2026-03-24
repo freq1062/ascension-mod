@@ -9,7 +9,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -321,7 +320,8 @@ public class Ascension implements ModInitializer {
 			}));
 		});
 
-		// Clear stale disguise state after death respawns, including carpet-bot respawns
+		// Clear stale disguise state after death respawns, including carpet-bot
+		// respawns
 		// that recreate the player entity from saved data.
 		ServerPlayerEvents.COPY_FROM.register((oldPlayer, newPlayer, alive) -> {
 			if (!alive) {
@@ -360,7 +360,8 @@ public class Ascension implements ModInitializer {
 			// Strip lingering poison from thorns before NBT save
 			handler.getPlayer().removeEffect(net.minecraft.world.effect.MobEffects.POISON);
 			// Clear flight ability so mayfly/flying flags are not saved to NBT.
-			// Sky.applyEffect will re-enable mayfly on the next AbilityManager tick after rejoin.
+			// Sky.applyEffect will re-enable mayfly on the next AbilityManager tick after
+			// rejoin.
 			{
 				ServerPlayer leavingPlayer = handler.getPlayer();
 				if (leavingPlayer.gameMode() == net.minecraft.world.level.GameType.SURVIVAL
