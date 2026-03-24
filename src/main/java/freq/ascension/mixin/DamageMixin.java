@@ -26,14 +26,15 @@ public abstract class DamageMixin {
             CallbackInfoReturnable<Boolean> cir) {
         LivingEntity victim = (LivingEntity) (Object) this;
 
-        ascension$currentDamageContext = new DamageContext(source, amount);
+        DamageContext ctx = new DamageContext(source, amount);
+        ascension$currentDamageContext = ctx;
 
         if (source.getEntity() instanceof ServerPlayer attacker) {
             AbilityManager.broadcast(attacker,
-                    (ability) -> ability.onEntityDamageByEntity(attacker, victim, ascension$currentDamageContext));
+                    (ability) -> ability.onEntityDamageByEntity(attacker, victim, ctx));
 
             // Route to weapon-specific onAttack handler
-            AbilityManager.broadcastWeapon(attacker, w -> w.onAttack(attacker, victim, ascension$currentDamageContext));
+            AbilityManager.broadcastWeapon(attacker, w -> w.onAttack(attacker, victim, ctx));
 
             // Check if attacker has thorns active and trigger on victim
             // Shield blocks should not trigger the Thorns spell
@@ -47,18 +48,22 @@ public abstract class DamageMixin {
 
         if (victim instanceof ServerPlayer victimPlayer) {
             AbilityManager.broadcast(victimPlayer,
-                    (ability) -> ability.onEntityDamage(victimPlayer, ascension$currentDamageContext));
+                    (ability) -> ability.onEntityDamage(victimPlayer, ctx));
             // Soul Rage: player takes more damage while the buff is active
             if (SpellRegistry.isSoulRageActive(victimPlayer)) {
                 freq.ascension.managers.AscensionData data = (freq.ascension.managers.AscensionData) victimPlayer;
                 boolean isGod = "god".equals(data.getRank());
-                ascension$currentDamageContext.setAmount(
-                        ascension$currentDamageContext.getAmount() * (isGod ? 1.1f : 1.2f));
+                ctx.setAmount(ctx.getAmount() * (isGod ? 1.1f : 1.2f));
             }
         }
 
+        // Restore field so @ModifyVariable can read the (possibly modified) amount.
+        // This must come AFTER all broadcasts so any re-entrant hurtServer call's cleanup
+        // does not leave our outer context lost in the field.
+        ascension$currentDamageContext = ctx;
+
         // Check if cancelled
-        if (ascension$currentDamageContext.isCancelled()) {
+        if (ctx.isCancelled()) {
             cir.setReturnValue(false);
         }
     }

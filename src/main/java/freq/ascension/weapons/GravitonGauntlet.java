@@ -7,7 +7,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.world.item.component.ItemLore;
 
 import freq.ascension.Ascension;
 import freq.ascension.Config;
@@ -15,8 +19,6 @@ import freq.ascension.managers.AscensionData;
 import freq.ascension.orders.End;
 import freq.ascension.orders.Order;
 import freq.ascension.orders.Sky;
-import net.minecraft.core.particles.DustParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -52,9 +54,6 @@ public class GravitonGauntlet implements MythicWeapon {
     /** Debounce map: stores the last server tick on which the mode-switch fired per player. */
     private static final ConcurrentHashMap<UUID, Long> LAST_MODE_SWITCH_TICK = new ConcurrentHashMap<>();
 
-    /** Throttle map: stores the last tick on which a cooldown message was sent per player. */
-    private static final ConcurrentHashMap<UUID, Long> LAST_COOLDOWN_MESSAGE_TICK = new ConcurrentHashMap<>();
-
     /** Cooldown duration in ticks (20 seconds). */
     public static int COOLDOWN_TICKS = 400;
 
@@ -85,6 +84,12 @@ public class GravitonGauntlet implements MythicWeapon {
         stack.enchant(registries.getOrThrow(Enchantments.SHARPNESS), 5);
         stack.enchant(registries.getOrThrow(Enchantments.EFFICIENCY), 5);
         stack.enchant(registries.getOrThrow(Enchantments.VANISHING_CURSE), 1);
+
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+            Component.literal("Shift+Right-Click: launch nearby entities in the").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+            Component.literal("current mode's direction (push or pull).").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+            Component.literal("Shift+Left-Click: toggle between PUSH and PULL mode.").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY))
+        )));
 
         return stack;
     }
@@ -159,12 +164,10 @@ public class GravitonGauntlet implements MythicWeapon {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             UUID playerId = handler.getPlayer().getUUID();
             LAST_MODE_SWITCH_TICK.remove(playerId);
-            LAST_COOLDOWN_MESSAGE_TICK.remove(playerId);
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> {
             LAST_MODE_SWITCH_TICK.clear();
-            LAST_COOLDOWN_MESSAGE_TICK.clear();
         });
     }
 
@@ -218,14 +221,10 @@ public class GravitonGauntlet implements MythicWeapon {
 
         long currentTick = Ascension.getServer().getTickCount();
         if (isOnCooldown(player.getUUID(), currentTick)) {
-            long lastMsg = LAST_COOLDOWN_MESSAGE_TICK.getOrDefault(player.getUUID(), Long.MIN_VALUE);
-            if (currentTick - lastMsg >= 20) {
-                long ticksLeft = Math.max(0L, COOLDOWN_ENDS.getOrDefault(player.getUUID(), 0L) - currentTick);
-                long secsLeft = (long) Math.ceil(ticksLeft / 20.0);
-                player.sendSystemMessage(Component.literal(
-                        "§cGraviton Gauntlet is cooling down! §7(" + secsLeft + "s left)"));
-                LAST_COOLDOWN_MESSAGE_TICK.put(player.getUUID(), currentTick);
-            }
+            long ticksLeft = Math.max(0L, COOLDOWN_ENDS.getOrDefault(player.getUUID(), 0L) - currentTick);
+            long secsLeft = (long) Math.ceil(ticksLeft / 20.0);
+            player.sendSystemMessage(Component.literal(
+                    "§cGraviton Gauntlet is on cooldown! §7(" + secsLeft + "s left)"));
             return;
         }
         startCooldown(player.getUUID(), currentTick);

@@ -4,6 +4,7 @@ import java.util.Map;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
@@ -280,49 +281,23 @@ public class Ascension implements ModInitializer {
 			return InteractionResult.SUCCESS;
 		});
 
-		// Clear disguises on player join to fix any corrupted persistent data
+		// Recover from any stale disguise state that made it into memory during join.
+		// This is deferred onto the server task queue so DisguiseLib packet broadcasts
+		// only run after the player tracker is fully initialized.
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-			try {
-				EntityDisguise disguise = (EntityDisguise) handler
-						.getPlayer();
-				// Only call removeDisguise() if the player is actually disguised.
-				// DisguiseLoadMixin prevents disguise NBT from loading at join, so this should
-				// rarely be true. Calling removeDisguise() unconditionally triggers
-				// DisguiseLib's
-				// entity-tracker broadcast before the tracker is initialised, causing an NPE.
-				if (disguise.isDisguised()) {
-					// Defer by one tick so the entity tracker is fully set up before
-					// DisguiseLib tries to send removal packets to listeners.
-					server.execute(() -> {
-						try {
-							disguise.removeDisguise();
-							LOGGER.debug("Cleared disguise for player on join: "
-									+ handler.getPlayer().getName().getString());
-						} catch (Exception e) {
-							LOGGER.warn("Failed to remove disguise on join (deferred) for "
-									+ handler.getPlayer().getName().getString() + ": " + e.getMessage());
-						}
-					});
-				}
-			} catch (Exception e) {
-				// Log but don't crash - player can still join
-				LOGGER.warn("Failed to clear disguise on join for " + handler.getPlayer().getName().getString() + ": "
-						+ e.getMessage());
-			}
+			scheduleDisguiseRecovery(handler.getPlayer(), "join");
 
 			// Re-send fake leather boots on reconnect for Ocean passive players so
 			// the client immediately predicts powder-snow walk correctly.
 			ServerPlayer joining = handler.getPlayer();
+			// PlayerList.remove() (which writes NBT) fires before DISCONNECT, so a
+			// protocol kick can save stale flight/no-gravity/effect state before our
+			// disconnect cleanup runs. Clear those flags on join and let the normal
+			// ability pipeline re-apply anything legitimate on the next tick.
+			recoverSavedPlayerState(joining);
 			// Defensively clear any stale stun from a previous session (e.g. if the
 			// server crashed while the stun DelayedTask was still pending).
 			freq.ascension.registry.SpellRegistry.clearStun(joining.getUUID());
-			// Strip any poison that was saved to NBT before the disconnect event could
-			// clear it. PlayerList.remove() (which writes NBT) fires before DISCONNECT,
-			// so removeEffect in the DISCONNECT handler is too late to prevent the effect
-			// from persisting into the save file. Clearing it here on join is the only
-			// reliable way to prevent players (and carpet bots reusing a saved file)
-			// from spawning with a stale poison effect from a prior Thorns hit.
-			joining.removeEffect(net.minecraft.world.effect.MobEffects.POISON);
 
 			// Grant custom recipe book unlocks on join (deferred 1 tick so the player
 			// entity is fully initialized before awardRecipes writes the advancement).
@@ -346,6 +321,16 @@ public class Ascension implements ModInitializer {
 			}));
 		});
 
+		// Clear stale disguise state after death respawns, including carpet-bot respawns
+		// that recreate the player entity from saved data.
+		ServerPlayerEvents.COPY_FROM.register((oldPlayer, newPlayer, alive) -> {
+			if (!alive) {
+				scheduleDisguiseRecovery(newPlayer, "respawn");
+				recoverSavedPlayerState(newPlayer);
+				freq.ascension.registry.SpellRegistry.clearStun(newPlayer.getUUID());
+			}
+		});
+
 		// Clear disguises when players disconnect to prevent DisguiseLib errors on
 		// rejoin
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
@@ -356,8 +341,8 @@ public class Ascension implements ModInitializer {
 				// preventing the null-serverPlayer NPE in fromTag on next login.
 				disguise.removeDisguise();
 			} catch (Exception e) {
-				// Silently ignore if disguise clear fails - player is already disconnecting
-				LOGGER.debug("Failed to clear disguise on disconnect: " + e.getMessage());
+				LOGGER.warn("Failed to clear disguise on disconnect for "
+						+ handler.getPlayer().getName().getString() + ": " + e.getMessage());
 			}
 
 			java.util.UUID disconnectedUUID = handler.getPlayer().getUUID();
@@ -464,6 +449,54 @@ public class Ascension implements ModInitializer {
 	 */
 	public static TaskScheduler getScheduler() {
 		return scheduler;
+	}
+
+	private static void scheduleDisguiseRecovery(ServerPlayer player, String phase) {
+		MinecraftServer currentServer = player.level() != null ? player.level().getServer() : null;
+		if (currentServer == null) {
+			LOGGER.warn("Could not schedule stale disguise recovery during " + phase + " for "
+					+ player.getName().getString() + ": server was null");
+			return;
+		}
+
+		currentServer.execute(() -> clearDisguiseRecovery(player, phase));
+	}
+
+	private static void recoverSavedPlayerState(ServerPlayer player) {
+		// PlayerList.remove() can persist these flags before DISCONNECT cleanup runs.
+		// Clear them on login/respawn and let the normal ability systems re-apply any
+		// legitimate flight state after the player is fully back in the world.
+		if (player.gameMode() == net.minecraft.world.level.GameType.SURVIVAL
+				|| player.gameMode() == net.minecraft.world.level.GameType.ADVENTURE) {
+			if (player.getAbilities().mayfly || player.getAbilities().flying) {
+				player.getAbilities().mayfly = false;
+				player.getAbilities().flying = false;
+				player.onUpdateAbilities();
+			}
+			if (player.isNoGravity()) {
+				player.setNoGravity(false);
+			}
+		}
+
+		// Thorns poison can also be saved before DISCONNECT cleanup, especially for
+		// protocol kicks or carpet-bot respawns reusing a saved player file.
+		player.removeEffect(net.minecraft.world.effect.MobEffects.POISON);
+	}
+
+	private static void clearDisguiseRecovery(ServerPlayer player, String phase) {
+		try {
+			EntityDisguise disguise = (EntityDisguise) player;
+			if (!disguise.isDisguised()) {
+				return;
+			}
+
+			disguise.removeDisguise();
+			LOGGER.warn("Cleared stale disguise during " + phase + " recovery for "
+					+ player.getName().getString());
+		} catch (Exception e) {
+			LOGGER.warn("Failed to clear stale disguise during " + phase + " recovery for "
+					+ player.getName().getString() + ": " + e.getMessage());
+		}
 	}
 
 	/**

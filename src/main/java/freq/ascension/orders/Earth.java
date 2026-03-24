@@ -53,7 +53,7 @@ public class Earth implements Order {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Permanent Haste 1. Ore drops are doubled and automatically smelted without silk touch. Anvils cost 50% less, do not break, and have no limit.";
+                "Permanent Haste 1.\nOre drops are doubled and automatically smelted without silk touch.\nAnvils cost 50% less, do not break, and have no limit.";
             case "utility" -> "SUPERMINE: " + getSpellStats("supermine").getDescription();
             case "combat" -> {
                 SpellStats s = getSpellStats("magma_bubble");

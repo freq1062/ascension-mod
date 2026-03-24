@@ -58,6 +58,15 @@ public class ServerPlayerMixin implements AscensionData {
     private final List<String> shapeshift_history = new ArrayList<>();
     @Unique
     private static final int SHAPESHIFT_HISTORY_MAX = 5;
+    @Unique
+    private static final String DISGUISE_LIB_TAG = "DisguiseLib";
+    @Unique
+    private static final String[] LEGACY_DISGUISE_LIB_KEYS = {
+            "disguiselib$profile",
+            "disguiselib$playerUuid",
+            "disguiselib$disguiseUuid",
+            "disguiselib$type"
+    };
 
     // Item drop broadcasting
     // @Inject(method =
@@ -167,37 +176,56 @@ public class ServerPlayerMixin implements AscensionData {
         }
     }
 
-    // Strip DisguiseLib NBT tags before they are processed to prevent crashes
+    // Strip persisted DisguiseLib NBT before it is processed so stale disguises
+    // cannot be restored during player load.
     @Inject(method = "readAdditionalSaveData", at = @At("HEAD"))
     private void stripDisguiseLibNbt(ValueInput input, CallbackInfo ci) {
-        // Remove DisguiseLib NBT tags if present to prevent NPE during player login
-        // when disguise data is corrupted or contains null GameProfile references.
-        // This complements the DisguiseLoadMixin guard by ensuring no disguise
-        // data reaches DisguiseLib's fromTag injection in the first place.
+        ServerPlayer player = (ServerPlayer) (Object) this;
         try {
-            // Try to access the underlying CompoundTag through reflection
-            // ValueInput implementations typically have a field holding the tag
-            Class<?> clazz = input.getClass();
-            java.lang.reflect.Field[] fields = clazz.getDeclaredFields();
-
-            for (java.lang.reflect.Field field : fields) {
-                field.setAccessible(true);
-                Object value = field.get(input);
-
-                if (value instanceof net.minecraft.nbt.CompoundTag compound) {
-                    // Remove all DisguiseLib tags
-                    compound.remove("disguiselib$profile");
-                    compound.remove("disguiselib$playerUuid");
-                    compound.remove("disguiselib$disguiseUuid");
-                    compound.remove("disguiselib$type");
-                    break;
-                }
+            if (stripDisguiseLibNbt(input)) {
+                Ascension.LOGGER.warn("Stripped persisted DisguiseLib data while loading player "
+                        + player.getName().getString());
             }
         } catch (Exception e) {
-            // Silently ignore reflection failures - the DisguiseLoadMixin guard will still
-            // work
-            Ascension.LOGGER.debug("Could not strip DisguiseLib NBT tags: " + e.getMessage());
+            Ascension.LOGGER.warn("Could not inspect DisguiseLib save data for "
+                    + player.getName().getString() + ": " + e.getMessage());
         }
+    }
+
+    @Unique
+    private boolean stripDisguiseLibNbt(ValueInput input) throws IllegalAccessException {
+        Class<?> clazz = input.getClass();
+        java.lang.reflect.Field[] fields = clazz.getDeclaredFields();
+
+        for (java.lang.reflect.Field field : fields) {
+            field.setAccessible(true);
+            Object value = field.get(input);
+
+            if (value instanceof net.minecraft.nbt.CompoundTag compound && stripDisguiseLibNbt(compound)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    @Unique
+    private boolean stripDisguiseLibNbt(net.minecraft.nbt.CompoundTag compound) {
+        boolean stripped = false;
+
+        if (compound.contains(DISGUISE_LIB_TAG)) {
+            compound.remove(DISGUISE_LIB_TAG);
+            stripped = true;
+        }
+
+        for (String legacyKey : LEGACY_DISGUISE_LIB_KEYS) {
+            if (compound.contains(legacyKey)) {
+                compound.remove(legacyKey);
+                stripped = true;
+            }
+        }
+
+        return stripped;
     }
 
     // LOADING DATA

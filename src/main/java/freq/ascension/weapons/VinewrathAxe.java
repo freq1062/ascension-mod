@@ -1,5 +1,7 @@
 package freq.ascension.weapons;
 
+import java.util.List;
+
 import freq.ascension.Ascension;
 import freq.ascension.Config;
 import freq.ascension.Utils;
@@ -8,7 +10,11 @@ import freq.ascension.api.ContinuousTask;
 import freq.ascension.api.DelayedTask;
 import freq.ascension.orders.Flora;
 import freq.ascension.orders.Order;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -61,6 +67,12 @@ public class VinewrathAxe implements MythicWeapon {
         stack.enchant(enchReg.getOrThrow(Enchantments.SHARPNESS), 5);
         stack.enchant(enchReg.getOrThrow(Enchantments.EFFICIENCY), 5);
         stack.enchant(enchReg.getOrThrow(Enchantments.VANISHING_CURSE), 1);
+
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+            Component.literal("Hitting a blocking player extends their shield cooldown").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+            Component.literal("to 10 seconds and applies vine freeze (3s stun).").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+            Component.literal("All hits deal 15% of target's max HP as spell damage.").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY))
+        )));
 
         return stack;
     }

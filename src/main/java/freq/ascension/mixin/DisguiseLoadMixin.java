@@ -9,16 +9,17 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Guards against a DisguiseLib NPE that occurs when a ServerPlayer logs in
- * while their saved data still contains a {@code disguiselib$profile} entry.
+ * Guards against DisguiseLib load crashes when a ServerPlayer logs in with stale
+ * disguise data still present in saved NBT.
  *
  * <p>
  * <b>Root cause chain:</b>
  * <ol>
  * <li>{@code PrepareSpawnTask.spawn()} calls {@code Entity.load(ValueInput)}
  * to restore player state from disk.</li>
- * <li>DisguiseLib's {@code fromTag} injection (in {@code EntityMixin_Disguise})
- * reads the saved profile and calls
+ * <li>DisguiseLib's load injection (in {@code EntityMixin_Disguise}) reads the
+ * saved {@code DisguiseLib} compound (or legacy {@code disguiselib$...} keys) and
+ * calls
  * {@code Entity.setGameProfile(GameProfile)}.</li>
  * <li>{@code setGameProfile} calls {@code disguiselib$sendProfileUpdates()},
  * which constructs a {@code ClientboundPlayerInfoUpdatePacket} using DisguiseLib's
@@ -71,7 +72,7 @@ public abstract class DisguiseLoadMixin {
      * <p>
      * During {@code PrepareSpawnTask.spawn()}, {@code ServerPlayer.connection}
      * is {@code null}. Carpet fake players ({@code EntityPlayerMPFake}) restore
-     * NBT — including {@code disguiselib$profile} — before the server reference
+     * NBT — including stale disguise payloads — before the server reference
      * is populated, so {@code getServer()} can return {@code null} even when
      * {@code connection} is non-null. Both conditions are therefore checked.
      * Either being {@code null} means the player is not yet in the PLAY phase
@@ -97,8 +98,8 @@ public abstract class DisguiseLoadMixin {
             return;
 
         // Guard #1: Block setGameProfile when the server or connection is null.
-        // Carpet fake players (EntityPlayerMPFake) restore NBT — including
-        // disguiselib$profile — via loadPlayerData() AFTER onPlayerConnect(), so
+        // Carpet fake players (EntityPlayerMPFake) restore NBT — including stale
+        // disguise payloads — via loadPlayerData() AFTER onPlayerConnect(), so
         // their connection is non-null. However, their level's server reference
         // may not be fully initialized yet. Either condition being null means it
         // is not safe for DisguiseLib's sendProfileUpdates() to broadcast packets.

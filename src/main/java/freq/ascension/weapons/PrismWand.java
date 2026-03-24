@@ -2,6 +2,10 @@ package freq.ascension.weapons;
 
 import java.util.List;
 
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.component.ItemLore;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -118,6 +122,11 @@ public class PrismWand implements MythicWeapon {
         stack.enchant(enchReg.getOrThrow(Enchantments.POWER), 5);
         stack.enchant(enchReg.getOrThrow(Enchantments.FLAME), 1);
         stack.enchant(enchReg.getOrThrow(Enchantments.VANISHING_CURSE), 1);
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+            Component.literal("Fully charged shot: homing bolt that deals 10% of").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+            Component.literal("the target's max HP as magic damage.").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+            Component.literal("Melee hits steal positive effects from the victim.").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY))
+        )));
         return stack;
     }
 

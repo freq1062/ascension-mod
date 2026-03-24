@@ -14,8 +14,12 @@ import freq.ascension.orders.End;
 import freq.ascension.orders.Order;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -30,8 +34,11 @@ import net.minecraft.world.item.enchantment.Enchantments;
 /**
  * Ruinous Scythe — mythical weapon for the End order.
  *
- * <p>Active ability: a per-target combo counter. Every 4th consecutive hit (within 3 s) on the
- * same target triggers a burst: 40% max-HP spell damage, 15–20 armour durability split randomly
+ * <p>
+ * Active ability: a per-target combo counter. Every 4th consecutive hit (within
+ * 3 s) on the
+ * same target triggers a burst: 40% max-HP spell damage, 15–20 armour
+ * durability split randomly
  * across worn pieces, CRIT particle X-pattern, and two impact sounds.
  */
 public class RuinousScythe implements MythicWeapon {
@@ -39,14 +46,18 @@ public class RuinousScythe implements MythicWeapon {
     public static final RuinousScythe INSTANCE = new RuinousScythe();
 
     // outer key = attacker UUID, inner key = target UUID, value = hit count
-    public static final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, Integer>> COMBO_COUNTERS =
-            new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<UUID, Float> CAPTURED_ATTACK_STRENGTH = new ConcurrentHashMap<>();
 
-    // Generation counter: incremented every time a reset task is scheduled for (attacker, target).
-    // The reset Runnable only fires if the generation it captured is still current, i.e. no newer
-    // hit landed in the meantime (which would have incremented the generation again).
-    public static final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, Integer>> RESET_GENERATIONS =
-            new ConcurrentHashMap<>();
+    // outer key = attacker UUID, inner key = target UUID, value = hit count
+    public static final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, Integer>> COMBO_COUNTERS = new ConcurrentHashMap<>();
+
+    // Generation counter: incremented every time a reset task is scheduled for
+    // (attacker, target).
+    // The reset Runnable only fires if the generation it captured is still current,
+    // i.e. no newer
+    // hit landed in the meantime (which would have incremented the generation
+    // again).
+    public static final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, Integer>> RESET_GENERATIONS = new ConcurrentHashMap<>();
 
     private static volatile boolean cleanupRegistered = false;
 
@@ -75,6 +86,13 @@ public class RuinousScythe implements MythicWeapon {
         if (Ascension.getServer() != null) {
             applyEnchantments(stack);
         }
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+                Component.literal("Land a 4-hit combo to unleash a ruinous strike:")
+                        .withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+                Component.literal("40% max HP spell damage and 10 durability damage.")
+                        .withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+                Component.literal("Combo resets on weak hits or misses.")
+                        .withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)))));
         return stack;
     }
 
@@ -93,11 +111,13 @@ public class RuinousScythe implements MythicWeapon {
     // ─── Lifecycle / cleanup registration ────────────────────────────────────
 
     /**
-     * Registers server-lifecycle cleanup hooks. Safe to call multiple times; only the first
+     * Registers server-lifecycle cleanup hooks. Safe to call multiple times; only
+     * the first
      * call has any effect. Should be called from {@code Ascension.onInitialize()}.
      */
     public static void register() {
-        if (cleanupRegistered) return;
+        if (cleanupRegistered)
+            return;
         cleanupRegistered = true;
 
         // Per-player cleanup on disconnect — remove both as attacker and as target.
@@ -105,6 +125,7 @@ public class RuinousScythe implements MythicWeapon {
             UUID id = handler.getPlayer().getUUID();
             COMBO_COUNTERS.remove(id);
             RESET_GENERATIONS.remove(id);
+            CAPTURED_ATTACK_STRENGTH.remove(id);
             COMBO_COUNTERS.values().forEach(m -> m.remove(id));
             RESET_GENERATIONS.values().forEach(m -> m.remove(id));
         });
@@ -113,6 +134,7 @@ public class RuinousScythe implements MythicWeapon {
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> {
             COMBO_COUNTERS.clear();
             RESET_GENERATIONS.clear();
+            CAPTURED_ATTACK_STRENGTH.clear();
         });
     }
 
@@ -121,27 +143,31 @@ public class RuinousScythe implements MythicWeapon {
     @Override
     public void onAttack(ServerPlayer attacker, LivingEntity victim, Order.DamageContext ctx) {
         // Only trigger when the scythe is held in main hand
-        if (!isItem(attacker.getMainHandItem())) return;
+        if (!isItem(attacker.getMainHandItem()))
+            return;
 
         // Ignore weak/spam hits — attack cooldown must be at least 90% charged.
-        // getAttackStrengthScale is read here (inside hurtServer HEAD) before
-        // resetAttackStrengthTicker() is called later in Player.attack(), so the
-        // value correctly reflects the charge level of this swing.
-        if (attacker.getAttackStrengthScale(0.5f) < 0.9f) return;
+        // Scale is captured at Player.attack() HEAD (before vanilla resets the ticker)
+        // by PlayerAttackStrengthMixin and stored in CAPTURED_ATTACK_STRENGTH.
+        float capturedScale = CAPTURED_ATTACK_STRENGTH.getOrDefault(attacker.getUUID(), 1.0f);
+        if (capturedScale < 0.9f)
+            return;
 
         // Don't count hits that were blocked by a shield
-        if (victim instanceof ServerPlayer victimPlayer && victimPlayer.isBlocking()) return;
+        if (victim instanceof ServerPlayer victimPlayer && victimPlayer.isBlocking())
+            return;
 
         UUID attackerId = attacker.getUUID();
         UUID targetId = victim.getUUID();
 
-        ConcurrentHashMap<UUID, Integer> attackerCombo =
-                COMBO_COUNTERS.computeIfAbsent(attackerId, k -> new ConcurrentHashMap<>());
+        ConcurrentHashMap<UUID, Integer> attackerCombo = COMBO_COUNTERS.computeIfAbsent(attackerId,
+                k -> new ConcurrentHashMap<>());
         int newCount = attackerCombo.merge(targetId, 1, Integer::sum);
 
-        // Cancel any prior reset for this (attacker, target) pair by incrementing the generation.
-        ConcurrentHashMap<UUID, Integer> attackerGen =
-                RESET_GENERATIONS.computeIfAbsent(attackerId, k -> new ConcurrentHashMap<>());
+        // Cancel any prior reset for this (attacker, target) pair by incrementing the
+        // generation.
+        ConcurrentHashMap<UUID, Integer> attackerGen = RESET_GENERATIONS.computeIfAbsent(attackerId,
+                k -> new ConcurrentHashMap<>());
         int myGen = attackerGen.merge(targetId, 1, Integer::sum);
 
         // Schedule a 3-second (60-tick) reset if no further hit lands.
@@ -154,8 +180,8 @@ public class RuinousScythe implements MythicWeapon {
                 RESET_GENERATIONS.getOrDefault(attackerId, new ConcurrentHashMap<>()).remove(targetId);
                 // Play combo-broken sound at attacker's last known position
                 if (Ascension.getServer() != null) {
-                    net.minecraft.server.level.ServerPlayer atk =
-                            Ascension.getServer().getPlayerList().getPlayer(attackerId);
+                    net.minecraft.server.level.ServerPlayer atk = Ascension.getServer().getPlayerList()
+                            .getPlayer(attackerId);
                     if (atk != null && atk.level() instanceof ServerLevel sl) {
                         sl.playSound(null, atk.blockPosition(),
                                 SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 1.0f, 0.5f);
@@ -203,17 +229,21 @@ public class RuinousScythe implements MythicWeapon {
 
     private static void applyArmorDurabilityDamage(LivingEntity victim) {
         List<EquipmentSlot> worn = new ArrayList<>();
-        for (EquipmentSlot slot : new EquipmentSlot[]{
-                EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
-            if (!victim.getItemBySlot(slot).isEmpty()) worn.add(slot);
+        for (EquipmentSlot slot : new EquipmentSlot[] {
+                EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET }) {
+            if (!victim.getItemBySlot(slot).isEmpty())
+                worn.add(slot);
         }
-        if (worn.isEmpty()) return;
+        if (worn.isEmpty())
+            return;
 
         int[] perPiece = distributeArmor(worn.size(), ThreadLocalRandom.current());
         for (int i = 0; i < worn.size(); i++) {
-            if (perPiece[i] <= 0) continue;
+            if (perPiece[i] <= 0)
+                continue;
             ItemStack armor = victim.getItemBySlot(worn.get(i));
-            if (armor.isEmpty()) continue;
+            if (armor.isEmpty())
+                continue;
             // Clamp so we never fully break the item (durability stays at max-1 minimum).
             int newDamage = Math.min(armor.getDamageValue() + perPiece[i], armor.getMaxDamage() - 1);
             armor.setDamageValue(newDamage);
@@ -221,14 +251,18 @@ public class RuinousScythe implements MythicWeapon {
     }
 
     /**
-     * Generates a random durability-damage allocation across {@code numPieces} armour slots.
+     * Generates a random durability-damage allocation across {@code numPieces}
+     * armour slots.
      *
-     * <p>Total is chosen uniformly in [15, 20]. Each piece except the last receives a random
+     * <p>
+     * Total is chosen uniformly in [15, 20]. Each piece except the last receives a
+     * random
      * share of the remaining total; the last piece receives whatever is left.
      *
      * @param numPieces number of worn armour pieces (≥ 1)
      * @param rng       source of randomness
-     * @return int[] of length {@code numPieces}, values ≥ 0, summing to a value in [15, 20]
+     * @return int[] of length {@code numPieces}, values ≥ 0, summing to a value in
+     *         [15, 20]
      */
     public static int[] distributeArmor(int numPieces, java.util.Random rng) {
         int total = 15 + rng.nextInt(6); // [15, 20] inclusive

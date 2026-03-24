@@ -15,9 +15,11 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -179,6 +181,12 @@ public class TempestTrident implements MythicWeapon {
         if (Ascension.getServer() != null) {
             applyDefaultEnchantments(stack);
         }
+
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+            Component.literal("Shift+Left-Click: toggle between Loyalty and Riptide modes.").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+            Component.literal("In Loyalty mode, every 3rd projectile hit triggers").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+            Component.literal("a lightning strike dealing 20% of target's max HP.").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY))
+        )));
 
         return stack;
     }

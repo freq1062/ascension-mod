@@ -805,7 +805,7 @@ public class SpellRegistry {
         player.displayClientMessage(
                 Component.literal("§4☠ Soul Rage Active! §7(you take more damage)"), true);
 
-        ContinuousTask particleTask = new ContinuousTask(5, () -> {
+        ContinuousTask particleTask = new ContinuousTask(10, () -> {
             if (!SOUL_RAGE_ACTIVE.contains(uid) || !player.isAlive() || player.isRemoved()) {
                 return;
             }
@@ -813,7 +813,7 @@ public class SpellRegistry {
                 return;
 
             float healthRatio = player.getHealth() / player.getMaxHealth();
-            int count = (int) Math.max(1, 15 * (1.0f - healthRatio));
+            int count = (int) Math.max(1, 5 * (1.0f - healthRatio));
 
             for (int i = 0; i < count; i++) {
                 double angle = Math.random() * Math.PI * 2;
@@ -827,9 +827,20 @@ public class SpellRegistry {
         });
         Ascension.scheduler.schedule(particleTask);
 
+        // Heartbeat sound to indicate active Soul Rage damage buff
+        ContinuousTask heartbeatTask = new ContinuousTask(40, () -> {
+            if (!SOUL_RAGE_ACTIVE.contains(uid) || !player.isAlive() || player.isRemoved()) {
+                return;
+            }
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 0.6f, 1.0f);
+        });
+        Ascension.scheduler.schedule(heartbeatTask);
+
         Ascension.scheduler.schedule(new DelayedTask(durationTicks, () -> {
             SOUL_RAGE_ACTIVE.remove(uid);
             particleTask.stop();
+            heartbeatTask.stop();
             if (player.isAlive()) {
                 player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                         SoundEvents.SOUL_ESCAPE, SoundSource.PLAYERS, 1.0f, 0.5f);
@@ -930,7 +941,7 @@ public class SpellRegistry {
 
             // Check distance between player and ghast
             double distance = player.position().distanceTo(ghast.position());
-            if (distance > 5.0 && !player.isPassenger()) {
+            if (distance > 8.0 && !player.isPassenger()) {
                 // Player is too far from ghast and not riding it
                 player.sendSystemMessage(Component.literal("§cYour ghast vanished as you strayed too far!"));
                 cleanupGhast(player, ghast, as);

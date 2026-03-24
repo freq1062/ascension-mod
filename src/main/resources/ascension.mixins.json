@@ -29,6 +29,7 @@
 		"PlayerDropWeaponMixin",
 		"PotionMixin",
 		"PowderSnowMixin",
+		"PlayerAttackStrengthMixin",
 		"ProjectileShieldMixin",
 		"ResultSlotClearMixin",
 		"SigilCraftingMixin",

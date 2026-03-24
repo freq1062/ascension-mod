@@ -13,9 +13,12 @@ import freq.ascension.orders.Nether;
 import freq.ascension.orders.Order;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -104,6 +107,11 @@ public class HellfireCrossbow implements MythicWeapon {
         if (Ascension.getServer() != null) {
             applyEnchantments(stack);
         }
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+            Component.literal("Every 3rd firework fired triggers the Hellfire Beam:").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+            Component.literal("a searing ray along your aim that deals spell damage").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+            Component.literal("to all entities in its path.").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY))
+        )));
         return stack;
     }
 
