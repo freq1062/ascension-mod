@@ -221,16 +221,17 @@ public class Ascension implements ModInitializer {
 		net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
 			if (entity instanceof net.minecraft.world.entity.Display.ItemDisplay
 					|| entity instanceof net.minecraft.world.entity.Interaction) {
-				if (entity.hasCustomName()) {
-					String name = entity.getCustomName().getString();
-					if (name.startsWith("ascension_poi_")) {
-						if (world instanceof ServerLevel sl) {
-							PoiManager poi = PoiManager.get(sl.getServer());
-							// If this entity's UUID is not the actively managed one in the PoiManager,
-							// discard it
-							if (!poi.isActivePoiEntity(entity.getUUID())) {
-								entity.discard();
-							}
+				boolean isNewPoi = entity.getTags().contains("ascension_poi_display")
+						|| entity.getTags().contains("ascension_poi");
+				boolean isLegacyPoi = entity.hasCustomName()
+						&& entity.getCustomName().getString().startsWith("ascension_poi_");
+				if (isNewPoi || isLegacyPoi) {
+					if (world instanceof ServerLevel sl) {
+						PoiManager poi = PoiManager.get(sl.getServer());
+						// If this entity's UUID is not the actively managed one in the PoiManager,
+						// discard it
+						if (!poi.isActivePoiEntity(entity.getUUID())) {
+							entity.discard();
 						}
 					}
 				}
@@ -245,13 +246,20 @@ public class Ascension implements ModInitializer {
 				return InteractionResult.PASS;
 			if (!(entity instanceof Interaction))
 				return InteractionResult.PASS;
-			net.minecraft.network.chat.Component name = entity.getCustomName();
-			if (name == null)
+			// Identify POI interaction entity by tag (new) or legacy name prefix
+			String orderName = null;
+			if (entity.getTags().contains("ascension_poi") && !entity.getTags().contains("ascension_poi_display")) {
+				orderName = entity.getTags().stream()
+						.filter(t -> t.startsWith("ascension_poi_") && !t.equals("ascension_poi"))
+						.map(t -> t.substring("ascension_poi_".length()))
+						.findFirst().orElse(null);
+			} else if (entity.hasCustomName()) {
+				String nameStr = entity.getCustomName().getString();
+				if (nameStr.startsWith("ascension_poi_"))
+					orderName = nameStr.substring("ascension_poi_".length());
+			}
+			if (orderName == null)
 				return InteractionResult.PASS;
-			String nameStr = name.getString();
-			if (!nameStr.startsWith("ascension_poi_"))
-				return InteractionResult.PASS;
-			String orderName = nameStr.substring("ascension_poi_".length());
 
 			// Debounce: suppress repeated fires while holding right-click (10-tick window)
 			int currentTick = level.getServer().getTickCount();

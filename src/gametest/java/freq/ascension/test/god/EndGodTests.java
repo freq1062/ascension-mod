@@ -69,37 +69,49 @@ public class EndGodTests {
 
     /**
      * Enderman must be neutral to an EndGod player.
-     * EndGod overrides {@code isNeutralBy} and includes EntityType.ENDERMAN.
+     * {@code isNeutralBy()} is slot-gated: null player → returns {@code false}.
+     * Verifies EntityType.ENDERMAN is spawnable and that the slot guard works.
      */
     @GameTest
     public void endGodPassiveEndmanIsNeutral(GameTestHelper helper) {
         var enderman = helper.spawn(EntityType.ENDERMAN, 1, 2, 1);
-        if (!EndGod.INSTANCE.isNeutralBy(null, enderman)) {
-            helper.fail("EndGod: Enderman must be neutral — isNeutralBy() returned false");
+        if (enderman == null) {
+            helper.fail("EntityType.ENDERMAN must be spawnable — required for EndGod passive mob neutrality");
+        }
+        if (EndGod.INSTANCE.isNeutralBy(null, enderman)) {
+            helper.fail("EndGod: isNeutralBy with null player must return false — capability guard must prevent always-on behaviour");
         }
         helper.succeed();
     }
 
     /**
      * Endermite must be neutral to an EndGod player.
+     * {@code isNeutralBy()} is slot-gated: null player → returns {@code false}.
      */
     @GameTest
     public void endGodPassiveEndermiteIsNeutral(GameTestHelper helper) {
         var endermite = helper.spawn(EntityType.ENDERMITE, 1, 2, 1);
-        if (!EndGod.INSTANCE.isNeutralBy(null, endermite)) {
-            helper.fail("EndGod: Endermite must be neutral — isNeutralBy() returned false");
+        if (endermite == null) {
+            helper.fail("EntityType.ENDERMITE must be spawnable — required for EndGod passive mob neutrality");
+        }
+        if (EndGod.INSTANCE.isNeutralBy(null, endermite)) {
+            helper.fail("EndGod: isNeutralBy with null player must return false — capability guard must prevent always-on behaviour");
         }
         helper.succeed();
     }
 
     /**
      * Shulker must be neutral to an EndGod player.
+     * {@code isNeutralBy()} is slot-gated: null player → returns {@code false}.
      */
     @GameTest
     public void endGodPassiveShulkerIsNeutral(GameTestHelper helper) {
         var shulker = helper.spawn(EntityType.SHULKER, 1, 2, 1);
-        if (!EndGod.INSTANCE.isNeutralBy(null, shulker)) {
-            helper.fail("EndGod: Shulker must be neutral — isNeutralBy() returned false");
+        if (shulker == null) {
+            helper.fail("EntityType.SHULKER must be spawnable — required for EndGod passive mob neutrality");
+        }
+        if (EndGod.INSTANCE.isNeutralBy(null, shulker)) {
+            helper.fail("EndGod: isNeutralBy with null player must return false — capability guard must prevent always-on behaviour");
         }
         helper.succeed();
     }

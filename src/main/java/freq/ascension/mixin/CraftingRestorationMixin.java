@@ -81,33 +81,22 @@ public abstract class CraftingRestorationMixin {
 
     @Unique
     private int calculateMaxCrafts(List<Slot> slots) {
-        // Slot mapping in the 3x3 grid (0-indexed): 0-8 (top-left to bottom-right)
-        // ECHO_SLOT=1, GOLD=3&5, TOTEM=4, AMETHYST=7
-        int echo = slots.get(1).getItem().getCount();
-        int gold = slots.get(3).getItem().getCount() + slots.get(5).getItem().getCount();
-        int totem = slots.get(4).getItem().getCount();
-        int amethyst = slots.get(7).getItem().getCount();
-
-        return Math.min(Math.min(gold / 2, totem), Math.min(echo, amethyst));
+        // Recipe AAA/BCB/DDD uses one item from each of the 9 grid slots per craft.
+        // Max crafts = minimum count across all 9 slots.
+        int min = Integer.MAX_VALUE;
+        for (int i = 0; i < 9; i++) {
+            int count = slots.get(i).getItem().getCount();
+            if (count == 0) return 0;
+            if (count < min) min = count;
+        }
+        return min;
     }
 
     @Unique
     private void consumeIngredients(List<Slot> slots, int amount) {
-        slots.get(1).remove(amount); // Echo
-        slots.get(4).remove(amount); // Totem
-        slots.get(7).remove(amount); // Amethyst
-
-        // Split gold consumption across two slots
-        int remainingGold = amount * 2;
-        remainingGold = takeFromSlot(slots, 3, remainingGold);
-        takeFromSlot(slots, 5, remainingGold);
-    }
-
-    @Unique
-    private int takeFromSlot(List<Slot> slots, int index, int amount) {
-        ItemStack stack = slots.get(index).getItem();
-        int canTake = Math.min(stack.getCount(), amount);
-        slots.get(index).remove(canTake);
-        return amount - canTake;
+        // Consume one item from each of the 9 crafting grid slots per craft unit.
+        for (int i = 0; i < 9; i++) {
+            slots.get(i).remove(amount);
+        }
     }
 }

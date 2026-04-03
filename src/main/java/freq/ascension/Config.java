@@ -23,6 +23,8 @@ public class Config {
     public static boolean netherGodEnabled = true;
     public static boolean endGodEnabled = true;
 
+    public static boolean challengerTrialsEnabled = true;
+
     public static int godDeathCooldown = 86400;
     public static int influenceBanDuration = 86400;
 
@@ -123,6 +125,8 @@ public class Config {
         magicGodEnabled = config.getOrElse("ascend.magic_god", true);
         netherGodEnabled = config.getOrElse("ascend.nether_god", true);
         endGodEnabled = config.getOrElse("ascend.end_god", true);
+
+        challengerTrialsEnabled = config.getOrElse("challenger_trials_enabled", true);
 
         godDeathCooldown = config.getOrElse("god_death_cooldown", 86400);
         influenceBanDuration = config.getOrElse("influence_ban_duration", 86400);
@@ -225,6 +229,9 @@ public class Config {
         config.set("ascend.nether_god", netherGodEnabled);
         config.set("ascend.end_god", endGodEnabled);
         config.setComment("abilities", "Toggle whether players can ascend to gods");
+
+        config.set("challenger_trials_enabled", challengerTrialsEnabled);
+        config.setComment("challenger_trials_enabled", "Whether Challenger Trials can be initiated. Players can still craft Challenger's Sigils, but right-clicking POIs will be blocked when this is false.");
 
         config.set("god_death_cooldown", godDeathCooldown);
         config.setComment("god_death_cooldown", "How long a player must wait after dying as a god (in seconds).");
