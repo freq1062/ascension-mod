@@ -120,8 +120,13 @@ public class Ocean implements Order {
 
     @Override
     public void applyEffect(ServerPlayer player) {
-        if (hasCapability(player, "passive"))
+        if (hasCapability(player, "passive")) {
             player.addEffect(new MobEffectInstance(MobEffects.WATER_BREATHING, 80, 0, true, false, true));
+            // Refresh Dolphin's Grace if it is currently active (toggled on)
+            if (player.getEffect(MobEffects.DOLPHINS_GRACE) != null) {
+                player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 80, 0, true, false, true));
+            }
+        }
     }
 
     public String getOrderName() {

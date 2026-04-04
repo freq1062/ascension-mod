@@ -442,7 +442,7 @@ public class SpellRegistry {
                 .getEffect(net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE);
         if (currentEffect == null) {
             player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                    net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE, 200, 0, true, true, true));
+                    net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE, 80, 0, true, true, true));
         } else if (currentEffect.getAmplifier() == 0) {
             player.removeEffect(net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE);
         }

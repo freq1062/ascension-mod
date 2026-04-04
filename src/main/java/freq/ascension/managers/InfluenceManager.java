@@ -96,10 +96,10 @@ public class InfluenceManager {
                 if (attacker == null || !(attacker instanceof ServerPlayer killer)) {
                     // Drop influence item at death location if victim has positive influence and no
                     // killer
-                    try {
-                        if (data.getInfluence() > 0) {
-                            victim.sendSystemMessage(
-                                    Component.literal(LOSE_INFLUENCE_MSG));
+                    if (data.getInfluence() > 0) {
+                        data.addInfluence(-1);
+                        victim.sendSystemMessage(Component.literal(LOSE_INFLUENCE_MSG));
+                        try {
                             // Spawn influence item at the player's death location
                             ItemStack itemToDrop = InfluenceItem.createItem();
                             net.minecraft.world.entity.item.ItemEntity itemEntity = new net.minecraft.world.entity.item.ItemEntity(
@@ -110,13 +110,13 @@ public class InfluenceManager {
                                     itemToDrop);
                             itemEntity.setDefaultPickUpDelay();
                             victim.level().addFreshEntity(itemEntity);
-                            data.addInfluence(-1);
-                        } else {
-                            victim.sendSystemMessage(
-                                    Component.literal(LOSE_INFLUENCE_MSG +
-                                            " No items were dropped as you have no influence."));
+                        } catch (Throwable ignored) {
+                            // Item drop failure is non-fatal; influence was already deducted
                         }
-                    } catch (Throwable ignored) {
+                    } else {
+                        victim.sendSystemMessage(
+                                Component.literal(LOSE_INFLUENCE_MSG +
+                                        " No items were dropped as you have no influence."));
                     }
                 } else {
                     // Killer gains influence directly

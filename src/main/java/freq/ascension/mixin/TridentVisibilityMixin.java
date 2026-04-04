@@ -1,6 +1,5 @@
 package freq.ascension.mixin;
 
-import freq.ascension.Ascension;
 import freq.ascension.weapons.TempestTrident;
 import net.minecraft.world.entity.projectile.ThrownTrident;
 import org.spongepowered.asm.mixin.Mixin;
@@ -23,14 +22,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(ThrownTrident.class)
 public abstract class TridentVisibilityMixin {
-
-    static {
-        try {
-            Ascension.LOGGER.info("[TridentVisibilityMixin] Mixin class loaded successfully");
-        } catch (Exception e) {
-            // logger might not be ready at static-init time
-        }
-    }
 
     @Inject(method = "tick", at = @At("TAIL"))
     private void ascension$forceInvisible(CallbackInfo ci) {

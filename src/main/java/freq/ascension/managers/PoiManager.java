@@ -225,8 +225,6 @@ public class PoiManager extends SavedData {
         }
 
         if (!staleDisplays.isEmpty() || !staleInteractions.isEmpty()) {
-            Ascension.LOGGER.info("[PoiManager] Cleaned up {} stale POI displays and {} interactions",
-                    staleDisplays.size(), staleInteractions.size());
         }
     }
 
