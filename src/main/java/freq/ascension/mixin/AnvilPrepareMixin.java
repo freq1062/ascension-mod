@@ -53,9 +53,13 @@ public abstract class AnvilPrepareMixin {
                     AscensionData data = (AscensionData) serverPlayer;
                     boolean isGod = "god".equals(data.getRank())
                             && "earth".equalsIgnoreCase(data.getGodOrder());
-                    this.cost.set(isGod
+                    int reduced = isGod
                             ? (int) Math.max(1, Math.floor(current * 0.1))
-                            : Math.max(1, current / 2));
+                            : Math.max(1, current / 2);
+                    // Only apply if actually different to avoid double-reducing
+                    if (reduced != current) {
+                        this.cost.set(reduced);
+                    }
                 }
             }
         }

@@ -22,6 +22,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.item.Item;
@@ -107,8 +108,15 @@ public class Earth implements Order {
         return tool != null && (tool.is(PICKAXES) || tool.is(SHOVELS));
     }
 
-    private ItemStack getSmeltedResult(ServerLevel level, BlockState state) {
-        ItemStack input = new ItemStack(state.getBlock().asItem());
+    private ItemStack getSmeltedResult(ServerLevel level, BlockPos pos, BlockState state, BlockEntity entity,
+            ServerPlayer player, ItemStack tool) {
+        java.util.List<ItemStack> drops = Block.getDrops(state, level, pos, entity, player, tool);
+        if (drops.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack input = drops.getFirst().copy();
+        input.setCount(1);
         SingleRecipeInput recipeInput = new SingleRecipeInput(input);
         return level.recipeAccess()
                 .getRecipeFor(RecipeType.SMELTING, recipeInput, level)
@@ -184,21 +192,19 @@ public class Earth implements Order {
         if (!isSupermineTool(tool))
             return;
 
-        // Only auto-smelt ores and ancient debris — not regular stone, dirt, etc.
-        boolean isOre = state.is(ORE_TAG);
-        boolean isAncientDebris = state.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS);
-        if (!isOre && !isAncientDebris)
+        // Only double when the tool is suitable for this block
+        if (!tool.isCorrectToolForDrops(state))
             return;
 
         // Determine the smelted result to check if we should intervene
-        ItemStack smelted = getSmeltedResult(world, state);
-        if (smelted.isEmpty())
+        ItemStack smelted = getSmeltedResult(world, pos, state, entity, player, tool);
+        if (smelted.isEmpty()) {
+            // Not a smeltable ore, so don't intervene
             return;
+        }
 
-        // Only double when the tool is suitable for this block (e.g. iron+ pickaxe for
-        // diamond ore)
-        if (!tool.isCorrectToolForDrops(state))
-            return;
+        // Special handling for ancient debris (no doubling, but fixed 2 scraps)
+        boolean isAncientDebris = state.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS);
 
         // Spawn small fire particles around the broken block
         world.sendParticles(
@@ -209,12 +215,19 @@ public class Earth implements Order {
         double xpMultiplier = Utils.isGod(player) ? 2.0 : 1.0;
 
         // This handles the doubling (count * 2) and XP dropping
-        dropSmeltedOre(player, world, pos, state, xpMultiplier);
+        dropSmeltedOre(player, world, pos, state, entity, xpMultiplier);
     }
 
     // Cost reduction is handled directly in AnvilPrepareMixin via @Shadow DataSlot access
     @Override
     public void onAnvilPrepare(AnvilMenu menu) {
+    }
+
+    @Override
+    public void onUnequip(ServerPlayer player, String slotType) {
+        if ("passive".equals(slotType)) {
+            player.removeEffect(MobEffects.HASTE);
+        }
     }
 
     private void breakSurroundingCube(ServerPlayer player, BlockPos origin, int diameter, int maxDurabilityLoss,
@@ -261,7 +274,7 @@ public class Earth implements Order {
                     if ((targetState.is(ORE_TAG) || targetState.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS)) && !hasSilkTouch) {
                         ItemStack heldTool = player.getInventory().getSelectedItem();
                         if (heldTool.isCorrectToolForDrops(targetState)) {
-                            dropSmeltedOre(player, world, targetPos, targetState, 1.0);
+                            dropSmeltedOre(player, world, targetPos, targetState, world.getBlockEntity(targetPos), 1.0);
                         } else {
                             world.destroyBlock(targetPos, true, player);
                         }
@@ -282,8 +295,9 @@ public class Earth implements Order {
         }
     }
 
-    private boolean dropSmeltedOre(ServerPlayer player, ServerLevel world, BlockPos pos, BlockState state, double xpMultiplier) {
-        ItemStack smelted = getSmeltedResult(world, state);
+    private boolean dropSmeltedOre(ServerPlayer player, ServerLevel world, BlockPos pos, BlockState state,
+            BlockEntity entity, double xpMultiplier) {
+        ItemStack smelted = getSmeltedResult(world, pos, state, entity, player, player.getMainHandItem());
         if (smelted.isEmpty())
             return false;
 
