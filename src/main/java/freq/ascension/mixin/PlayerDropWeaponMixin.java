@@ -34,7 +34,7 @@ public class PlayerDropWeaponMixin {
         if (stack == null || stack.isEmpty()) return;
         if (!WeaponRegistry.isMythicalWeapon(stack)) return;
         if (!(((Object) this) instanceof ServerPlayer sp)) return;
-        if (sp.hasPermissions(2)) return;
+        if (sp.hasPermissions(2) || sp.createCommandSourceStack().hasPermission(2)) return;
         // Return the item to inventory — the Q-key flow removes the item before calling drop()
         sp.getInventory().add(stack);
         sp.sendSystemMessage(Component.literal("§cYou cannot drop your mythical weapon!"));

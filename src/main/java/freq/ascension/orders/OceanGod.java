@@ -2,24 +2,14 @@ package freq.ascension.orders;
 
 import freq.ascension.Config;
 import freq.ascension.managers.ActiveSpell;
-import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
-import freq.ascension.registry.SpellRegistry;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
 public class OceanGod extends Ocean {
     public static final OceanGod INSTANCE = new OceanGod();
-
-    // Tracks dolphins grace cycle state per player: 0=off, 1=DG1(amp=0),
-    // 2=DG2(amp=1)
-    private static final Map<UUID, Integer> DOLPHINS_GRACE_STATE = new ConcurrentHashMap<>();
 
     private OceanGod() {
         super();
@@ -38,39 +28,16 @@ public class OceanGod extends Ocean {
         ActiveSpell drownAs = SpellCooldownManager.getActiveSpell(player, SpellCooldownManager.get("drown"));
         if (drownAs != null && drownAs.isInUse() && hasCapability(player, "combat"))
             player.addEffect(new MobEffectInstance(MobEffects.HASTE, 80, 0, true, false, true));
-    }
 
-    @Override
-    public void registerSpells() {
-        // Override dolphins_grace to cycle none → DG1 → DG2 → none
-        SpellCooldownManager.register(new Spell("dolphins_grace", this, "passive", (player, stats) -> {
-            ActiveSpell as = SpellCooldownManager.addToActiveSpells(player,
-                    SpellCooldownManager.get("dolphins_grace"));
-
-            UUID id = player.getUUID();
-            int currentState = DOLPHINS_GRACE_STATE.getOrDefault(id, 0);
-            int nextState = (currentState + 1) % 3;
-            DOLPHINS_GRACE_STATE.put(id, nextState);
-
-            player.removeEffect(MobEffects.DOLPHINS_GRACE);
-            switch (nextState) {
-                case 1 -> player.addEffect(new MobEffectInstance(
-                        MobEffects.DOLPHINS_GRACE, Integer.MAX_VALUE, 0, true, false, true));
-                case 2 -> player.addEffect(new MobEffectInstance(
-                        MobEffects.DOLPHINS_GRACE, Integer.MAX_VALUE, 1, true, false, true));
-                default -> {
-                    /* state 0 = off, already removed */ }
+        // Refresh Dolphin's Grace by re-applying the existing effect's amplifier
+        // (DG1 or DG2) so it never expires between applyEffect ticks.
+        if (hasCapability(player, "passive")) {
+            MobEffectInstance dg = player.getEffect(MobEffects.DOLPHINS_GRACE);
+            if (dg != null) {
+                player.addEffect(
+                        new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 80, dg.getAmplifier(), true, false, true));
             }
-            as.setInUse(false);
-        }));
-
-        SpellCooldownManager.register(new Spell("molecular_flux", this, "utility", (player, stats) -> {
-            SpellRegistry.molecularFlux(player, stats.getInt(0), stats.getInt(1));
-        }));
-
-        SpellCooldownManager.register(new Spell("drown", this, "combat", (player, stats) -> {
-            SpellRegistry.drown(player, stats.getInt(0), stats.getInt(1));
-        }));
+        }
     }
 
     @Override
@@ -87,11 +54,6 @@ public class OceanGod extends Ocean {
                     Config.oceanGodDrownDuration, Config.oceanGodDrownRadius);
             default -> null;
         };
-    }
-
-    /** Remove dolphins grace state on player disconnect or ability unequip. */
-    public static void clearState(UUID playerId) {
-        DOLPHINS_GRACE_STATE.remove(playerId);
     }
 
     @Override

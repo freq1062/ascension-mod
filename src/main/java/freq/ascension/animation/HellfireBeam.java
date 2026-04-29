@@ -27,7 +27,7 @@ import net.minecraft.world.level.ClipContext;
  * Fires a horizontal beam of hellfire from the casting player's eye position.
  *
  * <p>The beam travels along the player's look direction, stopping at the first solid block it
- * encounters (max 60 blocks). All {@link LivingEntity} instances within 1 block of the ray
+ * encounters (max 60 blocks). All {@link LivingEntity} instances within 1.5 blocks of the ray
  * receive scaled spell damage; entities closer than 10 blocks receive the full 40 % max-HP hit,
  * while the damage falls off linearly to 0 at 60 blocks.
  */
@@ -207,7 +207,7 @@ public class HellfireBeam {
     private static void applyBeamDamage(ServerPlayer player, ServerLevel level,
             Vec3 start, Vec3 dir, double actualRange) {
         Vec3 end  = start.add(dir.scale(actualRange));
-        AABB box  = new AABB(start, end).inflate(1.0);
+        AABB box  = new AABB(start, end).inflate(1.5);
 
         List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class, box);
         for (LivingEntity target : candidates) {
@@ -222,7 +222,7 @@ public class HellfireBeam {
             // Reject if too far from the beam axis (cylinder radius = 1.5 blocks).
             Vec3 closest     = start.add(dir.scale(proj));
             double perpDist  = targetCenter.distanceTo(closest);
-            if (perpDist > 1.5) continue;
+            if (perpDist > 2.25) continue;
 
             double damage = calculateDamage(proj, target.getMaxHealth());
             if (damage <= 0) continue;

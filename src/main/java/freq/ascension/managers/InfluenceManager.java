@@ -14,11 +14,13 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.Date;
 import java.util.Map;
 
 public class InfluenceManager {
     private static final String GAIN_INFLUENCE_MSG = "§6✦Gained 1 influence!";
     private static final String LOSE_INFLUENCE_MSG = "§7Lost 1 influence.";
+    private static final String NO_DROP_SUFFIX = " No items were dropped as you have no influence.";
 
     public static void init() {
         UseItemCallback.EVENT.register((player, world, hand) -> {
@@ -94,36 +96,14 @@ public class InfluenceManager {
                 AscensionData data = (AscensionData) victim;
 
                 if (attacker == null || !(attacker instanceof ServerPlayer killer)) {
-                    // Drop influence item at death location if victim has positive influence and no
-                    // killer
-                    if (data.getInfluence() > 0) {
-                        data.addInfluence(-1);
-                        victim.sendSystemMessage(Component.literal(LOSE_INFLUENCE_MSG));
-                        try {
-                            // Spawn influence item at the player's death location
-                            ItemStack itemToDrop = InfluenceItem.createItem();
-                            net.minecraft.world.entity.item.ItemEntity itemEntity = new net.minecraft.world.entity.item.ItemEntity(
-                                    victim.level(),
-                                    victim.getX(),
-                                    victim.getY(),
-                                    victim.getZ(),
-                                    itemToDrop);
-                            itemEntity.setDefaultPickUpDelay();
-                            victim.level().addFreshEntity(itemEntity);
-                        } catch (Throwable ignored) {
-                            // Item drop failure is non-fatal; influence was already deducted
-                        }
-                    } else {
-                        victim.sendSystemMessage(
-                                Component.literal(LOSE_INFLUENCE_MSG +
-                                        " No items were dropped as you have no influence."));
-                    }
+                    handleNaturalDeathInfluenceLoss(victim, data);
                 } else {
                     // Killer gains influence directly
                     try {
                         AscensionData dataA = (AscensionData) killer;
                         dataA.addInfluence(1);
                         data.addInfluence(-1);
+                        checkAndBanIfNeeded(victim, data);
                         victim.sendSystemMessage(
                                 Component.literal(LOSE_INFLUENCE_MSG));
                         killer.sendSystemMessage(
@@ -142,5 +122,51 @@ public class InfluenceManager {
                 }
             }
         });
+    }
+
+    private static void checkAndBanIfNeeded(ServerPlayer victim, AscensionData data) {
+        if (data.getInfluence() > -5) return;
+        if (Ascension.isGameTestPlayer(victim)) return;
+        net.minecraft.server.MinecraftServer server = Ascension.getServer();
+        if (server == null) return;
+        try {
+            Date expires = new Date(System.currentTimeMillis() + (long) freq.ascension.Config.influenceBanDuration * 1000L);
+            net.minecraft.server.players.NameAndId nameAndId = new net.minecraft.server.players.NameAndId(victim.getGameProfile());
+            net.minecraft.server.players.UserBanListEntry entry = new net.minecraft.server.players.UserBanListEntry(
+                    nameAndId,
+                    null,
+                    "Ascension",
+                    expires,
+                    "Your influence reached -5. You may rejoin after the ban expires.");
+            server.getPlayerList().getBans().add(entry);
+            victim.connection.disconnect(net.minecraft.network.chat.Component.literal(
+                    "§cYou have been temporarily banned for reaching -5 influence."));
+        } catch (Throwable ignored) {}
+    }
+
+    private static void handleNaturalDeathInfluenceLoss(ServerPlayer victim, AscensionData data) {
+        boolean shouldDropInfluenceItem = data.getInfluence() > 0;
+        data.addInfluence(-1);
+        checkAndBanIfNeeded(victim, data);
+
+        if (!shouldDropInfluenceItem) {
+            victim.sendSystemMessage(Component.literal(LOSE_INFLUENCE_MSG + NO_DROP_SUFFIX));
+            return;
+        }
+
+        victim.sendSystemMessage(Component.literal(LOSE_INFLUENCE_MSG));
+        try {
+            ItemStack itemToDrop = InfluenceItem.createItem();
+            net.minecraft.world.entity.item.ItemEntity itemEntity = new net.minecraft.world.entity.item.ItemEntity(
+                    victim.level(),
+                    victim.getX(),
+                    victim.getY(),
+                    victim.getZ(),
+                    itemToDrop);
+            itemEntity.setDefaultPickUpDelay();
+            victim.level().addFreshEntity(itemEntity);
+        } catch (Throwable ignored) {
+            // Item drop failure is non-fatal; influence was already deducted
+        }
     }
 }

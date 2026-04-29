@@ -25,7 +25,7 @@ public class WeaponInventoryMixin {
         if (!WeaponRegistry.isMythicalWeapon(stack)) return;
         ServerPlayer player = (ServerPlayer) (Object) this;
         // Allow admins (permission level 2+) to drop
-        if (player.hasPermissions(2)) return;
+        if (player.hasPermissions(2) || player.createCommandSourceStack().hasPermission(2)) return;
         // Return the item to inventory — the Q-key flow removes the item before calling drop()
         player.getInventory().add(stack);
         player.sendSystemMessage(Component.literal("§cYou cannot drop your mythical weapon!"));

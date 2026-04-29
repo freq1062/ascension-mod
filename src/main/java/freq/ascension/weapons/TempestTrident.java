@@ -158,14 +158,14 @@ public class TempestTrident implements MythicWeapon {
                                 .withItalic(false)
                                 .withBold(true)));
 
-        // Override attribute modifiers to match a Sharpness 5 diamond sword:
-        //   +10.0 attack damage, -2.4 attack speed.
+        // Override attribute modifiers to match a diamond sword base:
+        //   +6.0 attack damage, -2.4 attack speed.
         // Setting DataComponents.ATTRIBUTE_MODIFIERS fully replaces the trident's defaults.
         ItemAttributeModifiers modifiers = ItemAttributeModifiers.builder()
                 .add(Attributes.ATTACK_DAMAGE,
                         new AttributeModifier(
                                 ResourceLocation.fromNamespaceAndPath("ascension", "tempest_trident_damage"),
-                                10.0,
+                                6.0,
                                 AttributeModifier.Operation.ADD_VALUE),
                         EquipmentSlotGroup.MAINHAND)
                 .add(Attributes.ATTACK_SPEED,

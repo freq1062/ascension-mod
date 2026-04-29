@@ -47,6 +47,18 @@ public class PromotionHandler {
     public static void handlePromotionRequest(ServerPlayer player, String orderName, MinecraftServer server) {
         GodManager gm = GodManager.get(server);
 
+        // Check 0: demotion cooldown — recently-demoted gods must wait before re-ascending
+        if (gm.isOnDemotionCooldown(player)) {
+            long remainingMs = gm.getDemotionCooldownRemainingMs(player);
+            long remainingHours = remainingMs / 3_600_000L;
+            long remainingMins = (remainingMs % 3_600_000L) / 60_000L;
+            player.sendSystemMessage(Component.literal(
+                    "§cYou were recently demoted from godhood. You must wait §e"
+                            + remainingHours + "h " + remainingMins
+                            + "m§c before ascending again."));
+            return;
+        }
+
         // Check 1: is there already a god of this order?
         UUID existingGodUUID = gm.getGodUUID(orderName);
         if (existingGodUUID != null) {

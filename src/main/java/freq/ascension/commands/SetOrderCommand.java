@@ -35,26 +35,49 @@ public class SetOrderCommand {
         String orderName = StringArgumentType.getString(context, "order");
 
         AscensionData data = (AscensionData) target;
-        Order order = OrderRegistry.get(orderName);
-        if (order == null) {
-            context.getSource().sendFailure(Component.literal("Order not found: " + orderName));
-            return 0;
-        }
+        // Allow "none" to clear a slot without requiring a registered Order.
         switch (type) {
             case "passive" -> {
                 Order current = data.getPassive();
                 if (current != null && !current.canUnequip(target)) return 0;
-                data.setPassive(orderName);
+                if ("none".equalsIgnoreCase(orderName)) {
+                    data.setPassive(null);
+                } else {
+                    Order ord = OrderRegistry.get(orderName);
+                    if (ord == null) {
+                        context.getSource().sendFailure(Component.literal("Order not found: " + orderName));
+                        return 0;
+                    }
+                    data.setPassive(orderName);
+                }
             }
             case "utility" -> {
                 Order current = data.getUtility();
                 if (current != null && !current.canUnequip(target)) return 0;
-                data.setUtility(orderName);
+                if ("none".equalsIgnoreCase(orderName)) {
+                    data.setUtility(null);
+                } else {
+                    Order ord = OrderRegistry.get(orderName);
+                    if (ord == null) {
+                        context.getSource().sendFailure(Component.literal("Order not found: " + orderName));
+                        return 0;
+                    }
+                    data.setUtility(orderName);
+                }
             }
             case "combat" -> {
                 Order current = data.getCombat();
                 if (current != null && !current.canUnequip(target)) return 0;
-                data.setCombat(orderName);
+                if ("none".equalsIgnoreCase(orderName)) {
+                    data.setCombat(null);
+                } else {
+                    Order ord = OrderRegistry.get(orderName);
+                    if (ord == null) {
+                        context.getSource().sendFailure(Component.literal("Order not found: " + orderName));
+                        return 0;
+                    }
+                    data.setCombat(orderName);
+                }
             }
             default -> {
                 context.getSource()

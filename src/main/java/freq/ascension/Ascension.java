@@ -9,6 +9,8 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -17,6 +19,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Interaction;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import org.slf4j.Logger;
@@ -50,6 +56,7 @@ import freq.ascension.commands.WithdrawCommand;
 import freq.ascension.commands.SetOrderCommand;
 import freq.ascension.items.ChallengerSigil;
 import freq.ascension.managers.AbilityManager;
+import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.ChallengerTrialManager;
 import freq.ascension.managers.GodManager;
 import freq.ascension.managers.InfluenceManager;
@@ -72,9 +79,16 @@ import freq.ascension.weapons.VinewrathAxe;
 
 public class Ascension implements ModInitializer {
 	public static final String MOD_ID = "ascension";
+	private static final String[] DISGUISE_RUNTIME_FIELDS = {
+			"disguiselib$disguiseEntity",
+			"disguiselib$disguiseType",
+			"disguiselib$profile",
+			"disguiselib$trueSight"
+	};
 
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 	public static final TaskScheduler scheduler = new TaskScheduler();
+	private static final int ENCHANTMENT_SCAN_INTERVAL_TICKS = 200;
 	// public static FabricPacketEventsAPI api; // PacketEvents temporarily disabled
 	private static MinecraftServer server;
 
@@ -106,6 +120,11 @@ public class Ascension implements ModInitializer {
 			server = s;
 			scheduler.tick(s.getTickCount());
 			PromotionHandler.cleanExpired(s.getTickCount());
+
+			if (s.getTickCount() % ENCHANTMENT_SCAN_INTERVAL_TICKS == 0) {
+				downgradeRestrictedEnchantments(s);
+				clearIllegalMythicalWeapons(s);
+			}
 
 			// Ocean passive: prevent freeze ticks and provide scaffolding-like ascent in
 			// powder snow.
@@ -152,8 +171,8 @@ public class Ascension implements ModInitializer {
 		// });
 		SpellCooldownManager.updateActiveSpells();
 		OrderRegistry.registerAllSpells();
-		WeaponRegistry.register(new ColossusHammer());
-		WeaponRegistry.register(new VinewrathAxe());
+		WeaponRegistry.register(ColossusHammer.INSTANCE);
+		WeaponRegistry.register(VinewrathAxe.INSTANCE);
 		// Register GravitonGauntlet and its cleanup/debounce event hooks.
 		GravitonGauntlet.register();
 		WeaponRegistry.register(GravitonGauntlet.INSTANCE);
@@ -345,9 +364,13 @@ public class Ascension implements ModInitializer {
 			try {
 				EntityDisguise disguise = (EntityDisguise) handler
 						.getPlayer();
-				// removeDisguise() clears all DisguiseLib NBT fields entirely,
-				// preventing the null-serverPlayer NPE in fromTag on next login.
-				disguise.removeDisguise();
+				if (isGameTestPlayer(handler.getPlayer()) || handler.getPlayer().connection == null) {
+					clearDisguiseSilently(handler.getPlayer(), "disconnect");
+				} else {
+					// removeDisguise() clears all DisguiseLib NBT fields entirely,
+					// preventing the null-serverPlayer NPE in fromTag on next login.
+					disguise.removeDisguise();
+				}
 			} catch (Exception e) {
 				LOGGER.warn("Failed to clear disguise on disconnect for "
 						+ handler.getPlayer().getName().getString() + ": " + e.getMessage());
@@ -412,8 +435,12 @@ public class Ascension implements ModInitializer {
 			try {
 				stoppingServer.getPlayerList().getPlayers().forEach(player -> {
 					try {
-						EntityDisguise disguise = (EntityDisguise) player;
-						disguise.removeDisguise();
+						if (isGameTestPlayer(player) || player.connection == null) {
+							clearDisguiseSilently(player, "server stop");
+						} else {
+							EntityDisguise disguise = (EntityDisguise) player;
+							disguise.removeDisguise();
+						}
 					} catch (Exception e) {
 						// Silently ignore per-player failures
 					}
@@ -499,13 +526,129 @@ public class Ascension implements ModInitializer {
 				return;
 			}
 
-			disguise.removeDisguise();
-			LOGGER.warn("Cleared stale disguise during " + phase + " recovery for "
-					+ player.getName().getString());
+			if (isGameTestPlayer(player) || player.connection == null) {
+				clearDisguiseSilently(player, phase + " recovery");
+			} else {
+				disguise.removeDisguise();
+				LOGGER.warn("Cleared stale disguise during " + phase + " recovery for "
+						+ player.getName().getString());
+			}
 		} catch (Exception e) {
 			LOGGER.warn("Failed to clear stale disguise during " + phase + " recovery for "
 					+ player.getName().getString() + ": " + e.getMessage());
 		}
+	}
+
+	private static void downgradeRestrictedEnchantments(MinecraftServer server) {
+		var enchantmentRegistry = server.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+		Holder<Enchantment> protection = enchantmentRegistry.getOrThrow(Enchantments.PROTECTION);
+		Holder<Enchantment> sharpness = enchantmentRegistry.getOrThrow(Enchantments.SHARPNESS);
+		Holder<Enchantment> power = enchantmentRegistry.getOrThrow(Enchantments.POWER);
+
+		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+			for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+				ItemStack stack = player.getInventory().getItem(slot);
+				downgradeRestrictedEnchantmentsOnStack(stack, protection, sharpness, power);
+			}
+		}
+	}
+
+	private static void clearIllegalMythicalWeapons(MinecraftServer server) {
+		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+			if (isGameTestPlayer(player)) continue;
+			AscensionData data = (AscensionData) player;
+			boolean isGod = "god".equals(data.getRank());
+			String godOrder = data.getGodOrder();
+
+			for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+				ItemStack stack = player.getInventory().getItem(slot);
+				freq.ascension.weapons.MythicWeapon weapon = WeaponRegistry.identifyWeapon(stack);
+				if (weapon == null) continue;
+
+				boolean isCorrectGod = isGod
+						&& godOrder != null
+						&& weapon.getParentOrder().getOrderName().equalsIgnoreCase(godOrder);
+
+				if (!isCorrectGod) {
+					player.getInventory().setItem(slot, ItemStack.EMPTY);
+					String orderName = weapon.getParentOrder().getOrderName();
+					player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+							"§c[Ascension] Your " + freq.ascension.weapons.MythicWeapon.formatWeaponName(weapon.getWeaponId())
+									+ " has been removed: only the " + orderName + " god may wield it."));
+				}
+			}
+		}
+	}
+
+	private static void downgradeRestrictedEnchantmentsOnStack(ItemStack stack,
+			Holder<Enchantment> protection,
+			Holder<Enchantment> sharpness,
+			Holder<Enchantment> power) {
+		if (stack.isEmpty() || WeaponRegistry.isMythicalWeapon(stack)) {
+			return;
+		}
+
+		ItemEnchantments current = stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
+		int protectionLevel = current.getLevel(protection);
+		int sharpnessLevel = current.getLevel(sharpness);
+		int powerLevel = current.getLevel(power);
+
+		if (protectionLevel != 4 && sharpnessLevel != 5 && powerLevel != 5) {
+			return;
+		}
+
+		ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(current);
+		if (protectionLevel == 4) {
+			mutable.set(protection, 3);
+		}
+		if (sharpnessLevel == 5) {
+			mutable.set(sharpness, 4);
+		}
+		if (powerLevel == 5) {
+			mutable.set(power, 4);
+		}
+		stack.set(DataComponents.ENCHANTMENTS, mutable.toImmutable());
+	}
+
+	public static boolean clearDisguiseSilently(ServerPlayer player, String phase) {
+		try {
+			EntityDisguise disguise = (EntityDisguise) player;
+			if (!disguise.isDisguised()) {
+				return false;
+			}
+
+			setDisguiseField(player, "disguiselib$disguiseEntity", null);
+			setDisguiseField(player, "disguiselib$disguiseType", player.getType());
+			setDisguiseField(player, "disguiselib$profile", null);
+			setDisguiseField(player, "disguiselib$trueSight", false);
+			return true;
+		} catch (Exception e) {
+			LOGGER.warn("Failed to clear disguise silently during " + phase + " for "
+					+ player.getName().getString() + ": " + e.getMessage());
+			return false;
+		}
+	}
+
+	public static boolean isGameTestPlayer(ServerPlayer player) {
+		return player != null
+				&& player.level() != null
+				&& player.level().getServer() instanceof net.minecraft.gametest.framework.GameTestServer;
+	}
+
+	private static void setDisguiseField(ServerPlayer player, String fieldName, Object value)
+			throws ReflectiveOperationException {
+		Class<?> type = player.getClass();
+		while (type != null) {
+			try {
+				java.lang.reflect.Field field = type.getDeclaredField(fieldName);
+				field.setAccessible(true);
+				field.set(player, value);
+				return;
+			} catch (NoSuchFieldException ignored) {
+				type = type.getSuperclass();
+			}
+		}
+		throw new NoSuchFieldException(fieldName);
 	}
 
 	/**

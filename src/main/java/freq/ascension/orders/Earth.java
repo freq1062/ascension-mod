@@ -24,6 +24,8 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -41,6 +43,8 @@ public class Earth implements Order {
     // Keep track of supermine state per player
     private static final Map<UUID, Boolean> SUPERMINE_ENABLED = new ConcurrentHashMap<>();
     private static final Set<UUID> IS_MINING_INTERNALLY = new HashSet<>();
+    private static final ResourceLocation BREAK_SPEED_ID =
+            ResourceLocation.fromNamespaceAndPath("ascension", "earth_block_break_speed");
 
     @Override
     public Order getVersion(String rank) {
@@ -135,9 +139,15 @@ public class Earth implements Order {
 
     @Override
     public void applyEffect(ServerPlayer player) {
-        if (hasCapability(player, "passive"))
+        if (hasCapability(player, "passive")) {
             player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
                     net.minecraft.world.effect.MobEffects.HASTE, 60, 0, true, false, true));
+            var breakSpeed = player.getAttribute(Attributes.BLOCK_BREAK_SPEED);
+            if (breakSpeed != null && !breakSpeed.hasModifier(BREAK_SPEED_ID)) {
+                breakSpeed.addTransientModifier(new AttributeModifier(
+                        BREAK_SPEED_ID, 0.2, AttributeModifier.Operation.ADD_VALUE));
+            }
+        }
     }
 
     public static void toggleSupermine(ServerPlayer player) {
@@ -227,6 +237,8 @@ public class Earth implements Order {
     public void onUnequip(ServerPlayer player, String slotType) {
         if ("passive".equals(slotType)) {
             player.removeEffect(MobEffects.HASTE);
+            var breakSpeed = player.getAttribute(Attributes.BLOCK_BREAK_SPEED);
+            if (breakSpeed != null) breakSpeed.removeModifier(BREAK_SPEED_ID);
         }
     }
 

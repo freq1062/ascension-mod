@@ -124,6 +124,8 @@ public class AbilityManager {
 
     // EVENTS THAT DO NOT REQUIRE MIXINS
     public static void init() {
+        AttackSnapshotManager.register();
+
         // Ocean powder snow: reset freeze ticks and fall distance each tick while
         // an Ocean passive player is crouching through (or hovering inside) powder snow.
         // This prevents freeze accumulation from entityInside running during slow sinking,

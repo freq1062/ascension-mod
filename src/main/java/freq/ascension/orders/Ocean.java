@@ -2,16 +2,13 @@ package freq.ascension.orders;
 
 import freq.ascension.Config;
 import freq.ascension.managers.ActiveSpell;
+import freq.ascension.managers.AttackSnapshotManager;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
 import freq.ascension.registry.SpellRegistry;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
@@ -95,25 +92,22 @@ public class Ocean implements Order {
         // Ignore very low-damage attacks
         if (damage < 0.1)
             return;
+
+        float attackStrengthScale = AttackSnapshotManager.getCapturedAttackStrength(attacker);
         ActiveSpell as = SpellCooldownManager.getActiveSpell(attacker, SpellCooldownManager.get("drown"));
+        boolean oceanPassiveActiveInWater = attacker.isInWater() && hasCapability(attacker, "passive");
+        boolean drownAutocritActive = as != null && as.isInUse();
+
         // Autocrit in water (passive) or while drown is active — full-charge only, no
-        // double-crit
-        if (attacker.getAttackStrengthScale(0.5f) >= 0.9f
-                && ((attacker.isInWaterOrRain() && hasCapability(attacker, "passive"))
-                        || (as != null && as.isInUse()))) {
+        // double-crit.
+        if (attackStrengthScale >= 0.9f && (oceanPassiveActiveInWater || drownAutocritActive)) {
             // Skip our 1.5× when vanilla already applied a crit (player falling, not
             // sprinting, not in liquid)
             boolean isVanillaCrit = !attacker.onGround() && !attacker.isSprinting()
                     && !attacker.isInWater() && !attacker.isInLava();
             if (!isVanillaCrit) {
                 context.setAmount((float) (context.getAmount() * 1.5));
-            }
-            attacker.level().playSound(null, attacker.blockPosition(), SoundEvents.PLAYER_ATTACK_CRIT,
-                    SoundSource.PLAYERS, 1.0f, 1.0f);
-            if (attacker.level() instanceof ServerLevel serverLevel) {
-                serverLevel.sendParticles(ParticleTypes.CRIT,
-                        victim.getX(), victim.getY() + victim.getBbHeight() * 0.5, victim.getZ(),
-                        10, 0.3, 0.3, 0.3, 0.05);
+                AttackSnapshotManager.markPendingForcedCrit(attacker, victim);
             }
         }
     }
@@ -122,10 +116,20 @@ public class Ocean implements Order {
     public void applyEffect(ServerPlayer player) {
         if (hasCapability(player, "passive")) {
             player.addEffect(new MobEffectInstance(MobEffects.WATER_BREATHING, 80, 0, true, false, true));
-            // Refresh Dolphin's Grace if it is currently active (toggled on)
+            // Refresh Dolphin's Grace if it is currently active (toggled on).
+            // applyEffect runs every 40 ticks; giving 60 ticks means the effect
+            // is always refreshed before it expires (never drops below 20 ticks).
             if (player.getEffect(MobEffects.DOLPHINS_GRACE) != null) {
                 player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 80, 0, true, false, true));
             }
+        }
+    }
+
+    @Override
+    public void onUnequip(ServerPlayer player, String slotType) {
+        if ("passive".equals(slotType)) {
+            player.removeEffect(MobEffects.WATER_BREATHING);
+            player.removeEffect(MobEffects.DOLPHINS_GRACE);
         }
     }
 

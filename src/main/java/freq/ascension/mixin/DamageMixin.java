@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import freq.ascension.managers.AbilityManager;
+import freq.ascension.managers.AttackSnapshotManager;
 import freq.ascension.orders.Order.DamageContext;
 import freq.ascension.registry.SpellRegistry;
 
@@ -88,6 +89,10 @@ public abstract class DamageMixin {
     @Inject(method = "hurtServer", at = @At("RETURN"))
     private void ascension$clearDamageContext(ServerLevel level, DamageSource source, float amount,
             CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity victim = (LivingEntity) (Object) this;
+        if (source.getEntity() instanceof ServerPlayer attacker) {
+            AttackSnapshotManager.resolveForcedCrit(attacker, victim, cir.getReturnValue());
+        }
         ascension$currentDamageContext = null;
     }
 }

@@ -8,12 +8,16 @@ import freq.ascension.managers.AbilityManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Entity;
 
 @Mixin(LivingEntity.class)
 public abstract class PotionMixin {
 
     @ModifyVariable(method = "addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z", at = @At("HEAD"), argsOnly = true)
-    private MobEffectInstance modifyPotionDuration(MobEffectInstance effectInstance) {
+    private MobEffectInstance modifyPotionDuration(
+            MobEffectInstance effectInstance,
+            MobEffectInstance originalEffectInstance,
+            Entity source) {
         if (AbilityManager.shouldSkipModification()) {
             return effectInstance;
         }
