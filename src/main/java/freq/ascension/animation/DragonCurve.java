@@ -91,6 +91,7 @@ public class DragonCurve {
     private final List<List<BlockDisplay>> iterationGroups = new ArrayList<>();
     /** Total ticks needed for all spawn tasks to complete; set at end of scheduleIterations(). */
     private int totalSpawnTicks = 0;
+    private volatile boolean discarded = false;
 
     /**
      * Constructs and begins the DragonCurve animation with 4 radial branches.
@@ -216,8 +217,15 @@ public class DragonCurve {
             int delayTicks = i * ITERATION_INTERVAL_TICKS;
 
             Ascension.scheduler.schedule(new DelayedTask(delayTicks, () -> {
+                if (discarded) {
+                    return;
+                }
                 BlockDisplay bd = spawnSegmentDisplay(seg.a, seg.b);
                 if (bd != null) {
+                    if (discarded) {
+                        bd.discard();
+                        return;
+                    }
                     spawnedDisplays.add(bd);
 
                     // Store in reverse order groups for teardown (every 10 segments = one group)
@@ -248,6 +256,9 @@ public class DragonCurve {
      * discarded before they even appear.
      */
     public void teardown() {
+        if (discarded) {
+            return;
+        }
         int numGroups = iterationGroups.size();
         for (int g = numGroups - 1; g >= 0; g--) {
             final int groupIndex = g;
@@ -255,6 +266,9 @@ public class DragonCurve {
             int delayTicks = totalSpawnTicks + (numGroups - 1 - g) * ITERATION_INTERVAL_TICKS * 10;
 
             Ascension.scheduler.schedule(new DelayedTask(delayTicks, () -> {
+                if (discarded) {
+                    return;
+                }
                 if (groupIndex >= iterationGroups.size())
                     return;
                 List<BlockDisplay> group = iterationGroups.get(groupIndex);
@@ -271,6 +285,9 @@ public class DragonCurve {
         // Final sweep: discard anything still alive (guards against race with spawn tasks).
         int totalTeardown = totalSpawnTicks + numGroups * ITERATION_INTERVAL_TICKS * 10 + 5;
         Ascension.scheduler.schedule(new DelayedTask(totalTeardown, () -> {
+            if (discarded) {
+                return;
+            }
             for (BlockDisplay bd : spawnedDisplays) {
                 if (bd.isAlive())
                     bd.discard();
@@ -282,6 +299,7 @@ public class DragonCurve {
 
     /** Discard all block displays immediately (emergency cleanup). */
     public void discardAll() {
+        this.discarded = true;
         for (BlockDisplay bd : spawnedDisplays) {
             if (bd.isAlive())
                 bd.discard();

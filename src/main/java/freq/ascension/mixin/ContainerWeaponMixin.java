@@ -1,6 +1,5 @@
 package freq.ascension.mixin;
 
-import freq.ascension.Ascension;
 import freq.ascension.registry.WeaponRegistry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -35,8 +34,6 @@ public class ContainerWeaponMixin {
         if (slotId >= 0 && slotId < menu.slots.size()) {
             ItemStack clicked = menu.slots.get(slotId).getItem();
             if (WeaponRegistry.isMythicalWeapon(clicked)) {
-                Ascension.LOGGER.info("[WeaponContainer] Mythical weapon detected: slot={} type={} isPlayerInv={} playerPerm2={}",
-                        slotId, clickType, isPlayerInventory, sp.hasPermissions(2));
                 if (!isPlayerInventory) {
                     // In any external container (chest, etc.) block ALL interactions with the weapon slot
                     sp.sendSystemMessage(Component.literal("§cYou cannot move your mythical weapon with a container open!"));

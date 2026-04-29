@@ -1,6 +1,7 @@
 package freq.ascension.test.demigod;
 
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
+<<<<<<< HEAD
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestAssertException;
@@ -37,11 +38,15 @@ import java.util.List;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.SpellStats;
 import freq.ascension.orders.Earth;
+=======
+import net.minecraft.gametest.framework.GameTestHelper;
+>>>>>>> 5258479b992818f6806eaf254753ad742718a3be
 
 import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import java.util.function.Consumer;
 
 /**
+<<<<<<< HEAD
  * Comprehensive GameTest suite for Earth Order (Demigod) abilities.
  * Fabric 1.21.10 / Java 21 / Server-side only.
  *
@@ -78,9 +83,15 @@ import java.util.function.Consumer;
  * lava. Casting from mid-air (2+ blocks above any solid block) is
  * rejected.</li>
  * </ul>
+=======
+ * Integration test stubs for the Earth Order (Demigod) abilities.
+ * Covers passive (haste, ore bonuses, anvil perks), utility (supermine),
+ * and combat (magma bubble) slots.
+>>>>>>> 5258479b992818f6806eaf254753ad742718a3be
  */
 public class EarthDemigodTests implements CustomTestMethodInvoker {
 
+<<<<<<< HEAD
     public ServerPlayer caster;
     public AscensionData casterData;
 
@@ -1150,72 +1161,73 @@ public class EarthDemigodTests implements CustomTestMethodInvoker {
             }
         }
         helper.succeed();
-    }
-
+=======
     /**
-     * Intention: {@code Earth.preventAnvilDamage()} must return {@code true}
-     * so that {@code AnvilPrepareMixin}'s {@code @Redirect} on {@code onTake()}
-     * skips the {@code ContainerLevelAccess.execute()} call that would otherwise
-     * damage or destroy the anvil. An anvil owned by an Earth player must
-     * have infinite durability.
+     * Uses /set passive earth; waits 41 ticks; asserts HASTE effect is present
+     * on the player with amplifier 0.
      */
     @GameTest
-    public void earthPassivePreventsAnvilDurabilityLoss(GameTestHelper helper) {
-        if (!Earth.INSTANCE.preventAnvilDamage()) {
-            helper.fail("Earth.preventAnvilDamage() must return true — "
-                    + "anvil durability (damage) must never decrease for Earth players");
-        }
-        helper.succeed();
+    public void hasteAppliedOnPassiveEquip(GameTestHelper helper) {
+        helper.fail("NOT IMPLEMENTED");
     }
 
     /**
-     * Intention: {@code Earth.ignoreAnvilCostLimit()} must return {@code true}
-     * so that {@code AnvilPrepareMixin}'s {@code @ModifyConstant} replaces
-     * the vanilla 40-level cap with {@code Integer.MAX_VALUE}. Items that
-     * vanilla would label "Too Expensive" (>40 XP levels) must remain usable
-     * in the anvil for Earth players.
+     * Uses /set passive earth; waits 80 ticks; asserts HASTE is still active
+     * (effect refreshes before expiry).
      */
     @GameTest
-    public void earthPassiveRemovesTooExpensiveAnvilLimit(GameTestHelper helper) {
-        if (!Earth.INSTANCE.ignoreAnvilCostLimit()) {
-            helper.fail("Earth.ignoreAnvilCostLimit() must return true — "
-                    + "items costing more than 40 levels must NOT be 'Too Expensive'");
-        }
-        helper.succeed();
+    public void hasteRefreshesAfter40Ticks(GameTestHelper helper) {
+        helper.fail("NOT IMPLEMENTED");
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // UTILITY — Supermine
-    // ─────────────────────────────────────────────────────────────────────────
-
     /**
-     * Intention: {@code SpellStats} for Supermine encodes the demigod tier
-     * parameters: diameter=2 (produces a 2×2×2 = 8-block cube, yielding
-     * 7 additional breaks beyond the manually-mined origin) and
-     * maxDurabilityLoss=4 (budget capped at 4 extra {@code hurtAndBreak(1)}
-     * calls). These constants drive the block-count and durability assertions
-     * in gameplay. A regression in either value changes the balance.
+     * Uses /set passive earth then /set passive none; asserts HASTE is
+     * immediately removed from the player.
      */
     @GameTest
-    public void supermineStatsEncodeDemigodDiameterAndDurabilityBudget(GameTestHelper helper) {
-        SpellStats stats = Earth.INSTANCE.getSpellStats("supermine");
-        if (stats == null) {
-            helper.fail("Supermine SpellStats must not be null");
-        }
-
-        int diameter = stats.getInt(0);
-        if (diameter != 2) {
-            helper.fail("Supermine demigod diameter must be 2 (2×2 face), got " + diameter);
-        }
-
-        int maxDurability = stats.getInt(1);
-        if (maxDurability != 4) {
-            helper.fail("Supermine max durability budget must be 4 for demigod, got " + maxDurability);
-        }
-        helper.succeed();
+    public void hasteRemovedOnUnequip(GameTestHelper helper) {
+        helper.fail("NOT IMPLEMENTED");
     }
 
     /**
+     * Uses /set passive earth; player breaks an iron ore block; asserts the
+     * drop count is >= 2 (doubled ore drops).
+     */
+    @GameTest
+    public void oreDropsDoubledWithPassive(GameTestHelper helper) {
+        helper.fail("NOT IMPLEMENTED");
+    }
+
+    /**
+     * Uses /set passive earth; player breaks a raw iron ore block; asserts
+     * IRON_INGOT appears in the drops (auto-smelted), not raw iron.
+     */
+    @GameTest
+    public void oreDropsAutoSmeltedToIngot(GameTestHelper helper) {
+        helper.fail("NOT IMPLEMENTED");
+>>>>>>> 5258479b992818f6806eaf254753ad742718a3be
+    }
+
+    /**
+     * Uses /set passive earth; player uses an anvil to rename an item costing
+     * 6 XP; asserts the displayed cost is 3 (halved).
+     */
+    @GameTest
+    public void anvilCostHalvedWithPassive(GameTestHelper helper) {
+        helper.fail("NOT IMPLEMENTED");
+    }
+
+    /**
+     * Uses /set passive earth; simulates more than 25 anvil uses; asserts the
+     * anvil block is not destroyed (never breaks perk).
+     */
+    @GameTest
+    public void anvilNeverBreaksWithPassive(GameTestHelper helper) {
+        helper.fail("NOT IMPLEMENTED");
+    }
+
+    /**
+<<<<<<< HEAD
      * Intention: {@code breakSurroundingCube()} skips any block whose
      * {@code getDestroySpeed()} differs from the origin block's speed.
      * Bedrock has a destroy speed of {@code -1.0f}, which
@@ -1327,32 +1339,36 @@ public class EarthDemigodTests implements CustomTestMethodInvoker {
         }
         // standingOnSolid=false and no lava → activation must be rejected
         helper.succeed();
-    }
-
-    /**
-     * Intention: Lava is a valid surface for Magma Bubble. When the player
-     * stands in or directly above lava, {@code submergedInLava} is {@code true}
-     * and the cast proceeds regardless of the solid-ground check. This allows
-     * Earth players to weaponise lava pools offensively.
+=======
+     * Uses /set passive earth; performs an expensive anvil operation that is
+     * normally blocked by "too expensive"; asserts the operation is allowed.
      */
     @GameTest
-    public void magmaBubbleActivationSucceedsWhenCasterIsInLava(GameTestHelper helper) {
-        BlockPos lavaPos = new BlockPos(1, 2, 1);
-        helper.setBlock(lavaPos, Blocks.LAVA.defaultBlockState());
-
-        boolean submergedInLava = helper.getLevel()
-                .getFluidState(helper.absolutePos(lavaPos))
-                .is(FluidTags.LAVA);
-
-        if (!submergedInLava) {
-            helper.fail("Lava block placed at " + lavaPos
-                    + " must be recognised as LAVA fluid for the Magma Bubble activation guard");
-        }
-        // submergedInLava=true → activation proceeds
-        helper.succeed();
+    public void tooExpensiveLimitRemovedWithPassive(GameTestHelper helper) {
+        helper.fail("NOT IMPLEMENTED");
     }
 
     /**
+     * Uses /set utility earth; /bind 1 supermine; player mines a block; asserts
+     * 3 additional adjacent blocks are also broken (2×2 area total).
+     */
+    @GameTest
+    public void supermineBreaks2x2AreaAroundTargetBlock(GameTestHelper helper) {
+        helper.fail("NOT IMPLEMENTED");
+>>>>>>> 5258479b992818f6806eaf254753ad742718a3be
+    }
+
+    /**
+     * No earth utility equipped; player mines a block; asserts only the targeted
+     * block is broken (supermine not active).
+     */
+    @GameTest
+    public void supermineNotActiveWithoutEarthUtility(GameTestHelper helper) {
+        helper.fail("NOT IMPLEMENTED");
+    }
+
+    /**
+<<<<<<< HEAD
      * Intention: {@code MagmaBubble.spawnMagmaSpikes()} anchors every spike's
      * Y-coordinate to {@code level.getHeight(MOTION_BLOCKING, x, z)}, which
      * returns the Y of the first motion-blocking block column — i.e. the
@@ -1727,5 +1743,23 @@ public class EarthDemigodTests implements CustomTestMethodInvoker {
             helper.fail("Ancient debris drop must be at least 2 after doubling, got " + total);
         }
         helper.succeed();
+=======
+     * Uses /set combat earth; /bind 1 magma_bubble; player stands on solid
+     * ground; /activatespell; asserts spike entities appear in a ring around
+     * the player.
+     */
+    @GameTest
+    public void magmaBubbleSpawnsSpikeRingOnGround(GameTestHelper helper) {
+        helper.fail("NOT IMPLEMENTED");
+    }
+
+    /**
+     * Uses /set combat earth; player is airborne (has jumped); /activatespell;
+     * asserts no spike entities are spawned.
+     */
+    @GameTest
+    public void magmaBubbleFailsWhenPlayerIsAirborne(GameTestHelper helper) {
+        helper.fail("NOT IMPLEMENTED");
+>>>>>>> 5258479b992818f6806eaf254753ad742718a3be
     }
 }

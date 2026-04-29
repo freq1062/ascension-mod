@@ -48,10 +48,10 @@ public class ResultSlotClearMixin {
         if (!(player instanceof ServerPlayer sp)) return;
         if (!(sp.containerMenu instanceof CraftingMenu craftingMenu)) return;
 
-        // Accept either our custom InfluenceItem (set by InfluenceCraftingMixin) or the
-        // vanilla amethyst_shard result in case the replacement hasn't fired yet.
-        ItemStack result = craftingMenu.getSlot(0).getItem();
-        if (!InfluenceItem.isInfluenceItem(result) && !result.is(Items.AMETHYST_SHARD)) return;
+        // The result slot is already cleared before onTake fires, so use the `taken`
+        // parameter directly. Accept either our custom InfluenceItem or the vanilla
+        // amethyst_shard result in case the replacement hasn't fired yet.
+        if (!InfluenceItem.isInfluenceItem(taken) && !taken.is(Items.AMETHYST_SHARD)) return;
 
         if (!matchesInfluencePattern(craftingMenu)) return;
 

@@ -35,6 +35,7 @@
 		"SigilCraftingMixin",
 		"SculkSensorMixin",
 		"SculkShriekerMixin",
+		"SplashPotionStrengthMixin",
 		"ServerPlayerMixin",
 		"StunMixin",
 		"SwingHandlerMixin",

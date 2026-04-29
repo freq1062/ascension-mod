@@ -125,9 +125,8 @@ public class End implements Order {
      */
     @Override
     public boolean isNeutralBy(ServerPlayer player, Mob mob) {
-        // MobTargetMixin only reaches here when the player has End equipped.
-        // Enderman, Endermite, and Shulker are neutral; Ender Dragon (boss) is
-        // excluded.
+        if (!hasCapability(player, "passive")) return false;
+        // Enderman, Endermite, and Shulker are neutral; Ender Dragon (boss) is excluded.
         EntityType<?> type = mob.getType();
         return type == EntityType.ENDERMAN
                 || type == EntityType.ENDERMITE

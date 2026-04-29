@@ -1,6 +1,7 @@
 package freq.ascension.managers;
 
 import freq.ascension.Ascension;
+import freq.ascension.Config;
 import freq.ascension.api.ContinuousTask;
 import freq.ascension.api.DelayedTask;
 import freq.ascension.api.TaskScheduler;
@@ -210,13 +211,20 @@ public class ChallengerTrialManager {
                 return InteractionResult.PASS;
             if (!(entity instanceof Interaction))
                 return InteractionResult.PASS;
-            Component name = entity.getCustomName();
-            if (name == null)
+            // Identify POI interaction entity by tag (new) or legacy name prefix
+            String orderName = null;
+            if (entity.getTags().contains("ascension_poi") && !entity.getTags().contains("ascension_poi_display")) {
+                orderName = entity.getTags().stream()
+                        .filter(t -> t.startsWith("ascension_poi_") && !t.equals("ascension_poi"))
+                        .map(t -> t.substring("ascension_poi_".length()))
+                        .findFirst().orElse(null);
+            } else if (entity.hasCustomName()) {
+                String nameStr = entity.getCustomName().getString();
+                if (nameStr.startsWith("ascension_poi_"))
+                    orderName = nameStr.substring("ascension_poi_".length());
+            }
+            if (orderName == null)
                 return InteractionResult.PASS;
-            String nameStr = name.getString();
-            if (!nameStr.startsWith("ascension_poi_"))
-                return InteractionResult.PASS;
-            String orderName = nameStr.substring("ascension_poi_".length());
 
             TrialState state = get(orderName);
             if (state == null || state.phase != Phase.ACTIVE)
@@ -336,6 +344,11 @@ public class ChallengerTrialManager {
      * </ul>
      */
     public void initiateTrial(ServerPlayer challenger, String orderName, ServerLevel level) {
+        if (!Config.challengerTrialsEnabled) {
+            challenger.sendSystemMessage(
+                Component.literal("§cChallenger Trials are not currently available."));
+            return;
+        }
         orderName = orderName.toLowerCase();
         TrialState state = getOrCreate(orderName);
 

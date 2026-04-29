@@ -164,6 +164,7 @@ public interface Order {
     }
 
     default boolean hasCapability(ServerPlayer player, String type) {
+        if (player == null) return false;
         AscensionData data = (AscensionData) player;
         switch (type) {
             case "passive":

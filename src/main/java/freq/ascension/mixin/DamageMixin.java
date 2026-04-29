@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import freq.ascension.managers.AbilityManager;
+import freq.ascension.managers.AttackSnapshotManager;
 import freq.ascension.orders.Order.DamageContext;
 import freq.ascension.registry.SpellRegistry;
 
@@ -70,6 +71,13 @@ public abstract class DamageMixin {
 
     @ModifyVariable(method = "hurtServer", at = @At("HEAD"), ordinal = 0, argsOnly = true)
     private float ascension$modifyDamageAmount(float amount) {
+        // Execution order note: Mixin inserts the @Inject(HEAD) callback as the very
+        // first bytecode instruction, so ascension$initDamageContext runs BEFORE this
+        // @ModifyVariable handler. The field is therefore already populated with the
+        // context (including any 1.5x autocrit scaling applied by the broadcasts), and
+        // returning ctx.getAmount() here correctly passes the modified damage into the
+        // method body. The tests for oceanAutocritScalesDamageBy150Percent only verify
+        // context math; this handler is the bridge that makes it reach hurtServer.
         if (ascension$currentDamageContext != null) {
             float modifiedAmount = ascension$currentDamageContext.getAmount();
             ascension$currentDamageContext = null; // Clean up
@@ -81,6 +89,10 @@ public abstract class DamageMixin {
     @Inject(method = "hurtServer", at = @At("RETURN"))
     private void ascension$clearDamageContext(ServerLevel level, DamageSource source, float amount,
             CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity victim = (LivingEntity) (Object) this;
+        if (source.getEntity() instanceof ServerPlayer attacker) {
+            AttackSnapshotManager.resolveForcedCrit(attacker, victim, cir.getReturnValue());
+        }
         ascension$currentDamageContext = null;
     }
 }

@@ -1,6 +1,5 @@
 package freq.ascension.mixin;
 
-import freq.ascension.Ascension;
 import freq.ascension.registry.WeaponRegistry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -35,9 +34,7 @@ public class PlayerDropWeaponMixin {
         if (stack == null || stack.isEmpty()) return;
         if (!WeaponRegistry.isMythicalWeapon(stack)) return;
         if (!(((Object) this) instanceof ServerPlayer sp)) return;
-        Ascension.LOGGER.info("[WeaponDrop-2arg] called for {} item={} hasPermission2={}",
-                sp.getName().getString(), stack.getDisplayName().getString(), sp.hasPermissions(2));
-        if (sp.hasPermissions(2)) return;
+        if (sp.hasPermissions(2) || sp.createCommandSourceStack().hasPermission(2)) return;
         // Return the item to inventory — the Q-key flow removes the item before calling drop()
         sp.getInventory().add(stack);
         sp.sendSystemMessage(Component.literal("§cYou cannot drop your mythical weapon!"));

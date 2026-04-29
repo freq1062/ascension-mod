@@ -158,14 +158,14 @@ public class TempestTrident implements MythicWeapon {
                                 .withItalic(false)
                                 .withBold(true)));
 
-        // Override attribute modifiers to match a Sharpness 5 diamond sword:
-        //   +10.0 attack damage, -2.4 attack speed.
+        // Override attribute modifiers to match a diamond sword base:
+        //   +6.0 attack damage, -2.4 attack speed.
         // Setting DataComponents.ATTRIBUTE_MODIFIERS fully replaces the trident's defaults.
         ItemAttributeModifiers modifiers = ItemAttributeModifiers.builder()
                 .add(Attributes.ATTACK_DAMAGE,
                         new AttributeModifier(
                                 ResourceLocation.fromNamespaceAndPath("ascension", "tempest_trident_damage"),
-                                10.0,
+                                6.0,
                                 AttributeModifier.Operation.ADD_VALUE),
                         EquipmentSlotGroup.MAINHAND)
                 .add(Attributes.ATTACK_SPEED,
@@ -355,7 +355,6 @@ public class TempestTrident implements MythicWeapon {
         if (!isLoyaltyModeStack(tridentStack)) return;
 
         // Make the vanilla entity invisible so only our ItemDisplay is visible
-        Ascension.LOGGER.info("[TridentVis] Trident thrown, UUID={}, setting invisible", tridentEntity.getUUID());
         tridentEntity.setInvisible(true);
         // Re-apply after 1 tick to ensure invisibility is sent after entity tracking initializes
         Ascension.scheduler.schedule(new DelayedTask(1, () -> {
@@ -404,7 +403,6 @@ public class TempestTrident implements MythicWeapon {
                 for (ServerPlayer p : level.players()) {
                     p.connection.send(removePacket);
                 }
-                Ascension.LOGGER.info("[TridentVis] Sent remove packet for trident ID={}", tridentEntity.getId());
             }
         }));
         Ascension.scheduler.schedule(new DelayedTask(3, () -> {
@@ -453,11 +451,6 @@ public class TempestTrident implements MythicWeapon {
                     tridentEntity.getX(),
                     tridentEntity.getY(),
                     tridentEntity.getZ());
-            if (Ascension.getServer() != null && Ascension.getServer().getTickCount() % 20 == 0) {
-                Ascension.LOGGER.info("[TridentPos] trident=({},{},{}) display=({},{},{})",
-                    tridentEntity.getX(), tridentEntity.getY(), tridentEntity.getZ(),
-                    display.getX(), display.getY(), display.getZ());
-            }
             display.setTransformationInterpolationDelay(0);
             display.setTransformationInterpolationDuration(1);
 

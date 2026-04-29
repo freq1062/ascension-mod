@@ -45,6 +45,15 @@ public class AbilityManager {
         return skip;
     }
 
+    /**
+     * Contract: all {@link Order} ability methods (e.g. {@code canWalkOnPowderSnow},
+     * {@code isNeutralBy}, {@code isIgnoredBy}, {@code canTrampleCrops}) MUST guard
+     * with {@code hasCapability(player, slot)} before returning {@code true}.
+     * The {@link Order} interface defaults guarantee a safe no-op / {@code false}
+     * baseline, but each concrete implementation is responsible for checking the
+     * correct equipped slot ("passive", "utility", or "combat") so that abilities
+     * are slot-gated rather than always-on.
+     */
     public static void broadcast(ServerPlayer player, Consumer<Order> action) {
         AscensionData data = (AscensionData) player;
         // Ensure the same order isn't invoked multiple times if equipped in
@@ -115,6 +124,8 @@ public class AbilityManager {
 
     // EVENTS THAT DO NOT REQUIRE MIXINS
     public static void init() {
+        AttackSnapshotManager.register();
+
         // Ocean powder snow: reset freeze ticks and fall distance each tick while
         // an Ocean passive player is crouching through (or hovering inside) powder snow.
         // This prevents freeze accumulation from entityInside running during slow sinking,

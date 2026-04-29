@@ -1,6 +1,5 @@
 package freq.ascension.mixin;
 
-import freq.ascension.Ascension;
 import freq.ascension.items.ChallengerSigil;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -41,11 +40,7 @@ public abstract class SigilCraftingMixin {
             CallbackInfo ci) {
         if (!(player instanceof ServerPlayer sp)) return;
 
-        Ascension.LOGGER.info("[SigilRecipe] slotChangedCraftingGrid fired for player={} gridSize={}x{}",
-            sp.getName().getString(), container.getWidth(), container.getHeight());
-
         if (container.getWidth() != 3 || container.getHeight() != 3) {
-            Ascension.LOGGER.info("[SigilRecipe] Skipping - not 3x3 grid");
             return;
         }
 
@@ -61,11 +56,6 @@ public abstract class SigilCraftingMixin {
         ItemStack s7 = container.getItem(7);
         ItemStack s8 = container.getItem(8);
 
-        Ascension.LOGGER.info("[SigilRecipe] Grid: [{}][{}][{}] / [{}][{}][{}] / [{}][{}][{}]",
-            s0.isEmpty() ? "empty" : s0.getItem(), s1.isEmpty() ? "empty" : s1.getItem(), s2.isEmpty() ? "empty" : s2.getItem(),
-            s3.isEmpty() ? "empty" : s3.getItem(), s4.isEmpty() ? "empty" : s4.getItem(), s5.isEmpty() ? "empty" : s5.getItem(),
-            s6.isEmpty() ? "empty" : s6.getItem(), s7.isEmpty() ? "empty" : s7.getItem(), s8.isEmpty() ? "empty" : s8.getItem());
-
         // Row 0: gold, copper, gold
         boolean row0ok = s0.is(Items.GOLD_BLOCK) && isCopper(s1.getItem()) && s2.is(Items.GOLD_BLOCK);
         // Row 1: copper, ominous_trial_key, copper
@@ -73,11 +63,8 @@ public abstract class SigilCraftingMixin {
         // Row 2: gold, copper, gold
         boolean row2ok = s6.is(Items.GOLD_BLOCK) && isCopper(s7.getItem()) && s8.is(Items.GOLD_BLOCK);
 
-        Ascension.LOGGER.info("[SigilRecipe] row0ok={} row1ok={} row2ok={}", row0ok, row1ok, row2ok);
-
         if (!row0ok || !row1ok || !row2ok) return;
 
-        Ascension.LOGGER.info("[SigilRecipe] Pattern matched! Setting result to Challenger's Sigil");
         resultContainer.setItem(0, ChallengerSigil.createSigil());
     }
 

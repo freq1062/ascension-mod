@@ -58,6 +58,7 @@ public class EndGod extends End {
 
     @Override
     public boolean isNeutralBy(ServerPlayer player, Mob mob) {
+        if (!hasCapability(player, "passive")) return false;
         EntityType<?> type = mob.getType();
         return type == EntityType.ENDERMAN
                 || type == EntityType.ENDERMITE

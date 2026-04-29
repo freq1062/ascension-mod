@@ -1,6 +1,5 @@
 package freq.ascension.mixin;
 
-import freq.ascension.Ascension;
 import freq.ascension.items.InfluenceItem;
 import freq.ascension.managers.AscensionData;
 import net.minecraft.server.level.ServerLevel;
@@ -47,11 +46,7 @@ public abstract class InfluenceCraftingMixin {
             CallbackInfo ci) {
         if (!(player instanceof ServerPlayer sp)) return;
 
-        Ascension.LOGGER.info("[InfluenceRecipe] slotChangedCraftingGrid fired for player={} gridSize={}x{}",
-            sp.getName().getString(), container.getWidth(), container.getHeight());
-
         if (container.getWidth() != 3 || container.getHeight() != 3) {
-            Ascension.LOGGER.info("[InfluenceRecipe] Skipping - not 3x3 grid");
             return;
         }
 
@@ -66,11 +61,6 @@ public abstract class InfluenceCraftingMixin {
         ItemStack s7 = container.getItem(7);
         ItemStack s8 = container.getItem(8);
 
-        Ascension.LOGGER.info("[InfluenceRecipe] Grid: [{}][{}][{}] / [{}][{}][{}] / [{}][{}][{}]",
-            s0.isEmpty() ? "empty" : s0.getItem(), s1.isEmpty() ? "empty" : s1.getItem(), s2.isEmpty() ? "empty" : s2.getItem(),
-            s3.isEmpty() ? "empty" : s3.getItem(), s4.isEmpty() ? "empty" : s4.getItem(), s5.isEmpty() ? "empty" : s5.getItem(),
-            s6.isEmpty() ? "empty" : s6.getItem(), s7.isEmpty() ? "empty" : s7.getItem(), s8.isEmpty() ? "empty" : s8.getItem());
-
         // Row 0: echo_shard x3
         boolean row0ok = s0.is(Items.ECHO_SHARD) && s1.is(Items.ECHO_SHARD) && s2.is(Items.ECHO_SHARD);
         // Row 1: netherite_scrap, totem_of_undying, netherite_scrap
@@ -78,13 +68,9 @@ public abstract class InfluenceCraftingMixin {
         // Row 2: gold_block x3
         boolean row2ok = s6.is(Items.GOLD_BLOCK) && s7.is(Items.GOLD_BLOCK) && s8.is(Items.GOLD_BLOCK);
 
-        Ascension.LOGGER.info("[InfluenceRecipe] row0ok={} row1ok={} row2ok={}", row0ok, row1ok, row2ok);
-
         if (!row0ok || !row1ok || !row2ok) return;
 
         AscensionData data = (AscensionData) sp;
-        Ascension.LOGGER.info("[InfluenceRecipe] Pattern matched for player={} influence={}",
-            sp.getName().getString(), data.getInfluence());
 
         resultContainer.setItem(0, InfluenceItem.createItem());
     }

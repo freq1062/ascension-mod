@@ -302,12 +302,12 @@ public class ServerPlayerMixin implements AscensionData {
 
     @Override
     public void setInfluence(int amount) {
-        this.influence = amount;
+        this.influence = Math.max(-5, amount);
     }
 
     @Override
     public void addInfluence(int amount) {
-        this.influence += amount;
+        this.influence = Math.max(-5, this.influence + amount);
     }
 
     @Override
@@ -320,6 +320,7 @@ public class ServerPlayerMixin implements AscensionData {
     public void setPassive(String order) {
         // If changing away from a previously equipped order, unbind spells tied to it
         if (this.passive != null && !this.passive.equals(order)) {
+            this.previousPassive = this.passive;
             unbindSpellsFromOrderAndType(this.passive, "passive");
             Order prevOrder = OrderRegistry.get(this.passive);
             if (prevOrder != null) {
@@ -338,6 +339,7 @@ public class ServerPlayerMixin implements AscensionData {
     @Override
     public void setUtility(String order) {
         if (this.utility != null && !this.utility.equals(order)) {
+            this.previousUtility = this.utility;
             unbindSpellsFromOrderAndType(this.utility, "utility");
             Order prevOrder = OrderRegistry.get(this.utility);
             if (prevOrder != null) {
@@ -356,6 +358,7 @@ public class ServerPlayerMixin implements AscensionData {
     @Override
     public void setCombat(String order) {
         if (this.combat != null && !this.combat.equals(order)) {
+            this.previousCombat = this.combat;
             unbindSpellsFromOrderAndType(this.combat, "combat");
             Order prevOrder = OrderRegistry.get(this.combat);
             if (prevOrder != null) {

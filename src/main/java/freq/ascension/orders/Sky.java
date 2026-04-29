@@ -122,6 +122,7 @@ public class Sky implements Order {
         if (hasCapability(player, "passive")) {
             if (player.gameMode() == GameType.SURVIVAL || player.gameMode() == GameType.ADVENTURE) {
                 player.getAbilities().mayfly = true;
+                player.getAbilities().flying = false;  // prevent stale flying state from being broadcast
                 player.onUpdateAbilities();
             }
         }

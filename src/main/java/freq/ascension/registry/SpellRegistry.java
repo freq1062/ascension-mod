@@ -438,12 +438,20 @@ public class SpellRegistry {
     public static void dolphinsGrace(ServerPlayer player) {
         ActiveSpell currSpell = SpellCooldownManager.addToActiveSpells(player,
                 SpellCooldownManager.get("dolphins_grace"));
+        boolean isGod = "god".equals(((AscensionData) player).getRank());
         net.minecraft.world.effect.MobEffectInstance currentEffect = player
                 .getEffect(net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE);
         if (currentEffect == null) {
+            // off → DG1 (both demigod and god)
             player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                    net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE, 200, 0, true, true, true));
-        } else if (currentEffect.getAmplifier() == 0) {
+                    net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE, 60, 0, true, false, true));
+        } else if (currentEffect.getAmplifier() == 0 && isGod) {
+            // DG1 → DG2 (god only)
+            player.removeEffect(net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE);
+            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                    net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE, 60, 1, true, false, true));
+        } else {
+            // DG1 → off (demigod) or DG2 → off (god)
             player.removeEffect(net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE);
         }
         player.level().playSound(null, player.blockPosition(),
@@ -1044,12 +1052,9 @@ public class SpellRegistry {
                         // tryRemoveDisguiseSilently clears the disguise fields without
                         // broadcasting any packets, preventing an NPE on the next load.
                         if (freshDisguise.isDisguised()) {
-                            try {
-                                freshDisguise.removeDisguise();
-                            } catch (Exception ignored) {
-                                // Packet broadcast may fail on a removed entity; ignore.
-                            }
+                            Ascension.clearDisguiseSilently(player, "shapeshift cleanup");
                         }
+                        freshDisguise.setTrueSight(false);
                         if (as != null)
                             as.setInUse(false);
                         return;
@@ -1057,7 +1062,11 @@ public class SpellRegistry {
                     // Re-cast player to EntityDisguise to avoid stale reference issues.
                     // Use removeDisguise() instead of disguiseAs(PLAYER) to prevent a
                     // persistent PLAYER disguise from being saved in NBT on disconnect.
-                    freshDisguise.removeDisguise();
+                    if (Ascension.isGameTestPlayer(player) || player.connection == null) {
+                        Ascension.clearDisguiseSilently(player, "shapeshift restore");
+                    } else {
+                        freshDisguise.removeDisguise();
+                    }
                     freshDisguise.setTrueSight(false);
                     player.removeEffect(net.minecraft.world.effect.MobEffects.NIGHT_VISION);
                     player.sendSystemMessage(Component.literal("§7You have returned to your normal form."));

@@ -153,8 +153,12 @@ public class RuinousScythe implements MythicWeapon {
         if (capturedScale < 0.9f)
             return;
 
-        // Don't count hits that were blocked by a shield
-        if (victim instanceof ServerPlayer victimPlayer && victimPlayer.isBlocking())
+        // Don't count hits that were blocked by a shield. GameTest mock players
+        // reliably report shield use via isUsingItem/getUseItem even when isBlocking()
+        // stays false, so treat either state as a blocked hit.
+        if (victim instanceof ServerPlayer victimPlayer
+                && (victimPlayer.isBlocking()
+                        || (victimPlayer.isUsingItem() && victimPlayer.getUseItem().is(Items.SHIELD))))
             return;
 
         UUID attackerId = attacker.getUUID();
