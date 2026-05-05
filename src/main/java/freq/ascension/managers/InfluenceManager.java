@@ -91,11 +91,12 @@ public class InfluenceManager {
 
         ServerLivingEntityEvents.AFTER_DEATH.register((ent, src) -> {
             if (!ent.level().isClientSide() && ent instanceof ServerPlayer victim) {
-
+                Ascension.LOGGER.info("AFTER_DEATH fired for player: " + victim.getName().getString());
                 Entity attacker = src.getEntity();
                 AscensionData data = (AscensionData) victim;
 
                 if (attacker == null || !(attacker instanceof ServerPlayer killer)) {
+                    Ascension.LOGGER.info("Handling natural death for: " + victim.getName().getString());
                     handleNaturalDeathInfluenceLoss(victim, data);
                 } else {
                     // Killer gains influence directly
@@ -125,13 +126,19 @@ public class InfluenceManager {
     }
 
     private static void checkAndBanIfNeeded(ServerPlayer victim, AscensionData data) {
-        if (data.getInfluence() > -5) return;
-        if (Ascension.isGameTestPlayer(victim)) return;
+        Ascension.LOGGER.info("called");
+        if (data.getInfluence() > -5)
+            return;
         net.minecraft.server.MinecraftServer server = Ascension.getServer();
-        if (server == null) return;
+        if (server == null)
+            return;
         try {
-            Date expires = new Date(System.currentTimeMillis() + (long) freq.ascension.Config.influenceBanDuration * 1000L);
-            net.minecraft.server.players.NameAndId nameAndId = new net.minecraft.server.players.NameAndId(victim.getGameProfile());
+            Ascension.LOGGER.info("Banned");
+            data.addInfluence(1);
+            Date expires = new Date(
+                    System.currentTimeMillis() + (long) freq.ascension.Config.influenceBanDuration * 1000L);
+            net.minecraft.server.players.NameAndId nameAndId = new net.minecraft.server.players.NameAndId(
+                    victim.getGameProfile());
             net.minecraft.server.players.UserBanListEntry entry = new net.minecraft.server.players.UserBanListEntry(
                     nameAndId,
                     null,
@@ -141,7 +148,8 @@ public class InfluenceManager {
             server.getPlayerList().getBans().add(entry);
             victim.connection.disconnect(net.minecraft.network.chat.Component.literal(
                     "§cYou have been temporarily banned for reaching -5 influence."));
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
     }
 
     private static void handleNaturalDeathInfluenceLoss(ServerPlayer victim, AscensionData data) {
@@ -155,18 +163,29 @@ public class InfluenceManager {
         }
 
         victim.sendSystemMessage(Component.literal(LOSE_INFLUENCE_MSG));
-        try {
-            ItemStack itemToDrop = InfluenceItem.createItem();
-            net.minecraft.world.entity.item.ItemEntity itemEntity = new net.minecraft.world.entity.item.ItemEntity(
-                    victim.level(),
-                    victim.getX(),
-                    victim.getY(),
-                    victim.getZ(),
-                    itemToDrop);
-            itemEntity.setDefaultPickUpDelay();
-            victim.level().addFreshEntity(itemEntity);
-        } catch (Throwable ignored) {
-            // Item drop failure is non-fatal; influence was already deducted
-        }
+
+        ItemStack itemToDrop = InfluenceItem.createItem();
+        net.minecraft.world.entity.item.ItemEntity itemEntity = new net.minecraft.world.entity.item.ItemEntity(
+                victim.level(),
+                victim.getX(),
+                victim.getY(),
+                victim.getZ(),
+                itemToDrop);
+        itemEntity.setDefaultPickUpDelay();
+        victim.level().addFreshEntity(itemEntity);
+        // try {
+        // ItemStack itemToDrop = InfluenceItem.createItem();
+        // net.minecraft.world.entity.item.ItemEntity itemEntity = new
+        // net.minecraft.world.entity.item.ItemEntity(
+        // victim.level(),
+        // victim.getX(),
+        // victim.getY(),
+        // victim.getZ(),
+        // itemToDrop);
+        // itemEntity.setDefaultPickUpDelay();
+        // victim.level().addFreshEntity(itemEntity);
+        // } catch (Throwable ignored) {
+        // // Item drop failure is non-fatal; influence was already deducted
+        // }
     }
 }
