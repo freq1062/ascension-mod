@@ -8,16 +8,28 @@ import net.minecraft.world.effect.MobEffect;
 /**
  * Shared helper utilities for Ascension integration tests.
  *
- * <p>All equip/bind/activate helpers dispatch real in-game commands so tests
+ * <p>
+ * All equip/bind/activate helpers dispatch real in-game commands so tests
  * replicate exact player behaviour rather than calling internal Java APIs.
  * Admin-level commands (/set, /setrank, /setinfluence) are dispatched via the
- * server command source (permission level 4).  Player-level commands (/bind,
+ * server command source (permission level 4). Player-level commands (/bind,
  * /activatespell) are dispatched via the mock player's command source.
  *
- * <p><b>NOTE:</b> Helper method bodies are stubs — they will be filled in when
+ * <p>
+ * <b>NOTE:</b> Helper method bodies are stubs — they will be filled in when
  * test bodies are implemented.
  */
 public class TestHelper {
+
+    public static void runCommandAsServer(GameTestHelper context, String cmd) {
+        context.getLevel().getServer().getCommands()
+                .performPrefixedCommand(context.getLevel().getServer().createCommandSourceStack(), cmd);
+    }
+
+    public static void runCommandAsPlayer(GameTestHelper context, ServerPlayer executor, String cmd) {
+        context.getLevel().getServer().getCommands()
+                .performPrefixedCommand(executor.createCommandSourceStack(), cmd);
+    }
 
     // -------------------------------------------------------------------------
     // Order / rank setup
@@ -29,7 +41,7 @@ public class TestHelper {
      * server (OP level 4).
      */
     public static void equip(GameTestHelper helper, ServerPlayer player, String slot, String order) {
-        String cmd = "set " + player.getGameProfile().getName() + " " + slot + " " + order;
+        String cmd = "set " + player.getGameProfile().name() + " " + slot + " " + order;
         helper.getLevel().getServer().getCommands()
                 .performPrefixedCommand(helper.getLevel().getServer().createCommandSourceStack(), cmd);
     }
@@ -45,7 +57,7 @@ public class TestHelper {
      * Sets {@code player}'s rank ("demigod" or "god") via {@code /setrank}.
      */
     public static void setRank(GameTestHelper helper, ServerPlayer player, String rank) {
-        String cmd = "setrank " + player.getGameProfile().getName() + " " + rank;
+        String cmd = "setrank " + player.getGameProfile().name() + " " + rank;
         helper.getLevel().getServer().getCommands()
                 .performPrefixedCommand(helper.getLevel().getServer().createCommandSourceStack(), cmd);
     }
@@ -54,7 +66,7 @@ public class TestHelper {
      * Sets {@code player}'s influence to {@code amount} via {@code /setinfluence}.
      */
     public static void setInfluence(GameTestHelper helper, ServerPlayer player, int amount) {
-        String cmd = "setinfluence " + player.getGameProfile().getName() + " " + amount;
+        String cmd = "setinfluence " + player.getGameProfile().name() + " " + amount;
         helper.getLevel().getServer().getCommands()
                 .performPrefixedCommand(helper.getLevel().getServer().createCommandSourceStack(), cmd);
     }
@@ -86,7 +98,7 @@ public class TestHelper {
      * Selects hotbar {@code slot} (0-8) for {@code player}.
      */
     public static void selectHotbarSlot(ServerPlayer player, int slot) {
-        player.getInventory().selected = slot;
+        player.getInventory().setSelectedSlot(slot);
     }
 
     // -------------------------------------------------------------------------
