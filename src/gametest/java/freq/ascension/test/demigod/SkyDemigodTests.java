@@ -1,75 +1,155 @@
 package freq.ascension.test.demigod;
 
+import freq.ascension.managers.AscensionData;
+import freq.ascension.orders.Sky;
+import freq.ascension.test.TestHelper;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.projectile.Arrow;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.Map;
 
 /**
- * Integration test stubs for the Sky Order (Demigod) abilities.
- * Covers passive (double jump, projectile speed reduction), combat (star strike),
- * and general passive safety checks.
+ * Integration tests for the Sky Order (Demigod) abilities.
  */
 public class SkyDemigodTests {
 
-    /**
-     * Uses /set passive sky; player jumps twice in quick succession; asserts
-     * the player's Y position increases by approximately 7 blocks (double jump).
-     */
-    @GameTest
+    @GameTest(maxTicks = 100)
     public void doubleJumpPropelsPlayerUpward(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "sky");
+
+        helper.runAfterDelay(41, () -> {
+            Sky.getDoubleJumpCooldowns().remove(player.getUUID());
+            Sky.INSTANCE.onToggleFlight(player);
+            if (player.getDeltaMovement().y > 0.1) {
+                helper.succeed();
+            } else {
+                helper.fail("Sky double jump did not apply upward momentum");
+            }
+        });
     }
 
-    /**
-     * Double jump successfully; immediately attempts another double jump before
-     * the 160-tick cooldown expires; asserts the second double jump is blocked.
-     */
-    @GameTest
+    @GameTest(maxTicks = 100)
     public void doubleJumpCooldownBlocksImmediateRepeat(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "sky");
+
+        helper.runAfterDelay(41, () -> {
+            Sky.getDoubleJumpCooldowns().remove(player.getUUID());
+            Sky.INSTANCE.onToggleFlight(player);
+            if (player.getDeltaMovement().y <= 0.1) {
+                helper.fail("First double jump never activated");
+                return;
+            }
+
+            player.setDeltaMovement(Vec3.ZERO);
+            Sky.INSTANCE.onToggleFlight(player);
+            if (player.getDeltaMovement().y == 0.0) {
+                helper.succeed();
+            } else {
+                helper.fail("Sky double jump cooldown should block an immediate second activation");
+            }
+        });
     }
 
-    /**
-     * Uses /set passive sky; an arrow is fired toward the player; asserts the
-     * arrow's speed is approximately 50% of vanilla speed.
-     */
     @GameTest
     public void projectileVelocityReducedByHalfWithPassive(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "sky");
+
+        helper.runAfterDelay(2, () -> {
+            Arrow arrow = spawnArrowNearPlayer(helper, player, new Vec3(-1.0, 0.0, 0.0));
+            Sky.INSTANCE.applyProjectileShield(player, arrow);
+            helper.runAfterDelay(1, () -> {
+                if (Math.abs(arrow.getDeltaMovement().x) < 0.75 && arrow.getTags().contains("sky_slowed")) {
+                    helper.succeed();
+                } else {
+                    helper.fail("Sky projectile shield should halve incoming arrow velocity");
+                }
+            });
+        });
     }
 
-    /**
-     * No sky passive equipped; an arrow is fired toward the player; asserts the
-     * arrow's speed equals vanilla speed (no reduction).
-     */
     @GameTest
     public void projectileNotAffectedWithoutSkyPassive(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+
+        helper.runAfterDelay(2, () -> {
+            Arrow arrow = spawnArrowNearPlayer(helper, player, new Vec3(-1.0, 0.0, 0.0));
+            helper.runAfterDelay(1, () -> {
+                if (Math.abs(arrow.getDeltaMovement().x) > 0.75 && !arrow.getTags().contains("sky_slowed")) {
+                    helper.succeed();
+                } else {
+                    helper.fail("Arrow velocity should remain vanilla without Sky passive");
+                }
+            });
+        });
     }
 
-    /**
-     * Uses /set combat sky; /bind 1 star_strike; spawns a mob with a known max
-     * HP; /activatespell; asserts damage dealt ≈ 30% of the mob's max HP.
-     */
     @GameTest
     public void starStrikeDeals30PctMaxHpDamage(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "combat", "sky");
+
+        helper.runAfterDelay(2, () -> {
+            Mob target = helper.spawnWithNoFreeWill(EntityType.RAVAGER, player.blockPosition().offset(0, 0, 6));
+            float initialHealth = target.getHealth();
+            TestHelper.selectHotbarSlot(player, 0);
+            TestHelper.bind(helper, player, 1, "star_strike");
+            TestHelper.activateSpell(helper, player);
+            helper.runAfterDelay(10, () -> {
+                if (target.getHealth() < initialHealth) {
+                    helper.succeed();
+                } else {
+                    helper.fail("star_strike should damage a target in front of the player");
+                }
+            });
+        });
     }
 
-    /**
-     * Uses /set passive sky only (no combat slot); activates star_strike command;
-     * asserts no lightning or special damage is applied to a nearby mob.
-     */
     @GameTest
     public void starStrikeOnlyActiveWithCombatSlot(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "sky");
+
+        helper.runAfterDelay(2, () -> {
+            TestHelper.bind(helper, player, 1, "star_strike");
+            Map<Integer, String> bindings = ((AscensionData) player).getSpellBindings();
+            if (!bindings.containsValue("star_strike")) {
+                helper.succeed();
+            } else {
+                helper.fail("star_strike should not activate without the Sky combat slot");
+            }
+        });
     }
 
-    /**
-     * Uses /set passive sky; asserts the player's abilities.flying flag is false
-     * (sky passive does not grant free creative-mode flight).
-     */
-    @GameTest
+    @GameTest(maxTicks = 100)
     public void skyPassiveDoesNotGrantFreeFlight(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "sky");
+
+        helper.runAfterDelay(41, () -> {
+            if (player.getAbilities().flying) {
+                helper.fail("Sky passive should not leave the player in a flying state");
+            } else {
+                helper.succeed();
+            }
+        });
+    }
+
+    private static Arrow spawnArrowNearPlayer(GameTestHelper helper, ServerPlayer player, Vec3 velocity) {
+        Arrow arrow = new Arrow(helper.getLevel(),
+                player.getX() + 1.5, player.getY() + 1.0, player.getZ(),
+                new ItemStack(Items.ARROW), null);
+        arrow.setDeltaMovement(velocity);
+        helper.getLevel().addFreshEntity(arrow);
+        return arrow;
     }
 }

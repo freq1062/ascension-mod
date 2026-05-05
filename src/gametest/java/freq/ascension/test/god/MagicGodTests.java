@@ -1,151 +1,124 @@
 package freq.ascension.test.god;
 
+import freq.ascension.Config;
+import freq.ascension.orders.Magic;
+import freq.ascension.orders.MagicGod;
+import freq.ascension.test.TestHelper;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.level.GameType;
-
-import freq.ascension.managers.AbilityManager;
-import freq.ascension.test.TestHelper;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 
 public class MagicGodTests {
 
     @GameTest
     public void potionEffectsExtendedTo12000Ticks(GameTestHelper helper) {
-        ServerPlayer player = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, player, "god");
-        TestHelper.equip(helper, player, "utility", "magic");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.setGodDirect(helper, player, "magic");
 
         helper.runAfterDelay(2, () -> {
-            net.minecraft.world.effect.MobEffectInstance effect = 
-                new net.minecraft.world.effect.MobEffectInstance(MobEffects.STRENGTH, 100, 0, false, true, true);
-            player.addEffect(effect);
-            helper.runAfterDelay(2, () -> {
-                var strengthEffect = player.getEffect(MobEffects.STRENGTH);
-                if (strengthEffect != null && strengthEffect.getDuration() >= 9500) {
-                    helper.succeed();
-                } else {
-                    helper.fail("Duration not extended");
-                }
-            });
+            MobEffectInstance result = MagicGod.INSTANCE.onPotionEffect(
+                    player,
+                    new MobEffectInstance(MobEffects.STRENGTH, 100, 0, false, true, true));
+            if (result.getDuration() == 12_000) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected potion duration 12000, got " + result.getDuration());
+            }
         });
     }
 
     @GameTest
     public void potionExtensionLongerThanDemigod(GameTestHelper helper) {
-        ServerPlayer playerGod = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        ServerPlayer playerDemigod = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, playerGod, "god");
-        TestHelper.equip(helper, playerGod, "utility", "magic");
+        ServerPlayer playerGod = helper.makeMockServerPlayerInLevel();
+        ServerPlayer playerDemigod = helper.makeMockServerPlayerInLevel();
+        TestHelper.setGodDirect(helper, playerGod, "magic");
         TestHelper.equip(helper, playerDemigod, "utility", "magic");
 
         helper.runAfterDelay(2, () -> {
-            helper.succeed();
+            MobEffectInstance base = new MobEffectInstance(MobEffects.STRENGTH, 100, 0, false, true, true);
+            int godDuration = MagicGod.INSTANCE.onPotionEffect(playerGod, base).getDuration();
+            int demigodDuration = Magic.INSTANCE.onPotionEffect(playerDemigod, base).getDuration();
+            if (godDuration > demigodDuration) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected god duration > demigod duration, got " + godDuration + " vs " + demigodDuration);
+            }
         });
     }
 
     @GameTest
     public void enchantCostReducedTo10PctForMagicGod(GameTestHelper helper) {
-        ServerPlayer player = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, player, "god");
-        TestHelper.equip(helper, player, "passive", "magic");
-
-        helper.runAfterDelay(2, () -> {
-            var order = AbilityManager.get(player);
-            int modifiedCost = order.modifyEnchantmentCost(100);
-            if (modifiedCost <= 15) {
-                helper.succeed();
-            } else {
-                helper.fail("Cost not reduced");
-            }
-        });
+        int modifiedCost = MagicGod.INSTANCE.modifyEnchantmentCost(100);
+        if (modifiedCost == 10) {
+            helper.succeed();
+        } else {
+            helper.fail("Expected enchant cost 10, got " + modifiedCost);
+        }
     }
 
     @GameTest
     public void enchantCostLowerThanDemigod(GameTestHelper helper) {
-        ServerPlayer playerGod = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        ServerPlayer playerDemigod = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, playerGod, "god");
-        TestHelper.equip(helper, playerGod, "passive", "magic");
-        TestHelper.equip(helper, playerDemigod, "passive", "magic");
-
-        helper.runAfterDelay(2, () -> {
-            var orderGod = AbilityManager.get(playerGod);
-            var orderDemigod = AbilityManager.get(playerDemigod);
-            int godCost = orderGod.modifyEnchantmentCost(100);
-            int demigodCost = orderDemigod.modifyEnchantmentCost(100);
-            if (godCost < demigodCost) {
-                helper.succeed();
-            } else {
-                helper.fail("God cost not lower");
-            }
-        });
+        int godCost = MagicGod.INSTANCE.modifyEnchantmentCost(100);
+        int demigodCost = Magic.INSTANCE.modifyEnchantmentCost(100);
+        if (godCost < demigodCost) {
+            helper.succeed();
+        } else {
+            helper.fail("Expected god cost < demigod cost, got " + godCost + " vs " + demigodCost);
+        }
     }
 
-    @GameTest
+    @GameTest(maxTicks = 60)
     public void speedIIAppliedForMagicGod(GameTestHelper helper) {
-        ServerPlayer player = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, player, "god");
-        TestHelper.equip(helper, player, "passive", "magic");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.setGodDirect(helper, player, "magic");
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(41, () -> {
             var speedEffect = player.getEffect(MobEffects.SPEED);
             if (speedEffect != null && speedEffect.getAmplifier() == 1) {
                 helper.succeed();
             } else {
-                helper.fail("Not Speed II");
+                helper.fail("Expected Speed II from magic god passive");
             }
         });
     }
 
     @GameTest
     public void shapeshiftDurationIs900TicksForGod(GameTestHelper helper) {
-        ServerPlayer player = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, player, "god");
-        TestHelper.equip(helper, player, "utility", "magic");
-
-        ServerLevel level = helper.getLevel();
-        BlockPos absPos = helper.absolutePos(new BlockPos(0, 2, 0));
-        player.moveTo(absPos.getX() + 0.5, absPos.getY() + 1, absPos.getZ() + 0.5);
-
-        helper.runAfterDelay(2, () -> {
-            TestHelper.bind(helper, player, 1, "shapeshift");
-            TestHelper.selectHotbarSlot(player, 0);
-            TestHelper.activateSpell(helper, player);
-            helper.runAfterDelay(900, () -> {
-                helper.succeed();
-            });
-        });
+        var stats = MagicGod.INSTANCE.getSpellStats("shapeshift");
+        if (stats != null && stats.getInt(0) == Config.magicGodShapeshiftDuration) {
+            helper.succeed();
+        } else {
+            helper.fail("Expected shapeshift duration " + Config.magicGodShapeshiftDuration);
+        }
     }
 
     @GameTest
     public void shapeshiftLongerThanDemigod(GameTestHelper helper) {
-        ServerPlayer playerGod = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        ServerPlayer playerDemigod = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, playerGod, "god");
-        TestHelper.equip(helper, playerGod, "utility", "magic");
-        TestHelper.equip(helper, playerDemigod, "utility", "magic");
-
-        helper.runAfterDelay(2, () -> {
+        int godDuration = MagicGod.INSTANCE.getSpellStats("shapeshift").getInt(0);
+        int demigodDuration = Magic.INSTANCE.getSpellStats("shapeshift").getInt(0);
+        if (godDuration > demigodDuration) {
             helper.succeed();
-        });
+        } else {
+            helper.fail("Expected god shapeshift duration > demigod duration");
+        }
     }
 
     @GameTest
     public void isIgnoredByRaidersWithMagicGodPassive(GameTestHelper helper) {
-        ServerPlayer player = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, player, "god");
-        TestHelper.equip(helper, player, "passive", "magic");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.setGodDirect(helper, player, "magic");
 
         helper.runAfterDelay(2, () -> {
-            var order = AbilityManager.get(player);
-            if (order != null) {
+            Mob raider = helper.spawnWithNoFreeWill(EntityType.PILLAGER, helper.absolutePos(new BlockPos(1, 2, 1)));
+            if (MagicGod.INSTANCE.isIgnoredBy(player, raider)) {
                 helper.succeed();
             } else {
-                helper.fail("Order not found");
+                helper.fail("Expected raider to ignore magic god");
             }
         });
     }

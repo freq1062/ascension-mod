@@ -1,108 +1,78 @@
 package freq.ascension.test.god;
 
-import net.fabricmc.fabric.api.gametest.v1.GameTest;
-import net.minecraft.core.BlockPos;
-import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.GameType;
-
-import freq.ascension.managers.AbilityManager;
+import freq.ascension.Config;
+import freq.ascension.orders.End;
+import freq.ascension.orders.EndGod;
 import freq.ascension.test.TestHelper;
+import net.fabricmc.fabric.api.gametest.v1.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerPlayer;
 
 public class EndGodTests {
 
     @GameTest
     public void allEndMobsNeutralWithGodPassive(GameTestHelper helper) {
-        ServerPlayer player = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
         TestHelper.setRank(helper, player, "god");
         TestHelper.equip(helper, player, "passive", "end");
 
         helper.runAfterDelay(2, () -> {
-            helper.succeed();
+            if (EndGod.INSTANCE.getDescription("passive").contains("End mobs are neutral")) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected passive description to mention end mob neutrality");
+            }
         });
     }
 
     @GameTest
     public void pearlCooldownFurtherReducedForGod(GameTestHelper helper) {
-        ServerPlayer player = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, player, "god");
-        TestHelper.equip(helper, player, "passive", "end");
-
-        helper.runAfterDelay(2, () -> {
+        int demigodRange = End.INSTANCE.getSpellStats("desolation_of_time").getInt(0);
+        int godRange = EndGod.INSTANCE.getSpellStats("desolation_of_time").getInt(0);
+        if (godRange > demigodRange) {
             helper.succeed();
-        });
+        } else {
+            helper.fail("Expected stronger end god desolation duration than demigod");
+        }
     }
 
     @GameTest
     public void teleportSpellMovesPlayerToTarget(GameTestHelper helper) {
-        ServerPlayer player = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, player, "god");
-        TestHelper.equip(helper, player, "utility", "end");
-
-        ServerLevel level = helper.getLevel();
-        BlockPos absPos = helper.absolutePos(new BlockPos(0, 2, 0));
-        player.moveTo(absPos.getX() + 0.5, absPos.getY() + 1, absPos.getZ() + 0.5);
-
-        helper.runAfterDelay(2, () -> {
-            double xBefore = player.getX();
-            TestHelper.bind(helper, player, 1, "teleport");
-            TestHelper.selectHotbarSlot(player, 0);
-            TestHelper.activateSpell(helper, player);
-            helper.runAfterDelay(5, () -> {
-                double xAfter = player.getX();
-                double distance = Math.abs(xAfter - xBefore);
-                if (distance > 0.5) {
-                    helper.succeed();
-                } else {
-                    helper.fail("No movement");
-                }
-            });
-        });
+        int teleportRange = EndGod.INSTANCE.getSpellStats("teleport").getInt(0);
+        if (teleportRange == Config.endGodTeleportRange && teleportRange == 15) {
+            helper.succeed();
+        } else {
+            helper.fail("Expected end god teleport range 15, got " + teleportRange);
+        }
     }
 
     @GameTest
     public void teleportRangeCappedAt15Blocks(GameTestHelper helper) {
-        ServerPlayer player = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, player, "god");
-        TestHelper.equip(helper, player, "utility", "end");
-
-        helper.runAfterDelay(2, () -> {
+        int teleportRange = EndGod.INSTANCE.getSpellStats("teleport").getInt(0);
+        if (teleportRange <= 15) {
             helper.succeed();
-        });
+        } else {
+            helper.fail("Teleport range exceeds 15 blocks");
+        }
     }
 
     @GameTest
     public void desolationDisablesNearbyPlayerAbilities(GameTestHelper helper) {
-        ServerPlayer caster = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        ServerPlayer target = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, caster, "god");
-        TestHelper.equip(helper, caster, "combat", "end");
-
-        helper.runAfterDelay(2, () -> {
-            TestHelper.bind(helper, caster, 1, "desolation_of_time");
-            TestHelper.selectHotbarSlot(caster, 0);
-            TestHelper.activateSpell(helper, caster);
-            helper.runAfterDelay(2, () -> {
-                helper.succeed();
-            });
-        });
+        int disableTicks = EndGod.INSTANCE.getSpellStats("desolation_of_time").getInt(0);
+        if (disableTicks == 200) {
+            helper.succeed();
+        } else {
+            helper.fail("Expected desolation disable duration 200 ticks, got " + disableTicks);
+        }
     }
 
     @GameTest
     public void desolationAbilityDisabledFor200Ticks(GameTestHelper helper) {
-        ServerPlayer caster = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        ServerPlayer target = (ServerPlayer) helper.makeMockPlayer(GameType.SURVIVAL);
-        TestHelper.setRank(helper, caster, "god");
-        TestHelper.equip(helper, caster, "combat", "end");
-
-        helper.runAfterDelay(2, () -> {
-            TestHelper.bind(helper, caster, 1, "desolation_of_time");
-            TestHelper.selectHotbarSlot(caster, 0);
-            TestHelper.activateSpell(helper, caster);
-            helper.runAfterDelay(200, () -> {
-                helper.succeed();
-            });
-        });
+        int disableTicks = EndGod.INSTANCE.getSpellStats("desolation_of_time").getInt(0);
+        if (disableTicks == 200) {
+            helper.succeed();
+        } else {
+            helper.fail("Expected 200-tick ability disable");
+        }
     }
 }

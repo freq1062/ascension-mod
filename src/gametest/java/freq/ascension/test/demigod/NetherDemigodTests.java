@@ -1,93 +1,180 @@
 package freq.ascension.test.demigod;
 
+import freq.ascension.Config;
+import freq.ascension.orders.Nether;
+import freq.ascension.orders.Order;
+import freq.ascension.test.TestHelper;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
+import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.HappyGhast;
 
-/**
- * Integration test stubs for the Nether Order (Demigod) abilities.
- * Covers passive (fire resistance, fire autocrit), utility (ghast carry),
- * and combat (soul rage) slots.
- */
 public class NetherDemigodTests {
 
-    /**
-     * Uses /set passive nether; waits 41 ticks; asserts FIRE_RESISTANCE effect
-     * is present and active on the player.
-     */
-    @GameTest
+    @GameTest(maxTicks = 100)
     public void fireResistanceAppliedOnPassiveEquip(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "nether");
+
+        helper.runAfterDelay(41, () -> {
+            var effect = player.getEffect(MobEffects.FIRE_RESISTANCE);
+            if (effect != null && effect.getAmplifier() == 0) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected Fire Resistance after equipping Nether passive");
+            }
+        });
     }
 
-    /**
-     * Uses /set passive nether; waits 80 ticks; asserts FIRE_RESISTANCE is
-     * still active (effect refreshes before expiry).
-     */
-    @GameTest
+    @GameTest(maxTicks = 140)
     public void fireResistanceRefreshesAfter40Ticks(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "nether");
+
+        helper.runAfterDelay(80, () -> {
+            var effect = player.getEffect(MobEffects.FIRE_RESISTANCE);
+            if (effect != null && effect.getDuration() > 0) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected Fire Resistance to refresh before expiring");
+            }
+        });
     }
 
-    /**
-     * Uses /set passive nether then /set passive none; asserts FIRE_RESISTANCE
-     * is immediately removed from the player.
-     */
-    @GameTest
+    @GameTest(maxTicks = 120)
     public void fireResistanceRemovedOnUnequip(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "nether");
+
+        helper.runAfterDelay(41, () -> {
+            TestHelper.unequip(helper, player, "passive");
+            helper.runAfterDelay(2, () -> {
+                if (player.getEffect(MobEffects.FIRE_RESISTANCE) == null) {
+                    helper.succeed();
+                } else {
+                    helper.fail("Expected Fire Resistance to be removed on unequip");
+                }
+            });
+        });
     }
 
-    /**
-     * Uses /set passive nether; sets the player on fire; asserts zero fire
-     * damage is taken.
-     */
-    @GameTest
+    @GameTest(maxTicks = 100)
     public void fireDamageBlockedWithNetherPassive(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "nether");
+
+        helper.runAfterDelay(5, () -> {
+            Order.DamageContext context = new Order.DamageContext(helper.getLevel().damageSources().inFire(), 4.0F);
+            Nether.INSTANCE.onEntityDamage(player, context);
+            if (context.isCancelled()) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected Nether passive to block fire damage");
+            }
+        });
     }
 
-    /**
-     * Uses /set passive+combat nether; briefly exposes the player to fire;
-     * player attacks a mob; asserts damage dealt > base (autocrit after fire contact).
-     */
     @GameTest
     public void autocritAfterRecentFireContactDealsExtraDamage(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        LivingEntity target = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, helper.absolutePos(new BlockPos(1, 2, 1)));
+        TestHelper.equip(helper, player, "passive", "nether");
+
+        helper.runAfterDelay(5, () -> {
+            Nether.recordFireContact(player);
+            Order.DamageContext context = new Order.DamageContext(helper.getLevel().damageSources().playerAttack(player), 4.0F);
+            Nether.INSTANCE.onEntityDamageByEntity(player, target, context);
+            if (context.getAmount() > 4.0F) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected recent fire contact to increase melee damage");
+            }
+        });
     }
 
-    /**
-     * Uses /set passive+combat nether; player attacks a mob without any prior
-     * fire contact; asserts only base damage is applied (no autocrit).
-     */
     @GameTest
     public void noAutocritWithoutPriorFireContact(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        LivingEntity target = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, helper.absolutePos(new BlockPos(1, 2, 1)));
+        TestHelper.equip(helper, player, "passive", "nether");
+
+        helper.runAfterDelay(5, () -> {
+            Order.DamageContext context = new Order.DamageContext(helper.getLevel().damageSources().playerAttack(player), 4.0F);
+            Nether.INSTANCE.onEntityDamageByEntity(player, target, context);
+            if (context.getAmount() == 4.0F) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected base damage without recent fire contact");
+            }
+        });
     }
 
-    /**
-     * Uses /set utility nether; /bind 1 ghast_carry; player looks at a ghast;
-     * /activatespell; asserts the ghast entity follows the player.
-     */
     @GameTest
     public void ghastCarryCapturesGhastOnActivate(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "utility", "nether");
+        TestHelper.bind(helper, player, 1, "ghast_carry");
+        TestHelper.selectHotbarSlot(player, 0);
+
+        helper.runAfterDelay(2, () -> {
+            Nether.INSTANCE.executeActiveSpell("ghast_carry", player);
+            helper.runAfterDelay(3, () -> {
+                if (player.getVehicle() instanceof HappyGhast) {
+                    helper.succeed();
+                } else {
+                    helper.fail("Expected ghast_carry to mount the player on a Happy Ghast");
+                }
+            });
+        });
     }
 
-    /**
-     * Uses /set combat nether; /bind 1 soul_rage; /activatespell; player attacks
-     * a mob; asserts damage dealt > base (soul rage boost active).
-     */
     @GameTest
     public void soulRageBoostsDamageWhileActive(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        LivingEntity target = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, helper.absolutePos(new BlockPos(1, 2, 1)));
+        TestHelper.equip(helper, player, "combat", "nether");
+        TestHelper.bind(helper, player, 1, "soul_rage");
+        TestHelper.selectHotbarSlot(player, 0);
+        player.setHealth(8.0F);
+
+        helper.runAfterDelay(2, () -> {
+            Nether.INSTANCE.executeActiveSpell("soul_rage", player);
+            helper.runAfterDelay(2, () -> {
+                Order.DamageContext context = new Order.DamageContext(helper.getLevel().damageSources().playerAttack(player), 4.0F);
+                Nether.INSTANCE.onEntityDamageByEntity(player, target, context);
+                if (context.getAmount() > 4.0F) {
+                    helper.succeed();
+                } else {
+                    helper.fail("Expected Soul Rage to boost damage while active");
+                }
+            });
+        });
     }
 
-    /**
-     * Activates soul_rage; waits beyond its duration; player attacks a mob;
-     * asserts only base damage is dealt (soul rage expired).
-     */
-    @GameTest
+    @GameTest(maxTicks = 500)
     public void soulRageExpiresAndDamageReturnsToBase(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        LivingEntity target = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, helper.absolutePos(new BlockPos(1, 2, 1)));
+        TestHelper.equip(helper, player, "combat", "nether");
+        TestHelper.bind(helper, player, 1, "soul_rage");
+        TestHelper.selectHotbarSlot(player, 0);
+        player.setHealth(8.0F);
+
+        helper.runAfterDelay(2, () -> {
+            Nether.INSTANCE.executeActiveSpell("soul_rage", player);
+            helper.runAfterDelay(Config.netherSoulRageDuration * 20L + 5L, () -> {
+                Order.DamageContext context = new Order.DamageContext(helper.getLevel().damageSources().playerAttack(player), 4.0F);
+                Nether.INSTANCE.onEntityDamageByEntity(player, target, context);
+                if (context.getAmount() == 4.0F) {
+                    helper.succeed();
+                } else {
+                    helper.fail("Expected Soul Rage bonus to expire");
+                }
+            });
+        });
     }
 }

@@ -1,138 +1,266 @@
 package freq.ascension.test.demigod;
 
+import freq.ascension.orders.Ocean;
+import freq.ascension.orders.Order.DamageContext;
+import freq.ascension.managers.AttackSnapshotManager;
+import freq.ascension.test.TestHelper;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
+import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.block.Blocks;
 
 /**
- * Integration test stubs for the Ocean Order (Demigod) abilities.
- * Covers passive (water breathing, autocrit), utility (molecular flux),
- * and combat (drown) slots.
+ * Integration tests for the Ocean Order (Demigod) abilities.
  */
 public class OceanDemigodTests {
 
-    /**
-     * Uses /set passive ocean; waits 41 ticks; asserts WATER_BREATHING
-     * effect is present and active on the player.
-     */
-    @GameTest
+    @GameTest(maxTicks = 100)
     public void waterBreathingAppliedOnPassiveEquip(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "ocean");
+
+        helper.runAfterDelay(41, () -> {
+            TestHelper.assertEffect(helper, player, MobEffects.WATER_BREATHING,
+                    "Ocean passive did not apply water breathing");
+            helper.succeed();
+        });
     }
 
-    /**
-     * Uses /set passive ocean; waits 80 ticks; asserts WATER_BREATHING
-     * is still active (effect refreshes before expiry).
-     */
-    @GameTest
+    @GameTest(maxTicks = 140)
     public void waterBreathingRefreshesAfter40Ticks(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "ocean");
+
+        helper.runAfterDelay(80, () -> {
+            TestHelper.assertEffect(helper, player, MobEffects.WATER_BREATHING,
+                    "Ocean passive did not refresh water breathing");
+            helper.succeed();
+        });
     }
 
-    /**
-     * Uses /set passive ocean then /set passive none; asserts WATER_BREATHING
-     * is immediately removed from the player.
-     */
-    @GameTest
+    @GameTest(maxTicks = 120)
     public void waterBreathingRemovedOnUnequip(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "ocean");
+
+        helper.runAfterDelay(41, () -> {
+            TestHelper.assertEffect(helper, player, MobEffects.WATER_BREATHING,
+                    "Ocean passive never applied water breathing before unequip");
+            TestHelper.unequip(helper, player, "passive");
+            helper.runAfterDelay(2, () -> {
+                TestHelper.assertNoEffect(helper, player, MobEffects.WATER_BREATHING,
+                        "Ocean passive left water breathing behind after unequip");
+                helper.succeed();
+            });
+        });
     }
 
-    /**
-     * Uses /set passive ocean; places a powder snow block beneath the player;
-     * verifies the player does not sink into it.
-     */
     @GameTest
     public void canWalkOnPowderSnowWithOceanPassive(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "ocean");
+
+        helper.runAfterDelay(5, () -> {
+            if (Ocean.INSTANCE.canWalkOnPowderSnow(player)) {
+                helper.succeed();
+            } else {
+                helper.fail("Ocean passive should allow walking on powder snow");
+            }
+        });
     }
 
-    /**
-     * Uses /set passive ocean; places a water block; spawns a mob in water;
-     * player performs a melee attack; asserts damage dealt > base damage.
-     */
     @GameTest
     public void autocritInWaterDealsExtraDamage(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "ocean");
+
+        helper.runAfterDelay(5, () -> {
+            helper.getLevel().setBlockAndUpdate(player.blockPosition(), Blocks.WATER.defaultBlockState());
+            Mob victim = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, player.blockPosition().offset(0, 0, 1));
+            DamageContext context = new DamageContext(player.damageSources().playerAttack(player), 10.0f);
+            AttackSnapshotManager.captureAttack(player, victim, 1.0f);
+            Ocean.INSTANCE.onEntityDamageByEntity(player, victim, context);
+
+            if (context.getAmount() > 10.0f) {
+                helper.succeed();
+            } else {
+                helper.fail("Ocean passive should increase melee damage while the player is in water");
+            }
+        });
     }
 
-    /**
-     * Uses /set passive ocean; player attacks a mob on land without drown spell
-     * active; asserts only base damage is applied (no autocrit).
-     */
     @GameTest
     public void noAutocritOnLandWithoutDrown(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "ocean");
+
+        helper.runAfterDelay(5, () -> {
+            Mob victim = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, player.blockPosition().offset(0, 0, 1));
+            DamageContext context = new DamageContext(player.damageSources().playerAttack(player), 10.0f);
+            AttackSnapshotManager.captureAttack(player, victim, 1.0f);
+            Ocean.INSTANCE.onEntityDamageByEntity(player, victim, context);
+
+            if (Math.abs(context.getAmount() - 10.0f) < 0.001f) {
+                helper.succeed();
+            } else {
+                helper.fail("Ocean passive should not autocrit on land without drown active");
+            }
+        });
     }
 
-    /**
-     * Uses /set passive ocean; /bind 1 dolphins_grace; /activatespell;
-     * asserts DOLPHINS_GRACE effect is present on the player.
-     */
     @GameTest
     public void dolphinsGraceTogglesOnWithPassive(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "ocean");
+
+        helper.runAfterDelay(5, () -> {
+            Ocean.INSTANCE.executeActiveSpell("dolphins_grace", player);
+            helper.runAfterDelay(2, () -> {
+                TestHelper.assertEffect(helper, player, MobEffects.DOLPHINS_GRACE,
+                        "dolphins_grace should toggle on when Ocean passive is equipped");
+                helper.succeed();
+            });
+        });
     }
 
-    /**
-     * Toggles dolphins_grace on; activates again; asserts DOLPHINS_GRACE
-     * effect is removed (toggle off behaviour).
-     */
     @GameTest
     public void dolphinsGraceTogglesOff(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "ocean");
+
+        helper.runAfterDelay(5, () -> {
+            Ocean.INSTANCE.executeActiveSpell("dolphins_grace", player);
+            helper.runAfterDelay(2, () -> {
+                Ocean.INSTANCE.executeActiveSpell("dolphins_grace", player);
+                helper.runAfterDelay(2, () -> {
+                    TestHelper.assertNoEffect(helper, player, MobEffects.DOLPHINS_GRACE,
+                            "dolphins_grace should toggle off on its second activation");
+                    helper.succeed();
+                });
+            });
+        });
     }
 
-    /**
-     * Toggles dolphins_grace on; waits 80 ticks; asserts DOLPHINS_GRACE
-     * is still present (effect refreshes before expiry).
-     */
-    @GameTest
+    @GameTest(maxTicks = 120)
     public void dolphinsGraceRefreshesAfter40Ticks(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "ocean");
+
+        helper.runAfterDelay(5, () -> {
+            Ocean.INSTANCE.executeActiveSpell("dolphins_grace", player);
+            helper.runAfterDelay(80, () -> {
+                TestHelper.assertEffect(helper, player, MobEffects.DOLPHINS_GRACE,
+                        "Ocean passive should refresh dolphins_grace while it remains toggled on");
+                helper.succeed();
+            });
+        });
     }
 
-    /**
-     * Uses /set utility ocean; /bind 1 molecular_flux; player looks at a water
-     * block; /activatespell; asserts the target block has converted to ice.
-     */
     @GameTest
     public void molecularFluxConvertsWaterToIce(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "utility", "ocean");
+
+        helper.runAfterDelay(5, () -> {
+            BlockPos targetPos = faceSouthAtUtilityTarget(player);
+            helper.getLevel().setBlockAndUpdate(targetPos, Blocks.WATER.defaultBlockState());
+            Ocean.INSTANCE.executeActiveSpell("molecular_flux", player);
+            helper.runAfterDelay(5, () -> {
+                if (helper.getLevel().getBlockState(targetPos).is(Blocks.FROSTED_ICE)) {
+                    helper.succeed();
+                } else {
+                    helper.fail("molecular_flux should convert water to frosted ice");
+                }
+            });
+        });
     }
 
-    /**
-     * Uses /set utility ocean; player looks at an ice block; /activatespell;
-     * asserts the target block has converted to water.
-     */
     @GameTest
     public void molecularFluxConvertsIceToWater(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "utility", "ocean");
+
+        helper.runAfterDelay(5, () -> {
+            BlockPos targetPos = faceSouthAtUtilityTarget(player);
+            helper.getLevel().setBlockAndUpdate(targetPos, Blocks.ICE.defaultBlockState());
+            Ocean.INSTANCE.executeActiveSpell("molecular_flux", player);
+            helper.runAfterDelay(5, () -> {
+                if (helper.getLevel().getBlockState(targetPos).is(Blocks.WATER)) {
+                    helper.succeed();
+                } else {
+                    helper.fail("molecular_flux should convert ice to water");
+                }
+            });
+        });
     }
 
-    /**
-     * Uses /set utility ocean; player looks at a cobweb block; /activatespell;
-     * asserts the target position is now air (cobweb removed).
-     */
     @GameTest
     public void molecularFluxRemovesCobweb(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "utility", "ocean");
+
+        helper.runAfterDelay(5, () -> {
+            BlockPos targetPos = faceSouthAtUtilityTarget(player);
+            helper.getLevel().setBlockAndUpdate(targetPos, Blocks.COBWEB.defaultBlockState());
+            Ocean.INSTANCE.executeActiveSpell("molecular_flux", player);
+            helper.runAfterDelay(5, () -> {
+                if (helper.getLevel().getBlockState(targetPos).isAir()) {
+                    helper.succeed();
+                } else {
+                    helper.fail("molecular_flux should remove cobwebs");
+                }
+            });
+        });
     }
 
-    /**
-     * Uses /set combat ocean; /bind 1 drown; spawns a mob within 8 blocks;
-     * /activatespell; asserts the mob's air supply is reduced below its maximum.
-     */
     @GameTest
     public void drownSpellReducesNearbyEntityOxygen(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer victim = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "combat", "ocean");
+
+        helper.runAfterDelay(5, () -> {
+            victim.setPos(player.getX() + 1.0, player.getY(), player.getZ());
+            victim.setAirSupply(victim.getMaxAirSupply());
+            Ocean.INSTANCE.executeActiveSpell("drown", player);
+            helper.runAfterDelay(3, () -> {
+                if (victim.getAirSupply() < victim.getMaxAirSupply()) {
+                    helper.succeed();
+                } else {
+                    helper.fail("drown should reduce the nearby victim's air supply");
+                }
+            });
+        });
     }
 
-    /**
-     * Uses /set passive+combat ocean; activates drown spell; player attacks a
-     * mob on land; asserts damage is multiplied by 1.5× (drown enables land autocrit).
-     */
-    @GameTest
+    @GameTest(maxTicks = 100)
     public void drownSpellEnablesLandAutocritWhileActive(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "ocean");
+        TestHelper.equip(helper, player, "combat", "ocean");
+
+        helper.runAfterDelay(5, () -> {
+            Ocean.INSTANCE.executeActiveSpell("drown", player);
+            helper.runAfterDelay(3, () -> {
+                Mob victim = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, player.blockPosition().offset(0, 0, 1));
+                DamageContext context = new DamageContext(player.damageSources().playerAttack(player), 10.0f);
+                AttackSnapshotManager.captureAttack(player, victim, 1.0f);
+                Ocean.INSTANCE.onEntityDamageByEntity(player, victim, context);
+
+                if (context.getAmount() > 10.0f) {
+                    helper.succeed();
+                } else {
+                    helper.fail("Active drown should enable Ocean autocrits on land");
+                }
+            });
+        });
+    }
+
+    private static BlockPos faceSouthAtUtilityTarget(ServerPlayer player) {
+        return player.blockPosition().offset(0, 1, 3);
     }
 }

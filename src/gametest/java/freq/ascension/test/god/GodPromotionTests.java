@@ -1,7 +1,14 @@
 package freq.ascension.test.god;
 
+import freq.ascension.managers.AscensionData;
+import freq.ascension.managers.GodManager;
+import freq.ascension.orders.Flora;
+import freq.ascension.orders.Ocean;
+import freq.ascension.test.TestHelper;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Integration tests for god promotion/demotion mechanics, covering rank setting,
@@ -14,7 +21,22 @@ public class GodPromotionTests {
      */
     @GameTest
     public void playerPromotedToGodWithSetrank(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        MinecraftServer server = helper.getLevel().getServer();
+        GodManager gm = GodManager.get(server);
+        AscensionData data = (AscensionData) player;
+
+        TestHelper.setGodDirect(helper, player, "sky");
+        boolean promoted = gm.isGod(player)
+                && "god".equals(data.getRank())
+                && "sky".equals(data.getGodOrder());
+
+        gm.demoteFromGod(player, server);
+        if (promoted) {
+            helper.succeed();
+        } else {
+            helper.fail("Expected /setrank god to promote the player to sky god");
+        }
     }
 
     /**
@@ -23,7 +45,24 @@ public class GodPromotionTests {
      */
     @GameTest
     public void godSlotGatingBlocksAdditionalAbilityEquip(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        MinecraftServer server = helper.getLevel().getServer();
+        GodManager gm = GodManager.get(server);
+        AscensionData data = (AscensionData) player;
+
+        TestHelper.setGodDirect(helper, player, "magic");
+        TestHelper.equip(helper, player, "divine", "ocean");
+
+        boolean blocked = "magic".equals(data.getPassive() != null ? data.getPassive().getOrderName() : null)
+                && "magic".equals(data.getUtility() != null ? data.getUtility().getOrderName() : null)
+                && "magic".equals(data.getCombat() != null ? data.getCombat().getOrderName() : null);
+
+        gm.demoteFromGod(player, server);
+        if (blocked) {
+            helper.succeed();
+        } else {
+            helper.fail("Expected invalid fourth-slot equip attempt to be blocked for a god player");
+        }
     }
 
     /**
@@ -32,7 +71,18 @@ public class GodPromotionTests {
      */
     @GameTest
     public void demotionCooldownActiveRightAfterDemotion(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        MinecraftServer server = helper.getLevel().getServer();
+        GodManager gm = GodManager.get(server);
+
+        gm.promoteToGod(player, Ocean.INSTANCE, server);
+        gm.demoteFromGod(player, server);
+
+        if (gm.isOnDemotionCooldown(player) && gm.getDemotionCooldownRemainingMs(player) > 0) {
+            helper.succeed();
+        } else {
+            helper.fail("Expected demotion cooldown to be active immediately after demotion");
+        }
     }
 
     /**
@@ -41,7 +91,15 @@ public class GodPromotionTests {
      */
     @GameTest
     public void demotionCooldownExpiresAndAllowsRepromotion(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        GodManager gm = GodManager.createForTesting();
+
+        gm.setDemotionCooldownForTesting(player.getUUID(), System.currentTimeMillis() - 1L);
+        if (!gm.isOnDemotionCooldown(player) && gm.getDemotionCooldownRemainingMs(player) == 0L) {
+            helper.succeed();
+        } else {
+            helper.fail("Expected expired demotion cooldown to report inactive");
+        }
     }
 
     /**
@@ -50,7 +108,28 @@ public class GodPromotionTests {
      */
     @GameTest
     public void singleGodPerOrderEnforcedOnPromotion(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer playerA = helper.makeMockServerPlayerInLevel();
+        ServerPlayer playerB = helper.makeMockServerPlayerInLevel();
+        MinecraftServer server = helper.getLevel().getServer();
+        GodManager gm = GodManager.get(server);
+        AscensionData dataA = (AscensionData) playerA;
+        AscensionData dataB = (AscensionData) playerB;
+
+        gm.promoteToGod(playerA, Ocean.INSTANCE, server);
+        gm.promoteToGod(playerB, Ocean.INSTANCE, server);
+
+        boolean enforced = !gm.isGod(playerA)
+                && gm.isGod(playerB)
+                && "demigod".equals(dataA.getRank())
+                && "god".equals(dataB.getRank())
+                && playerB.getUUID().equals(gm.getGodUUID("ocean"));
+
+        gm.demoteFromGod(playerB, server);
+        if (enforced) {
+            helper.succeed();
+        } else {
+            helper.fail("Expected only one current ocean god after promoting a replacement");
+        }
     }
 
     /**
@@ -59,6 +138,19 @@ public class GodPromotionTests {
      */
     @GameTest
     public void godDeathClearsGodManagerEntry(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        MinecraftServer server = helper.getLevel().getServer();
+        GodManager gm = GodManager.get(server);
+
+        gm.promoteToGod(player, Flora.INSTANCE, server);
+        player.hurt(helper.getLevel().damageSources().genericKill(), Float.MAX_VALUE);
+
+        helper.runAfterDelay(20, () -> {
+            if (!gm.isGod(player) && gm.getGodUUID("flora") == null) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected god death cleanup to clear the flora god entry");
+            }
+        });
     }
 }

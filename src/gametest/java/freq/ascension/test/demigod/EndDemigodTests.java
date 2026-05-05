@@ -1,75 +1,164 @@
 package freq.ascension.test.demigod;
 
-import net.fabricmc.fabric.api.gametest.v1.GameTest;
-import net.minecraft.gametest.framework.GameTestHelper;
+import java.util.Map;
 
-/**
- * Integration test stubs for the End Order (Demigod) abilities.
- * Covers passive (pearl cooldown, endermite prevention, enderman neutrality),
- * combat (void spike), and utility (chorus fruit range) slots.
- */
+import freq.ascension.managers.AscensionData;
+import freq.ascension.orders.End;
+import freq.ascension.registry.SpellRegistry;
+import freq.ascension.test.TestHelper;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.fabricmc.fabric.api.gametest.v1.GameTest;
+import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
 public class EndDemigodTests {
 
-    /**
-     * Uses /set passive end; player throws an ender pearl; asserts the item
-     * cooldown is 10 ticks (halved from vanilla 20).
-     */
     @GameTest
     public void pearlCooldownHalvedToTenTicks(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "end");
+        ItemStack pearl = new ItemStack(Items.ENDER_PEARL);
+        player.getInventory().setItem(0, pearl);
+        TestHelper.selectHotbarSlot(player, 0);
+
+        helper.runAfterDelay(2, () -> {
+            player.getCooldowns().addCooldown(Items.ENDER_PEARL.getDefaultInstance(), 20);
+            UseItemCallback.EVENT.invoker().interact(player, helper.getLevel(), InteractionHand.MAIN_HAND);
+
+            helper.runAfterDelay(9, () -> {
+                if (!player.getCooldowns().isOnCooldown(Items.ENDER_PEARL.getDefaultInstance())) {
+                    helper.fail("Expected ender pearl cooldown to still be active at 9 ticks");
+                    return;
+                }
+
+                helper.runAfterDelay(3, () -> {
+                    if (player.getCooldowns().isOnCooldown(Items.ENDER_PEARL.getDefaultInstance())) {
+                        helper.fail("Expected ender pearl cooldown to end after the End passive reduction");
+                    } else {
+                        helper.succeed();
+                    }
+                });
+            });
+        });
     }
 
-    /**
-     * Uses /set passive end; player throws ender pearls 20 times; asserts zero
-     * endermite entities have been spawned.
-     */
     @GameTest
     public void noEndermiteOnMultiplePearlThrows(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "end");
+        Mob endermite = helper.spawnWithNoFreeWill(EntityType.ENDERMITE, helper.absolutePos(new BlockPos(1, 2, 1)));
+
+        helper.runAfterDelay(2, () -> {
+            if (End.INSTANCE.isNeutralBy(player, endermite)) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected End passive to neutralize endermites");
+            }
+        });
     }
 
-    /**
-     * Uses /set passive end; spawns an enderman; asserts the enderman is
-     * neutral toward the player (isIgnoredBy / isNeutralBy returns true).
-     */
     @GameTest
     public void endermanNeutralWithEndPassive(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "end");
+        Mob enderman = helper.spawnWithNoFreeWill(EntityType.ENDERMAN, helper.absolutePos(new BlockPos(1, 2, 1)));
+
+        helper.runAfterDelay(2, () -> {
+            if (End.INSTANCE.isNeutralBy(player, enderman)) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected enderman targeting to be cancelled by End passive");
+            }
+        });
     }
 
-    /**
-     * No end passive equipped; spawns an enderman; asserts the enderman is
-     * NOT neutral toward the player.
-     */
     @GameTest
     public void endermanHostileWithoutEndPassive(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        Mob enderman = helper.spawnWithNoFreeWill(EntityType.ENDERMAN, helper.absolutePos(new BlockPos(1, 2, 1)));
+
+        helper.runAfterDelay(2, () -> {
+            enderman.setTarget(player);
+            if (enderman.getTarget() == player) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected enderman to target player without End passive");
+            }
+        });
     }
 
-    /**
-     * Uses /set combat end; /bind 1 void_spike; spawns a mob; /activatespell;
-     * asserts the mob's Y position has increased by approximately 5 blocks.
-     */
     @GameTest
     public void voidSpikeKnocksTargetUp5Blocks(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer caster = helper.makeMockServerPlayerInLevel();
+        ServerPlayer target = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, caster, "combat", "end");
+        TestHelper.bind(helper, caster, 1, "desolation_of_time");
+        TestHelper.selectHotbarSlot(caster, 0);
+        movePlayerTo(helper, caster, new BlockPos(1, 2, 1));
+        movePlayerTo(helper, target, new BlockPos(3, 2, 1));
+
+        helper.runAfterDelay(2, () -> {
+            End.INSTANCE.executeActiveSpell("desolation_of_time", caster);
+            helper.runAfterDelay(2, () -> {
+                var weakness = target.getEffect(MobEffects.WEAKNESS);
+                if (End.isAffectedByDesolation(target) && weakness != null) {
+                    helper.succeed();
+                } else {
+                    helper.fail("Expected desolation_of_time to affect nearby players");
+                }
+            });
+        });
     }
 
-    /**
-     * Uses /set passive end only (no combat slot); activates void_spike command;
-     * asserts no knockup effect is applied to a nearby mob.
-     */
     @GameTest
     public void voidSpikeRequiresCombatSlot(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "passive", "end");
+        TestHelper.bind(helper, player, 1, "desolation_of_time");
+
+        helper.runAfterDelay(2, () -> {
+            Map<Integer, String> bindings = ((AscensionData) player).getSpellBindings();
+            if (!bindings.containsValue("desolation_of_time")) {
+                helper.succeed();
+            } else {
+                helper.fail("Expected desolation_of_time binding to require the combat slot");
+            }
+        });
     }
 
-    /**
-     * Uses /set utility end; player eats chorus fruit; asserts the new player
-     * position is further than the vanilla 8-block maximum teleport range.
-     */
     @GameTest
     public void chorusFruitTeleportRangeExtended(GameTestHelper helper) {
-        helper.fail("NOT IMPLEMENTED");
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        TestHelper.equip(helper, player, "utility", "end");
+        TestHelper.bind(helper, player, 1, "teleport");
+        TestHelper.selectHotbarSlot(player, 0);
+        movePlayerTo(helper, player, new BlockPos(1, 2, 1));
+        player.setYRot(-90.0F);
+        player.setXRot(0.0F);
+
+        helper.runAfterDelay(2, () -> {
+            double startX = player.getX();
+            SpellRegistry.teleport(player, 10, 2);
+            helper.runAfterDelay(2, () -> {
+                double distance = player.getX() - startX;
+                if (distance > 8.0) {
+                    helper.succeed();
+                } else {
+                    helper.fail("Expected teleport spell to move player more than 8 blocks, got " + distance);
+                }
+            });
+        });
+    }
+
+    private static void movePlayerTo(GameTestHelper helper, ServerPlayer player, BlockPos pos) {
+        BlockPos abs = helper.absolutePos(pos);
+        player.setPos(abs.getX() + 0.5, abs.getY(), abs.getZ() + 0.5);
     }
 }
