@@ -202,16 +202,18 @@ public class AscensionMenu {
                         Order displayOrder = isGodOfThisOrder ? order.getVersion("god") : order;
                         List<String> wrapped = wrapTextPixels(displayOrder.getDescription(s.type), 140);
 
-                        for (String line : wrapped) {
-                                if (currentLineCount >= maxLines) {
-                                        finalPages.add(finishPage(currentPage, order,
-                                                        startPageIndex + localPageCount++));
-                                        currentPage = Component.empty();
-                                        currentLineCount = 0;
+                        if (!wrapped.isEmpty()) {
+                                for (String line : wrapped) {
+                                        if (currentLineCount >= maxLines) {
+                                                finalPages.add(finishPage(currentPage, order,
+                                                                startPageIndex + localPageCount++));
+                                                currentPage = Component.empty();
+                                                currentLineCount = 0;
+                                        }
+                                        currentPage.append(Component.literal(line).withStyle(ChatFormatting.DARK_GRAY))
+                                                        .append(Component.literal("\n"));
+                                        currentLineCount++;
                                 }
-                                currentPage.append(Component.literal(line).withStyle(ChatFormatting.DARK_GRAY))
-                                                .append(Component.literal("\n"));
-                                currentLineCount++;
                         }
 
                         // Build a single inline row of spell names with hover tooltips

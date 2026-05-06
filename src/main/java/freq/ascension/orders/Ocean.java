@@ -67,15 +67,15 @@ public class Ocean implements Order {
 
         SpellCooldownManager.register(new Spell("molecular_flux", this, "utility", (player, stats) -> {
             SpellRegistry.molecularFlux(player,
-                    stats.getInt(0), // range
-                    stats.getInt(1) // duration
+                    stats.getInt(0), // range, blocks
+                    stats.getInt(1) // duration, secs
             );
         }));
 
         SpellCooldownManager.register(new Spell("drown", this, "combat", (player, stats) -> {
             SpellRegistry.drown(player,
-                    stats.getInt(0), // duration
-                    stats.getInt(1) // radius
+                    stats.getInt(0), // duration, secs
+                    stats.getInt(1) // radius, blocks
             );
         }));
     }
@@ -86,14 +86,24 @@ public class Ocean implements Order {
             case "dolphins_grace" -> new SpellStats(CONFIG_GROUP.get("dolphins_grace.cooldown_ticks"),
                     "Toggle between normal swimming speed and Dolphin's Grace 1.",
                     0);
-            case "molecular_flux" ->
-                new SpellStats(CONFIG_GROUP.get("molecular_flux.cooldown_ticks"),
-                        "Transforms water related blocks between states.",
-                        CONFIG_GROUP.get("molecular_flux.range"), CONFIG_GROUP.get("molecular_flux.duration_seconds"));
-            case "drown" -> new SpellStats(CONFIG_GROUP.get("drown.cooldown_ticks"),
-                    "Drowns players within " + CONFIG_GROUP.get("drown.radius") + " and activates passives on land for "
-                            + CONFIG_GROUP.get("drown.duration_seconds") + "s.",
-                    CONFIG_GROUP.get("drown.duration_seconds"), CONFIG_GROUP.get("drown.radius"));
+            case "molecular_flux" -> {
+                int cd = CONFIG_GROUP.get("molecular_flux.cooldown_ticks");
+                int ran = CONFIG_GROUP.get("molecular_flux.range");
+                int ds = CONFIG_GROUP.get("molecular_flux.duration_seconds");
+                yield new SpellStats(cd,
+                        "Transform water-related blocks in a " + ran
+                                + "-block range for " + ds
+                                + "s.\nWater source -> frosted ice\nfrosted/normal/packed ice -> water source\nCobweb -> air\nWet sponge -> dry sponge\nWater cauldron <-> powdered snow cauldron",
+                        ran, ds);
+            }
+            case "drown" -> {
+                int cd = CONFIG_GROUP.get("drown.cooldown_ticks");
+                int rad = CONFIG_GROUP.get("drown.radius");
+                int ds = CONFIG_GROUP.get("drown.duration_seconds");
+                yield new SpellStats(cd,
+                        "Drowns players within " + rad + " and activates passives on land for " + ds + "s.",
+                        ds, rad);
+            }
             default -> null;
         };
     }
@@ -102,18 +112,7 @@ public class Ocean implements Order {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Permanent Water Breathing. Autocrit in water. Walk over powdered snow with any boots. DOLPHIN'S GRACE: "
-                        + getSpellStats("dolphins_grace").getDescription();
-            case "utility" -> {
-                SpellStats s = getSpellStats("molecular_flux");
-                yield "MOLECULAR FLUX: Transform water-related blocks in a " + s.getInt(0)
-                        + "-block range for " + s.getInt(1) + "s. " + s.getCooldownSecs() + "s cooldown.";
-            }
-            case "combat" -> {
-                SpellStats s = getSpellStats("drown");
-                yield "DROWN: Drowns players within " + s.getInt(1) + " blocks for " + s.getInt(0)
-                        + "s. Activates passives on land for the duration.";
-            }
+                "Permanent Water Breathing. Autocrit in water. Walk over powdered snow with any boots.";
             default -> "";
         };
     }

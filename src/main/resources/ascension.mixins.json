@@ -13,6 +13,7 @@
 		"CraftingRestorationMixin",
 		"CrossbowMixin",
 		"DamageMixin",
+		"DropExperienceBlockMixin",
 		"GodProtectionMixin",
 		"DisguiseLoadMixin",
 		"EnchantmentMixin",

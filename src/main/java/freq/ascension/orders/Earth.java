@@ -7,10 +7,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import freq.ascension.Utils;
-import freq.ascension.config.Config;
+import freq.ascension.config.ConfigGroup;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
+import freq.ascension.mixin.DropExperienceBlockMixin;
 import freq.ascension.registry.SpellRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -22,6 +23,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.TagKey;
+import net.minecraft.util.valueproviders.IntProvider;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -29,6 +31,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DropExperienceBlock;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
@@ -40,11 +44,47 @@ import net.minecraft.world.level.block.state.BlockState;
 public class Earth implements Order {
 
     public static final Earth INSTANCE = new Earth();
+
     // Keep track of supermine state per player
     private static final Map<UUID, Boolean> SUPERMINE_ENABLED = new ConcurrentHashMap<>();
     private static final Set<UUID> IS_MINING_INTERNALLY = new HashSet<>();
     private static final ResourceLocation BREAK_SPEED_ID = ResourceLocation.fromNamespaceAndPath("ascension",
             "earth_block_break_speed");
+
+    /*
+     * Default configs
+     */
+
+    public static final ConfigGroup CONFIG_GROUP = new ConfigGroup("earth")
+            .add("anvil_discount_percent", 50)
+            .add("supermine.cooldown_ticks", 60)
+            .add("supermine.diameter", 2)
+            .add("supermine.max_dura_loss", 4)
+            .add("magma_bubble.cooldown_ticks", 900)
+            .add("magma_bubble.radius", 4)
+            .add("magma_bubble.damage_percent", 30);
+
+    /*
+     * Metadata
+     */
+
+    public String getOrderName() {
+        return "earth";
+    }
+
+    public TextColor getOrderColor() {
+        // Orange
+        return TextColor.fromRgb(0xff9d00);
+    }
+
+    @Override
+    public String getOrderIcon() {
+        return "\uE183";
+    }
+
+    /*
+     * Stats, spells, descriptions
+     */
 
     @Override
     public Order getVersion(String rank) {
@@ -58,13 +98,8 @@ public class Earth implements Order {
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
             case "passive" ->
-                "Permanent Haste 1.\nOre drops are doubled and automatically smelted without silk touch.\nAnvils cost 50% less, do not break, and have no limit.";
-            case "utility" -> "SUPERMINE: " + getSpellStats("supermine").getDescription();
-            case "combat" -> {
-                SpellStats s = getSpellStats("magma_bubble");
-                yield "MAGMA BUBBLE: " + s.getDescription()
-                        + " Cooldown " + String.valueOf(s.getCooldownSecs()) + "s.";
-            }
+                "Permanent Haste 1. Instamine stone with efficiency 5. Ore drops are doubled and automatically smelted without silk touch. Anvils cost "
+                        + CONFIG_GROUP.get("anvil_discount_percent") + "% less, do not break, and have no limit.";
             default -> "";
         };
     }
@@ -89,15 +124,32 @@ public class Earth implements Order {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "supermine" -> new SpellStats(Config.earthSupermineCD,
-                    "Activate to toggle 2x2 mining. Durability loss applies for half of the blocks mined. Works with Earth passives.",
-                    2, 4); // diameter, max durability loss
-            case "magma_bubble" -> new SpellStats(Config.earthMagmaBubbleCD,
-                    "Scorches enemy with magma spikes in a 4x4 centered area, dealing 30% max hp. Must be activated on land or in lava.",
-                    Config.earthMagmaBubbleRange, Config.earthMagmaBubbleDmg, false);
+            case "supermine" -> {
+                int dia = CONFIG_GROUP.get("supermine.diameter");
+                int cd = CONFIG_GROUP.get("supermine.cooldown_ticks");
+                int dur = CONFIG_GROUP.get("supermine.max_dura_loss");
+                yield new SpellStats(cd,
+                        "Activate to toggle " + dia + "x" + dia
+                                + " mining. Durability loss applies for " + dur
+                                + " of the blocks mined. Works with Earth passives.",
+                        dia, dur); // diameter, max durability loss
+            }
+            case "magma_bubble" -> {
+                int cd = CONFIG_GROUP.get("magma_bubble.cooldown_ticks");
+                int pc = CONFIG_GROUP.get("magma_bubble.damage_percent");
+                int rad = CONFIG_GROUP.get("magma_bubble.radius");
+                yield new SpellStats(cd,
+                        "Scorches enemy with magma spikes in a " + rad + "x" + rad + " centered area, dealing "
+                                + pc + "% max hp. Must be activated on land or in lava.",
+                        pc, rad, false);
+            }
             default -> null;
         };
     }
+
+    /*
+     * Main body
+     */
 
     // For Ores
     private static final TagKey<Block> ORE_TAG = TagKey.create(Registries.BLOCK,
@@ -126,15 +178,6 @@ public class Earth implements Order {
                 .getRecipeFor(RecipeType.SMELTING, recipeInput, level)
                 .map(recipe -> recipe.value().assemble(recipeInput, level.registryAccess()))
                 .orElse(ItemStack.EMPTY);
-    }
-
-    public String getOrderName() {
-        return "earth";
-    }
-
-    public TextColor getOrderColor() {
-        // Orange
-        return TextColor.fromRgb(0xff9d00);
     }
 
     @Override
@@ -206,6 +249,11 @@ public class Earth implements Order {
         if (!tool.isCorrectToolForDrops(state))
             return;
 
+        // Don't activate on non-ores
+        if (!state.is(ORE_TAG)) {
+            return;
+        }
+
         // Determine the smelted result to check if we should intervene
         ItemStack smelted = getSmeltedResult(world, pos, state, entity, player, tool);
         if (smelted.isEmpty()) {
@@ -213,19 +261,14 @@ public class Earth implements Order {
             return;
         }
 
-        // Special handling for ancient debris (no doubling, but fixed 2 scraps)
-        boolean isAncientDebris = state.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS);
-
         // Spawn small fire particles around the broken block
         world.sendParticles(
                 net.minecraft.core.particles.ParticleTypes.FLAME,
                 pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
                 10, 0.2, 0.2, 0.2, 0.01);
 
-        double xpMultiplier = Utils.isGod(player) ? 2.0 : 1.0;
-
         // This handles the doubling (count * 2) and XP dropping
-        dropSmeltedOre(player, world, pos, state, entity, xpMultiplier);
+        dropSmeltedOre(player, world, pos, state, entity, 2.0);
     }
 
     // Cost reduction is handled directly in AnvilPrepareMixin via @Shadow DataSlot
@@ -287,7 +330,7 @@ public class Earth implements Order {
                         continue;
 
                     if ((targetState.is(ORE_TAG)
-                            || targetState.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS))
+                            || targetState.is(Blocks.ANCIENT_DEBRIS))
                             && !hasSilkTouch) {
                         ItemStack heldTool = player.getInventory().getSelectedItem();
                         if (heldTool.isCorrectToolForDrops(targetState)) {
@@ -324,7 +367,7 @@ public class Earth implements Order {
                 tool);
         int baseCount = smelted.getCount();
         // Vanilla fortune does not affect ancient debris — skip the bonus for it
-        boolean isAncientDebris = state.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS);
+        boolean isAncientDebris = state.is(Blocks.ANCIENT_DEBRIS);
         int fortuneBonus = (fortuneLevel > 0 && !isAncientDebris)
                 ? player.level().getRandom().nextInt(fortuneLevel + 1)
                 : 0;
@@ -333,42 +376,23 @@ public class Earth implements Order {
 
         Block.popResource(world, pos, smelted);
 
-        final int xp = Math.max(1, (int) Math.round(getOreXP(state) * xpMultiplier));
-        ExperienceOrb orb = new ExperienceOrb(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, xp);
-        world.addFreshEntity(orb);
+        final int xp = (int) Math.round(getOreXP(state, world) * xpMultiplier);
+        if (xp > 0) {
+            ExperienceOrb orb = new ExperienceOrb(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, xp);
+            world.addFreshEntity(orb);
+        }
 
-        world.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        world.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
         return true;
     }
 
-    private int getOreXP(BlockState state) {
-        // Define XP values for different ore types
+    private int getOreXP(BlockState state, ServerLevel world) {
         Block block = state.getBlock();
-        if (block == net.minecraft.world.level.block.Blocks.COAL_ORE ||
-                block == net.minecraft.world.level.block.Blocks.DEEPSLATE_COAL_ORE)
-            return 2;
-        if (block == net.minecraft.world.level.block.Blocks.DIAMOND_ORE ||
-                block == net.minecraft.world.level.block.Blocks.DEEPSLATE_DIAMOND_ORE)
-            return 5;
-        if (block == net.minecraft.world.level.block.Blocks.EMERALD_ORE ||
-                block == net.minecraft.world.level.block.Blocks.DEEPSLATE_EMERALD_ORE)
-            return 5;
-        if (block == net.minecraft.world.level.block.Blocks.LAPIS_ORE ||
-                block == net.minecraft.world.level.block.Blocks.DEEPSLATE_LAPIS_ORE)
-            return 3;
-        if (block == net.minecraft.world.level.block.Blocks.REDSTONE_ORE ||
-                block == net.minecraft.world.level.block.Blocks.DEEPSLATE_REDSTONE_ORE)
-            return 3;
-        if (block == net.minecraft.world.level.block.Blocks.NETHER_QUARTZ_ORE)
-            return 3;
-        if (block == net.minecraft.world.level.block.Blocks.NETHER_GOLD_ORE)
-            return 1;
-        return 1;
-    }
-
-    @Override
-    public String getOrderIcon() {
-        return "\uE183";
+        if (block instanceof DropExperienceBlock dropXpBlock) {
+            IntProvider xpRange = ((DropExperienceBlockMixin) dropXpBlock).getXpRange();
+            return xpRange.sample(world.getRandom());
+        }
+        return 0;
     }
 
     @Override

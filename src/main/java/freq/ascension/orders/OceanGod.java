@@ -62,7 +62,9 @@ public class OceanGod extends Ocean {
                     0);
             case "molecular_flux" ->
                 new SpellStats(CONFIG_GROUP.get("molecular_flux.cooldown_ticks"),
-                        "Transforms water related blocks between states.",
+                        "Transform water-related blocks in a " + CONFIG_GROUP.get("molecular_flux.range")
+                                + "-block range for " + CONFIG_GROUP.get("molecular_flux.duration_seconds")
+                                + "s.\n\nWater source -> frosted ice\nfrosted/normal/packed ice -> water source\nCobweb -> air\nWet sponge -> dry sponge\nWater cauldron <-> powdered snow cauldron",
                         CONFIG_GROUP.get("molecular_flux.range"), CONFIG_GROUP.get("molecular_flux.duration_seconds"));
             case "drown" -> new SpellStats(CONFIG_GROUP.get("drown.cooldown_ticks"),
                     "Drowns players within " + CONFIG_GROUP.get("drown.radius") + " and activates passives on land for "

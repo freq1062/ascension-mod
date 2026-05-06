@@ -29,15 +29,6 @@ public class Config {
     public static int godDeathCooldown = 86400;
     public static int influenceBanDuration = 86400;
 
-    // === EARTH ===
-    public static int earthSupermineCD = 60;
-    public static int earthMagmaBubbleCD = 10;
-    public static int earthMagmaBubbleRange = 4;
-    public static int earthMagmaBubbleDmg = 30;
-    public static int earthGodMagmaBubbleCD = 900;
-    public static int earthGodMagmaBubbleRange = 4;
-    public static int earthGodMagmaBubbleDmg = 40;
-
     // === SKY ===
     public static int skyDoubleJumpCD = 160;
     public static int skyDoubleJumpRange = 6;
@@ -117,13 +108,8 @@ public class Config {
         influenceBanDuration = config.getOrElse("influence_ban_duration", 86400);
 
         // Earth
-        earthSupermineCD = config.getOrElse("earth.supermine.cooldown_ticks", 60);
-        earthMagmaBubbleCD = config.getOrElse("earth.magma_bubble.cooldown_ticks", 10);
-        earthMagmaBubbleRange = config.getOrElse("earth.magma_bubble.range", 4);
-        earthMagmaBubbleDmg = config.getOrElse("earth.magma_bubble.damage", 30);
-        earthGodMagmaBubbleCD = config.getOrElse("earth_god.magma_bubble.cooldown_ticks", 900);
-        earthGodMagmaBubbleRange = config.getOrElse("earth_god.magma_bubble.range", 4);
-        earthGodMagmaBubbleDmg = config.getOrElse("earth_god.magma_bubble.damage", 40);
+        Earth.CONFIG_GROUP.load(config);
+        EarthGod.CONFIG_GROUP.load(config);
 
         // Ocean
         Ocean.CONFIG_GROUP.load(config);
@@ -214,13 +200,8 @@ public class Config {
                 "How long a player is banned when their influence drops below -5 (in seconds).");
 
         // Earth
-        config.set("earth.supermine.cooldown_ticks", earthSupermineCD);
-        config.set("earth.magma_bubble.cooldown_ticks", earthMagmaBubbleCD);
-        config.set("earth.magma_bubble.range", earthMagmaBubbleRange);
-        config.set("earth.magma_bubble.damage", earthMagmaBubbleDmg);
-        config.set("earth_god.magma_bubble.cooldown_ticks", earthGodMagmaBubbleCD);
-        config.set("earth_god.magma_bubble.range", earthGodMagmaBubbleRange);
-        config.set("earth_god.magma_bubble.damage", earthGodMagmaBubbleDmg);
+        Ocean.CONFIG_GROUP.setAll(config);
+        OceanGod.CONFIG_GROUP.setAll(config);
 
         // Ocean
         Ocean.CONFIG_GROUP.setAll(config);
