@@ -53,6 +53,7 @@ import freq.ascension.commands.SetPoiCommand;
 import freq.ascension.commands.SetRankCommand;
 import freq.ascension.commands.UnbindCommand;
 import freq.ascension.commands.WithdrawCommand;
+import freq.ascension.config.Config;
 import freq.ascension.commands.SetOrderCommand;
 import freq.ascension.items.ChallengerSigil;
 import freq.ascension.managers.AbilityManager;
@@ -555,7 +556,8 @@ public class Ascension implements ModInitializer {
 
 	private static void clearIllegalMythicalWeapons(MinecraftServer server) {
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-			if (isGameTestPlayer(player)) continue;
+			if (isGameTestPlayer(player))
+				continue;
 			AscensionData data = (AscensionData) player;
 			boolean isGod = "god".equals(data.getRank());
 			String godOrder = data.getGodOrder();
@@ -563,7 +565,8 @@ public class Ascension implements ModInitializer {
 			for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
 				ItemStack stack = player.getInventory().getItem(slot);
 				freq.ascension.weapons.MythicWeapon weapon = WeaponRegistry.identifyWeapon(stack);
-				if (weapon == null) continue;
+				if (weapon == null)
+					continue;
 
 				boolean isCorrectGod = isGod
 						&& godOrder != null
@@ -573,7 +576,8 @@ public class Ascension implements ModInitializer {
 					player.getInventory().setItem(slot, ItemStack.EMPTY);
 					String orderName = weapon.getParentOrder().getOrderName();
 					player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-							"§c[Ascension] Your " + freq.ascension.weapons.MythicWeapon.formatWeaponName(weapon.getWeaponId())
+							"§c[Ascension] Your "
+									+ freq.ascension.weapons.MythicWeapon.formatWeaponName(weapon.getWeaponId())
 									+ " has been removed: only the " + orderName + " god may wield it."));
 				}
 			}

@@ -1,6 +1,6 @@
 package freq.ascension.orders;
 
-import freq.ascension.Config;
+import freq.ascension.config.Config;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;

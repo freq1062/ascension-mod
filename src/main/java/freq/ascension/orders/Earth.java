@@ -6,8 +6,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import freq.ascension.Config;
 import freq.ascension.Utils;
+import freq.ascension.config.Config;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
@@ -43,8 +43,8 @@ public class Earth implements Order {
     // Keep track of supermine state per player
     private static final Map<UUID, Boolean> SUPERMINE_ENABLED = new ConcurrentHashMap<>();
     private static final Set<UUID> IS_MINING_INTERNALLY = new HashSet<>();
-    private static final ResourceLocation BREAK_SPEED_ID =
-            ResourceLocation.fromNamespaceAndPath("ascension", "earth_block_break_speed");
+    private static final ResourceLocation BREAK_SPEED_ID = ResourceLocation.fromNamespaceAndPath("ascension",
+            "earth_block_break_speed");
 
     @Override
     public Order getVersion(String rank) {
@@ -228,7 +228,8 @@ public class Earth implements Order {
         dropSmeltedOre(player, world, pos, state, entity, xpMultiplier);
     }
 
-    // Cost reduction is handled directly in AnvilPrepareMixin via @Shadow DataSlot access
+    // Cost reduction is handled directly in AnvilPrepareMixin via @Shadow DataSlot
+    // access
     @Override
     public void onAnvilPrepare(AnvilMenu menu) {
     }
@@ -238,7 +239,8 @@ public class Earth implements Order {
         if ("passive".equals(slotType)) {
             player.removeEffect(MobEffects.HASTE);
             var breakSpeed = player.getAttribute(Attributes.BLOCK_BREAK_SPEED);
-            if (breakSpeed != null) breakSpeed.removeModifier(BREAK_SPEED_ID);
+            if (breakSpeed != null)
+                breakSpeed.removeModifier(BREAK_SPEED_ID);
         }
     }
 
@@ -281,9 +283,12 @@ public class Earth implements Order {
                     // (e.g. dirt+grass 0.5/0.6, stone+cobblestone 1.5/2.0) to mine together.
                     float targetHardness = targetState.getDestroySpeed(world, targetPos);
                     float originalHardness = originalState.getDestroySpeed(world, origin);
-                    if (Math.abs(targetHardness - originalHardness) > 0.5f) continue;
+                    if (Math.abs(targetHardness - originalHardness) > 0.5f)
+                        continue;
 
-                    if ((targetState.is(ORE_TAG) || targetState.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS)) && !hasSilkTouch) {
+                    if ((targetState.is(ORE_TAG)
+                            || targetState.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS))
+                            && !hasSilkTouch) {
                         ItemStack heldTool = player.getInventory().getSelectedItem();
                         if (heldTool.isCorrectToolForDrops(targetState)) {
                             dropSmeltedOre(player, world, targetPos, targetState, world.getBlockEntity(targetPos), 1.0);
@@ -321,7 +326,8 @@ public class Earth implements Order {
         // Vanilla fortune does not affect ancient debris — skip the bonus for it
         boolean isAncientDebris = state.is(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS);
         int fortuneBonus = (fortuneLevel > 0 && !isAncientDebris)
-                ? player.level().getRandom().nextInt(fortuneLevel + 1) : 0;
+                ? player.level().getRandom().nextInt(fortuneLevel + 1)
+                : 0;
         int totalCount = (baseCount + fortuneBonus) * 2;
         smelted.setCount(totalCount);
 

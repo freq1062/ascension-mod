@@ -1,6 +1,6 @@
 package freq.ascension.orders;
 
-import freq.ascension.Config;
+import freq.ascension.config.Config;
 import freq.ascension.managers.SpellStats;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
@@ -58,7 +58,8 @@ public class EndGod extends End {
 
     @Override
     public boolean isNeutralBy(ServerPlayer player, Mob mob) {
-        if (!hasCapability(player, "passive")) return false;
+        if (!hasCapability(player, "passive"))
+            return false;
         EntityType<?> type = mob.getType();
         return type == EntityType.ENDERMAN
                 || type == EntityType.ENDERMITE

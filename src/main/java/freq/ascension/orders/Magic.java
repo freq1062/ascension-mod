@@ -1,7 +1,7 @@
 package freq.ascension.orders;
 
 import freq.ascension.animation.PotionFlame;
-import freq.ascension.Config;
+import freq.ascension.config.Config;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;

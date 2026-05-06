@@ -1,6 +1,7 @@
-package freq.ascension;
+package freq.ascension.config;
 
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
+import freq.ascension.orders.*;
 
 public class Config {
     private static final String CONFIG_PATH = "ascension-config.toml";
@@ -37,22 +38,6 @@ public class Config {
     public static int earthGodMagmaBubbleRange = 4;
     public static int earthGodMagmaBubbleDmg = 40;
 
-    // === OCEAN ===
-    public static int oceanDolphinsGraceCD = 60;
-    public static int oceanMolecularFluxCD = 300;
-    public static int oceanMolecularFluxRange = 20;
-    public static int oceanMolecularFluxDuration = 5;
-    public static int oceanDrownCD = 600;
-    public static int oceanDrownDuration = 7;
-    public static int oceanDrownRadius = 8;
-    public static int oceanGodDolphinsGraceCD = 60;
-    public static int oceanGodMolecularFluxCD = 300;
-    public static int oceanGodMolecularFluxRange = 40;
-    public static int oceanGodMolecularFluxDuration = 15;
-    public static int oceanGodDrownCD = 600;
-    public static int oceanGodDrownDuration = 10;
-    public static int oceanGodDrownRadius = 12;
-
     // === SKY ===
     public static int skyDoubleJumpCD = 160;
     public static int skyDoubleJumpRange = 6;
@@ -81,9 +66,9 @@ public class Config {
     public static int netherGodGhastCarryCD = 60;
     public static int netherGodSoulDrainCD = 60;
     public static int netherGodSoulDrainDuration = 300;
-    public static int netherSoulRageCD = 90;          // demigod soul rage cooldown (seconds)
-    public static int netherSoulRageDuration = 20;    // demigod soul rage duration (seconds)
-    public static int netherSoulRageCDGod = 60;       // god soul rage cooldown (seconds)
+    public static int netherSoulRageCD = 90; // demigod soul rage cooldown (seconds)
+    public static int netherSoulRageDuration = 20; // demigod soul rage duration (seconds)
+    public static int netherSoulRageCDGod = 60; // god soul rage cooldown (seconds)
     public static int netherSoulRageDurationGod = 30; // god soul rage duration (seconds)
 
     // === END ===
@@ -141,20 +126,8 @@ public class Config {
         earthGodMagmaBubbleDmg = config.getOrElse("earth_god.magma_bubble.damage", 40);
 
         // Ocean
-        oceanDolphinsGraceCD = config.getOrElse("ocean.dolphins_grace.cooldown_ticks", 60);
-        oceanMolecularFluxCD = config.getOrElse("ocean.molecular_flux.cooldown_ticks", 300);
-        oceanMolecularFluxRange = config.getOrElse("ocean.molecular_flux.range", 20);
-        oceanMolecularFluxDuration = config.getOrElse("ocean.molecular_flux.duration_seconds", 5);
-        oceanDrownCD = config.getOrElse("ocean.drown.cooldown_ticks", 600);
-        oceanDrownDuration = config.getOrElse("ocean.drown.duration_seconds", 7);
-        oceanDrownRadius = config.getOrElse("ocean.drown.radius", 8);
-        oceanGodDolphinsGraceCD = config.getOrElse("ocean_god.dolphins_grace.cooldown_ticks", 60);
-        oceanGodMolecularFluxCD = config.getOrElse("ocean_god.molecular_flux.cooldown_ticks", 300);
-        oceanGodMolecularFluxRange = config.getOrElse("ocean_god.molecular_flux.range", 40);
-        oceanGodMolecularFluxDuration = config.getOrElse("ocean_god.molecular_flux.duration_seconds", 15);
-        oceanGodDrownCD = config.getOrElse("ocean_god.drown.cooldown_ticks", 600);
-        oceanGodDrownDuration = config.getOrElse("ocean_god.drown.duration_seconds", 10);
-        oceanGodDrownRadius = config.getOrElse("ocean_god.drown.radius", 12);
+        Ocean.CONFIG_GROUP.load(config);
+        OceanGod.CONFIG_GROUP.load(config);
 
         // Sky
         skyDoubleJumpCD = config.getOrElse("sky.double_jump.cooldown_ticks", 160);
@@ -231,12 +204,14 @@ public class Config {
         config.setComment("abilities", "Toggle whether players can ascend to gods");
 
         config.set("challenger_trials_enabled", challengerTrialsEnabled);
-        config.setComment("challenger_trials_enabled", "Whether Challenger Trials can be initiated. Players can still craft Challenger's Sigils, but right-clicking POIs will be blocked when this is false.");
+        config.setComment("challenger_trials_enabled",
+                "Whether Challenger Trials can be initiated. Players can still craft Challenger's Sigils, but right-clicking POIs will be blocked when this is false.");
 
         config.set("god_death_cooldown", godDeathCooldown);
         config.setComment("god_death_cooldown", "How long a player must wait after dying as a god (in seconds).");
         config.set("influence_ban_duration", influenceBanDuration);
-        config.setComment("influence_ban_duration", "How long a player is banned when their influence drops below -5 (in seconds).");
+        config.setComment("influence_ban_duration",
+                "How long a player is banned when their influence drops below -5 (in seconds).");
 
         // Earth
         config.set("earth.supermine.cooldown_ticks", earthSupermineCD);
@@ -248,20 +223,8 @@ public class Config {
         config.set("earth_god.magma_bubble.damage", earthGodMagmaBubbleDmg);
 
         // Ocean
-        config.set("ocean.dolphins_grace.cooldown_ticks", oceanDolphinsGraceCD);
-        config.set("ocean.molecular_flux.cooldown_ticks", oceanMolecularFluxCD);
-        config.set("ocean.molecular_flux.range", oceanMolecularFluxRange);
-        config.set("ocean.molecular_flux.duration_seconds", oceanMolecularFluxDuration);
-        config.set("ocean.drown.cooldown_ticks", oceanDrownCD);
-        config.set("ocean.drown.duration_seconds", oceanDrownDuration);
-        config.set("ocean.drown.radius", oceanDrownRadius);
-        config.set("ocean_god.dolphins_grace.cooldown_ticks", oceanGodDolphinsGraceCD);
-        config.set("ocean_god.molecular_flux.cooldown_ticks", oceanGodMolecularFluxCD);
-        config.set("ocean_god.molecular_flux.range", oceanGodMolecularFluxRange);
-        config.set("ocean_god.molecular_flux.duration_seconds", oceanGodMolecularFluxDuration);
-        config.set("ocean_god.drown.cooldown_ticks", oceanGodDrownCD);
-        config.set("ocean_god.drown.duration_seconds", oceanGodDrownDuration);
-        config.set("ocean_god.drown.radius", oceanGodDrownRadius);
+        Ocean.CONFIG_GROUP.setAll(config);
+        OceanGod.CONFIG_GROUP.setAll(config);
 
         // Sky
         config.set("sky.double_jump.cooldown_ticks", skyDoubleJumpCD);

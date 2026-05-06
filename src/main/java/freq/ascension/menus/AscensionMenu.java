@@ -7,8 +7,8 @@ import java.util.Map;
 
 import eu.pb4.sgui.api.gui.BookGui;
 import freq.ascension.Ascension;
-import freq.ascension.Config;
 import freq.ascension.Utils;
+import freq.ascension.config.Config;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.orders.Order;
 import freq.ascension.registry.OrderRegistry;
@@ -39,10 +39,13 @@ public class AscensionMenu {
                 Order utility = data.getUtility();
                 Order combat = data.getCombat();
 
-                // Dynamic gap before influence icon keeps it on the same line as "Combat: [name]"
-                // Book page is ~114px; each small-caps char ≈ 6px; icon net ≈ 18px; "Combat: " ≈ 48px
+                // Dynamic gap before influence icon keeps it on the same line as "Combat:
+                // [name]"
+                // Book page is ~114px; each small-caps char ≈ 6px; icon net ≈ 18px; "Combat: "
+                // ≈ 48px
                 int combatNameLen = combat != null ? combat.getOrderName().length() : 4; // "None" = 4
-                String influenceGap = combatNameLen <= 3 ? "   " : combatNameLen == 4 ? "  " : combatNameLen == 5 ? " " : "";
+                String influenceGap = combatNameLen <= 3 ? "   "
+                                : combatNameLen == 4 ? "  " : combatNameLen == 5 ? " " : "";
 
                 // \uF806\uE181\uF801\uF801\uF801\uF801 \uF804\uF804\uE188\n\uF806\uF804
                 // \uE183\uF802\uF802 \uF805\uE187\n\uF806\n\n \uE182\uF802\uF802 \uF804 \uE186
@@ -299,7 +302,8 @@ public class AscensionMenu {
                                                         ? order.getOrderColor().getValue()
                                                         : ChatFormatting.GOLD.getColor();
                                         return style.withBold(true)
-                                                        .withColor(s.equipped ? ChatFormatting.GREEN : ChatFormatting.BLACK)
+                                                        .withColor(s.equipped ? ChatFormatting.GREEN
+                                                                        : ChatFormatting.BLACK)
                                                         .withShadowColor(shadowColor).withHoverEvent(hover)
                                                         .withClickEvent(click);
                                 });

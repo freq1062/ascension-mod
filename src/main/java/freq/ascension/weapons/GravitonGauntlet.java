@@ -13,7 +13,7 @@ import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.world.item.component.ItemLore;
 
 import freq.ascension.Ascension;
-import freq.ascension.Config;
+import freq.ascension.config.Config;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.orders.End;
 import freq.ascension.orders.Order;

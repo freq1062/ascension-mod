@@ -4,8 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import freq.ascension.Config;
 import freq.ascension.Utils;
+import freq.ascension.config.Config;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
@@ -122,7 +122,7 @@ public class Sky implements Order {
         if (hasCapability(player, "passive")) {
             if (player.gameMode() == GameType.SURVIVAL || player.gameMode() == GameType.ADVENTURE) {
                 player.getAbilities().mayfly = true;
-                player.getAbilities().flying = false;  // prevent stale flying state from being broadcast
+                player.getAbilities().flying = false; // prevent stale flying state from being broadcast
                 player.onUpdateAbilities();
             }
         }

@@ -1,6 +1,7 @@
 package freq.ascension.orders;
 
-import freq.ascension.Config;
+import freq.ascension.config.Config;
+import freq.ascension.config.ConfigGroup;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
@@ -11,9 +12,22 @@ import net.minecraft.world.effect.MobEffects;
 public class OceanGod extends Ocean {
     public static final OceanGod INSTANCE = new OceanGod();
 
+    public static final ConfigGroup CONFIG_GROUP = new ConfigGroup("ocean_god")
+            .add("dolphins_grace.cooldown_ticks", 60)
+            .add("molecular_flux.cooldown_ticks", 300)
+            .add("molecular_flux.range", 40)
+            .add("molecular_flux.duration_seconds", 15)
+            .add("drown.cooldown_ticks", 600)
+            .add("drown.duration_seconds", 10)
+            .add("drown.radius", 12);
+
     private OceanGod() {
         super();
     }
+
+    /*
+     * Main body
+     */
 
     @Override
     public void applyEffect(ServerPlayer player) {
@@ -43,15 +57,17 @@ public class OceanGod extends Ocean {
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "dolphins_grace" -> new SpellStats(Config.oceanGodDolphinsGraceCD,
+            case "dolphins_grace" -> new SpellStats(CONFIG_GROUP.get("dolphins_grace.cooldown_ticks"),
                     "Cycle between no speed boost, Dolphins' Grace 1, and Dolphins' Grace 2.",
                     0);
-            case "molecular_flux" -> new SpellStats(Config.oceanGodMolecularFluxCD,
-                    "Transforms water-related blocks between states",
-                    Config.oceanGodMolecularFluxRange, Config.oceanGodMolecularFluxDuration);
-            case "drown" -> new SpellStats(Config.oceanGodDrownCD,
-                    "Drowns players within 12 blocks for 10s. Grants Haste 1 to caster.",
-                    Config.oceanGodDrownDuration, Config.oceanGodDrownRadius);
+            case "molecular_flux" ->
+                new SpellStats(CONFIG_GROUP.get("molecular_flux.cooldown_ticks"),
+                        "Transforms water related blocks between states.",
+                        CONFIG_GROUP.get("molecular_flux.range"), CONFIG_GROUP.get("molecular_flux.duration_seconds"));
+            case "drown" -> new SpellStats(CONFIG_GROUP.get("drown.cooldown_ticks"),
+                    "Drowns players within " + CONFIG_GROUP.get("drown.radius") + " and activates passives on land for "
+                            + CONFIG_GROUP.get("drown.duration_seconds") + "s.",
+                    CONFIG_GROUP.get("drown.duration_seconds"), CONFIG_GROUP.get("drown.radius"));
             default -> null;
         };
     }

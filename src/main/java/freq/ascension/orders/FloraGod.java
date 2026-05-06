@@ -1,6 +1,6 @@
 package freq.ascension.orders;
 
-import freq.ascension.Config;
+import freq.ascension.config.Config;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.effect.MobEffectInstance;

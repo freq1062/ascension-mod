@@ -12,10 +12,10 @@ import org.joml.Vector3f;
 import com.mojang.math.Transformation;
 
 import freq.ascension.Ascension;
-import freq.ascension.Config;
 import freq.ascension.animation.GeometrySource;
 import freq.ascension.api.ContinuousTask;
 import freq.ascension.api.DelayedTask;
+import freq.ascension.config.Config;
 import freq.ascension.orders.Magic;
 import freq.ascension.orders.Order;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
@@ -45,25 +45,39 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Prism Wand — mythical weapon for the Magic order.
  *
- * <p>A bow enchanted with Power 5, Flame, and Curse of Vanishing.
+ * <p>
+ * A bow enchanted with Power 5, Flame, and Curse of Vanishing.
  *
- * <p><b>Aimbot Arrow (fully charged shot):</b> When the player fires a fully-charged shot
+ * <p>
+ * <b>Aimbot Arrow (fully charged shot):</b> When the player fires a
+ * fully-charged shot
  * (≥ 20 ticks drawn), the vanilla arrow is cancelled and an aimbot scan runs.
- * If a living entity is within 64 blocks and 5° of the look vector with a clear line of
+ * If a living entity is within 64 blocks and 5° of the look vector with a clear
+ * line of
  * sight, a {@code PrismBolt} — a homing {@link BlockDisplay} of
- * {@code Blocks.PINK_GLAZED_TERRACOTTA} — is launched toward the target at 1.5 blocks/tick.
- * On contact (≤ 0.7 blocks) or after 80 ticks it deals 10 % of the target's max HP as
- * magic damage. A lock-on beam ({@code Blocks.PINK_STAINED_GLASS} BlockDisplay) is also
+ * {@code Blocks.PINK_GLAZED_TERRACOTTA} — is launched toward the target at 1.5
+ * blocks/tick.
+ * On contact (≤ 0.7 blocks) or after 80 ticks it deals 10 % of the target's max
+ * HP as
+ * magic damage. A lock-on beam ({@code Blocks.PINK_STAINED_GLASS} BlockDisplay)
+ * is also
  * spawned between player eyes and target eyes for 2 seconds.
  *
- * <p>If no target is found a normal Power-5 Flame arrow is fired.
+ * <p>
+ * If no target is found a normal Power-5 Flame arrow is fired.
  *
- * <p><b>Melee effect (onAttack):</b> Copies every positive {@link MobEffectInstance} from
- * the victim to the attacker using vanilla stacking rules (addEffect already handles
+ * <p>
+ * <b>Melee effect (onAttack):</b> Copies every positive
+ * {@link MobEffectInstance} from
+ * the victim to the attacker using vanilla stacking rules (addEffect already
+ * handles
  * amplifier/duration precedence).
  *
- * <p>Bow detection is handled by {@link freq.ascension.mixin.BowReleaseMixin} which cancels
- * {@code BowItem.releaseUsing} when the draw is full and the player holds this weapon, then
+ * <p>
+ * Bow detection is handled by {@link freq.ascension.mixin.BowReleaseMixin}
+ * which cancels
+ * {@code BowItem.releaseUsing} when the draw is full and the player holds this
+ * weapon, then
  * delegates to {@link #handleAimbotShot(ServerPlayer, ServerLevel, ItemStack)}.
  */
 public class PrismWand implements MythicWeapon {
@@ -86,13 +100,15 @@ public class PrismWand implements MythicWeapon {
     private static final int PINK_COLOR = 0xFF69B4;
 
     /**
-     * Per-thread player reference set by {@link freq.ascension.mixin.BowReleaseMixin} when
-     * a fully-charged PrismWand shot is detected.  The ENTITY_LOAD hook reads it to intercept
-     * the spawned Arrow.  Both the mixin inject and addFreshEntity run on the main server
+     * Per-thread player reference set by
+     * {@link freq.ascension.mixin.BowReleaseMixin} when
+     * a fully-charged PrismWand shot is detected. The ENTITY_LOAD hook reads it to
+     * intercept
+     * the spawned Arrow. Both the mixin inject and addFreshEntity run on the main
+     * server
      * thread, so a ThreadLocal is safe.
      */
-    public static final ThreadLocal<ServerPlayer> PENDING_AIMBOT =
-            ThreadLocal.withInitial(() -> null);
+    public static final ThreadLocal<ServerPlayer> PENDING_AIMBOT = ThreadLocal.withInitial(() -> null);
 
     private static boolean registered = false;
 
@@ -123,10 +139,12 @@ public class PrismWand implements MythicWeapon {
         stack.enchant(enchReg.getOrThrow(Enchantments.FLAME), 1);
         stack.enchant(enchReg.getOrThrow(Enchantments.VANISHING_CURSE), 1);
         stack.set(DataComponents.LORE, new ItemLore(List.of(
-            Component.literal("Fully charged shot: homing bolt that deals 10% of").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
-            Component.literal("the target's max HP as magic damage.").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
-            Component.literal("Melee hits steal positive effects from the victim.").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY))
-        )));
+                Component.literal("Fully charged shot: homing bolt that deals 10% of")
+                        .withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+                Component.literal("the target's max HP as magic damage.")
+                        .withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+                Component.literal("Melee hits steal positive effects from the victim.")
+                        .withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)))));
         return stack;
     }
 
@@ -134,10 +152,13 @@ public class PrismWand implements MythicWeapon {
 
     @Override
     public void onAttack(ServerPlayer attacker, LivingEntity victim, Order.DamageContext ctx) {
-        if (ctx.isCancelled()) return;
+        if (ctx.isCancelled())
+            return;
         for (MobEffectInstance effect : victim.getActiveEffects()) {
-            if (!effect.getEffect().value().isBeneficial()) continue;
-            // addEffect already applies vanilla stacking rules (higher amp / longer duration wins)
+            if (!effect.getEffect().value().isBeneficial())
+                continue;
+            // addEffect already applies vanilla stacking rules (higher amp / longer
+            // duration wins)
             attacker.addEffect(new MobEffectInstance(effect));
         }
     }
@@ -145,10 +166,13 @@ public class PrismWand implements MythicWeapon {
     // ─── Aimbot: entry point called from BowReleaseMixin ──────────────────────
 
     /**
-     * Runs when a fully-charged PrismWand bow shot is detected.  Finds the best aimbot target
-     * (angle + LOS) and either spawns the lock-on beam + PrismBolt or fires a plain arrow.
+     * Runs when a fully-charged PrismWand bow shot is detected. Finds the best
+     * aimbot target
+     * (angle + LOS) and either spawns the lock-on beam + PrismBolt or fires a plain
+     * arrow.
      *
-     * @param bowStack the bow ItemStack (used for the fallback arrow's weapon reference)
+     * @param bowStack the bow ItemStack (used for the fallback arrow's weapon
+     *                 reference)
      */
     public void handleAimbotShot(ServerPlayer player, ServerLevel level, ItemStack bowStack) {
         Vec3 eyePos = player.getEyePosition();
@@ -156,7 +180,7 @@ public class PrismWand implements MythicWeapon {
 
         // Collect candidate entities in a bounding box around the player
         AABB box = new AABB(eyePos.subtract(Config.prismWandRange, Config.prismWandRange, Config.prismWandRange),
-                            eyePos.add(Config.prismWandRange, Config.prismWandRange, Config.prismWandRange));
+                eyePos.add(Config.prismWandRange, Config.prismWandRange, Config.prismWandRange));
         List<LivingEntity> candidates = level.getEntitiesOfClass(
                 LivingEntity.class, box, e -> e != player && e.isAlive());
 
@@ -181,18 +205,22 @@ public class PrismWand implements MythicWeapon {
     // ─── Static helper exposed for testing ────────────────────────────────────
 
     /**
-     * Finds the closest {@link LivingEntity} within {@code maxRange} blocks that lies within
+     * Finds the closest {@link LivingEntity} within {@code maxRange} blocks that
+     * lies within
      * {@code maxAngleDeg} degrees of {@code lookDir} from {@code eyePos}.
      *
-     * <p>Skips creative-mode {@link ServerPlayer} instances.  Does <em>not</em> perform any
-     * block-collision (LOS) check — callers that need LOS should pre-filter {@code candidates}
+     * <p>
+     * Skips creative-mode {@link ServerPlayer} instances. Does <em>not</em> perform
+     * any
+     * block-collision (LOS) check — callers that need LOS should pre-filter
+     * {@code candidates}
      * before passing them here.
      *
-     * @param eyePos       shooter's eye position
-     * @param lookDir      shooter's normalised look direction
-     * @param candidates   living entities to evaluate
-     * @param maxRange     maximum range in blocks
-     * @param maxAngleDeg  maximum off-axis angle in degrees
+     * @param eyePos      shooter's eye position
+     * @param lookDir     shooter's normalised look direction
+     * @param candidates  living entities to evaluate
+     * @param maxRange    maximum range in blocks
+     * @param maxAngleDeg maximum off-axis angle in degrees
      * @return the closest qualifying entity, or {@code null} if none
      */
     public static LivingEntity findTarget(Vec3 eyePos, Vec3 lookDir,
@@ -212,10 +240,12 @@ public class PrismWand implements MythicWeapon {
 
             Vec3 toEntity = e.getEyePosition().subtract(eyePos);
             double dist = toEntity.length();
-            if (dist > maxRange || dist < 1e-6) continue;
+            if (dist > maxRange || dist < 1e-6)
+                continue;
 
             double cosAngle = toEntity.normalize().dot(look);
-            if (cosAngle < cosMax) continue;
+            if (cosAngle < cosMax)
+                continue;
 
             if (dist < bestDist) {
                 bestDist = dist;
@@ -227,9 +257,14 @@ public class PrismWand implements MythicWeapon {
 
     // ─── VFX: lock-on beam ────────────────────────────────────────────────────
 
-    /** Carries the spawned beam entity together with the transform components used to create
-     *  it so the shrink animation can preserve rotation without calling getTransformation(). */
-    private record BeamContext(BlockDisplay beam, Quaternionf rotation, Vector3f offset) {}
+    /**
+     * Carries the spawned beam entity together with the transform components used
+     * to create
+     * it so the shrink animation can preserve rotation without calling
+     * getTransformation().
+     */
+    private record BeamContext(BlockDisplay beam, Quaternionf rotation, Vector3f offset) {
+    }
 
     private static BeamContext spawnLockOnBeam(ServerLevel level, Vec3 eyePos, LivingEntity target) {
         Vec3 targetEye = target.getEyePosition();
@@ -240,7 +275,8 @@ public class PrismWand implements MythicWeapon {
                 (float) (targetEye.y - eyePos.y),
                 (float) (targetEye.z - eyePos.z));
         float dist = toTarget.length();
-        if (dist < 1e-4f) return null;
+        if (dist < 1e-4f)
+            return null;
 
         Quaternionf rotation = GeometrySource.faceVector(new Vector3f(toTarget).normalize());
         float T = BEAM_THICKNESS;
@@ -248,7 +284,8 @@ public class PrismWand implements MythicWeapon {
         Vector3f offset = rotation.transform(new Vector3f(-T * 0.5f, 0, -T * 0.5f), new Vector3f());
 
         BlockDisplay beam = EntityType.BLOCK_DISPLAY.create(level, EntitySpawnReason.TRIGGERED);
-        if (beam == null) return null;
+        if (beam == null)
+            return null;
         beam.setBlockState(Blocks.PINK_STAINED_GLASS.defaultBlockState());
         beam.setPos(from.x, from.y, from.z);
         beam.setTransformation(new Transformation(offset, rotation, new Vector3f(T, dist, T), null));
@@ -260,7 +297,8 @@ public class PrismWand implements MythicWeapon {
 
         // Auto-remove after 2 seconds (bolt impact may shrink and discard it earlier)
         Ascension.scheduler.schedule(new DelayedTask(40, () -> {
-            if (!beam.isRemoved()) beam.discard();
+            if (!beam.isRemoved())
+                beam.discard();
         }));
 
         return new BeamContext(beam, rotation, offset);
@@ -274,7 +312,8 @@ public class PrismWand implements MythicWeapon {
         float half = BOLT_HALF;
 
         BlockDisplay bolt = EntityType.BLOCK_DISPLAY.create(level, EntitySpawnReason.TRIGGERED);
-        if (bolt == null) return;
+        if (bolt == null)
+            return;
         bolt.setBlockState(Blocks.PINK_GLAZED_TERRACOTTA.defaultBlockState());
         bolt.setPos(startPos.x, startPos.y, startPos.z);
         // Centered cube with no rotation (initial state)
@@ -286,10 +325,10 @@ public class PrismWand implements MythicWeapon {
         bolt.setBrightnessOverride(Brightness.FULL_BRIGHT);
         level.addFreshEntity(bolt);
 
-        int[] alive = {0};
-        boolean[] impacted = {false};
-        int[] shrinkTick = {0};
-        ContinuousTask[] ref = {null};
+        int[] alive = { 0 };
+        boolean[] impacted = { false };
+        int[] shrinkTick = { 0 };
+        ContinuousTask[] ref = { null };
         ref[0] = new ContinuousTask(1, () -> {
             alive[0]++;
             if (bolt.isRemoved()) {
@@ -341,7 +380,8 @@ public class PrismWand implements MythicWeapon {
                     lockOnBeam.setTransformationInterpolationDelay(0);
                     lockOnBeam.setTransformationInterpolationDuration(5);
                     Ascension.scheduler.schedule(new DelayedTask(6, () -> {
-                        if (!lockOnBeam.isRemoved()) lockOnBeam.discard();
+                        if (!lockOnBeam.isRemoved())
+                            lockOnBeam.discard();
                     }));
                 }
                 return;
@@ -354,7 +394,8 @@ public class PrismWand implements MythicWeapon {
             // Spin the cube around its own center (Y-axis rotation, 10°/tick)
             float angle = alive[0] * 10f;
             Quaternionf rot = new Quaternionf().rotateY((float) Math.toRadians(angle));
-            // Correct translation to keep the cube center at the entity origin after rotation
+            // Correct translation to keep the cube center at the entity origin after
+            // rotation
             Vector3f rotatedCenter = rot.transform(new Vector3f(half, half, half), new Vector3f());
             Vector3f translation = new Vector3f(-rotatedCenter.x, -rotatedCenter.y, -rotatedCenter.z);
             bolt.setTransformation(new Transformation(
@@ -389,34 +430,44 @@ public class PrismWand implements MythicWeapon {
     // ─── Event registration ───────────────────────────────────────────────────
 
     /**
-     * Registers the {@link ServerEntityEvents#ENTITY_LOAD} hook that intercepts arrows spawned
+     * Registers the {@link ServerEntityEvents#ENTITY_LOAD} hook that intercepts
+     * arrows spawned
      * during a PrismWand fully-charged shot (flagged via {@link #PENDING_AIMBOT}).
-     * Must be called from {@code Ascension.onInitialize()} before the server starts.
+     * Must be called from {@code Ascension.onInitialize()} before the server
+     * starts.
      */
     public static void register() {
-        if (registered) return;
+        if (registered)
+            return;
         registered = true;
 
-        // When BowItem.releaseUsing fires (see BowReleaseMixin), it sets PENDING_AIMBOT to the
-        // player and lets vanilla proceed.  The first Arrow entity to be added to the world
-        // on behalf of that player is intercepted here: we discard it and run the aimbot instead.
+        // When BowItem.releaseUsing fires (see BowReleaseMixin), it sets PENDING_AIMBOT
+        // to the
+        // player and lets vanilla proceed. The first Arrow entity to be added to the
+        // world
+        // on behalf of that player is intercepted here: we discard it and run the
+        // aimbot instead.
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
-            if (!(entity instanceof Arrow arrow)) return;
-            if (!(world instanceof ServerLevel serverLevel)) return;
-            if (!arrow.isCritArrow()) return;
-            if (!(arrow.getOwner() instanceof ServerPlayer player)) return;
+            if (!(entity instanceof Arrow arrow))
+                return;
+            if (!(world instanceof ServerLevel serverLevel))
+                return;
+            if (!arrow.isCritArrow())
+                return;
+            if (!(arrow.getOwner() instanceof ServerPlayer player))
+                return;
 
             ServerPlayer pending = PENDING_AIMBOT.get();
-            if (pending == null || pending != player) return;
+            if (pending == null || pending != player)
+                return;
             PENDING_AIMBOT.remove();
 
             // Discard the vanilla arrow and run the aimbot on the next tick (after
             // BowItem.releaseUsing has fully returned) to avoid modifying world state
             // in the middle of an entity-spawn sequence.
             arrow.discard();
-            Ascension.scheduler.schedule(new DelayedTask(1, () ->
-                    INSTANCE.handleAimbotShot(player, serverLevel,
-                            player.getMainHandItem())));
+            Ascension.scheduler.schedule(new DelayedTask(1, () -> INSTANCE.handleAimbotShot(player, serverLevel,
+                    player.getMainHandItem())));
         });
     }
 }

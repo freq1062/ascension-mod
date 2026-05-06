@@ -1,7 +1,5 @@
 package freq.ascension.test;
 
-import java.util.UUID;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;

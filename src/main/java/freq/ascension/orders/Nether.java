@@ -1,6 +1,6 @@
 package freq.ascension.orders;
 
-import freq.ascension.Config;
+import freq.ascension.config.Config;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
@@ -181,7 +181,8 @@ public class Nether implements Order {
 
     @Override
     public boolean isNeutralBy(ServerPlayer player, Mob mob) {
-        if (!hasCapability(player, "passive")) return false;
+        if (!hasCapability(player, "passive"))
+            return false;
         return mob.level().dimension() == Level.NETHER;
     }
 

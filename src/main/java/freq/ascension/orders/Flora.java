@@ -1,8 +1,8 @@
 package freq.ascension.orders;
 
 import freq.ascension.Ascension;
-import freq.ascension.Config;
 import freq.ascension.api.DelayedTask;
+import freq.ascension.config.Config;
 import freq.ascension.managers.PlantProximityManager;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;

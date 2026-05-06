@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import eu.pb4.sgui.api.gui.SimpleGui;
 import freq.ascension.Ascension;
-import freq.ascension.Config;
+import freq.ascension.config.Config;
 import freq.ascension.managers.EnderRowManager;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -125,8 +125,10 @@ public class End implements Order {
      */
     @Override
     public boolean isNeutralBy(ServerPlayer player, Mob mob) {
-        if (!hasCapability(player, "passive")) return false;
-        // Enderman, Endermite, and Shulker are neutral; Ender Dragon (boss) is excluded.
+        if (!hasCapability(player, "passive"))
+            return false;
+        // Enderman, Endermite, and Shulker are neutral; Ender Dragon (boss) is
+        // excluded.
         EntityType<?> type = mob.getType();
         return type == EntityType.ENDERMAN
                 || type == EntityType.ENDERMITE

@@ -5,10 +5,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import freq.ascension.Ascension;
-import freq.ascension.Config;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.component.CustomModelData;
 import freq.ascension.animation.HellfireBeam;
+import freq.ascension.config.Config;
 import freq.ascension.orders.Nether;
 import freq.ascension.orders.Order;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -108,10 +108,12 @@ public class HellfireCrossbow implements MythicWeapon {
             applyEnchantments(stack);
         }
         stack.set(DataComponents.LORE, new ItemLore(List.of(
-            Component.literal("Every 3rd firework fired triggers the Hellfire Beam:").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
-            Component.literal("a searing ray along your aim that deals spell damage").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
-            Component.literal("to all entities in its path.").withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY))
-        )));
+                Component.literal("Every 3rd firework fired triggers the Hellfire Beam:")
+                        .withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+                Component.literal("a searing ray along your aim that deals spell damage")
+                        .withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)),
+                Component.literal("to all entities in its path.")
+                        .withStyle(s -> s.withItalic(true).withColor(ChatFormatting.GRAY)))));
         return stack;
     }
 

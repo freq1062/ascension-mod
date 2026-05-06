@@ -1,6 +1,6 @@
 package freq.ascension.orders;
 
-import freq.ascension.Config;
+import freq.ascension.config.ConfigGroup;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.AttackSnapshotManager;
 import freq.ascension.managers.Spell;
@@ -14,7 +14,42 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 
 public class Ocean implements Order {
+
     public static final Ocean INSTANCE = new Ocean();
+
+    /*
+     * Default configs
+     */
+    public static final ConfigGroup CONFIG_GROUP = new ConfigGroup("ocean")
+            .add("dolphins_grace.cooldown_ticks", 60)
+            .add("molecular_flux.cooldown_ticks", 300)
+            .add("molecular_flux.range", 20)
+            .add("molecular_flux.duration_seconds", 5)
+            .add("drown.cooldown_ticks", 600)
+            .add("drown.duration_seconds", 7)
+            .add("drown.radius", 8);
+
+    /*
+     * Metadata
+     */
+
+    public String getOrderName() {
+        return "ocean";
+    }
+
+    public TextColor getOrderColor() {
+        // Dark blue
+        return TextColor.fromRgb(0x001eff);
+    }
+
+    @Override
+    public String getOrderIcon() {
+        return "\uE184";
+    }
+
+    /*
+     * Stats, spells, descriptions
+     */
 
     @Override
     public Order getVersion(String rank) {
@@ -38,23 +73,27 @@ public class Ocean implements Order {
         }));
 
         SpellCooldownManager.register(new Spell("drown", this, "combat", (player, stats) -> {
-            SpellRegistry.drown(player, stats.getInt(0), stats.getInt(1));
-            // duration, radius
+            SpellRegistry.drown(player,
+                    stats.getInt(0), // duration
+                    stats.getInt(1) // radius
+            );
         }));
     }
 
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "dolphins_grace" -> new SpellStats(Config.oceanDolphinsGraceCD,
+            case "dolphins_grace" -> new SpellStats(CONFIG_GROUP.get("dolphins_grace.cooldown_ticks"),
                     "Toggle between normal swimming speed and Dolphin's Grace 1.",
                     0);
             case "molecular_flux" ->
-                new SpellStats(Config.oceanMolecularFluxCD, "Transforms water related blocks between states",
-                        Config.oceanMolecularFluxRange, Config.oceanMolecularFluxDuration);
-            case "drown" -> new SpellStats(Config.oceanDrownCD,
-                    "Drowns players within 8 blocks and activates passives on land for 7s",
-                    Config.oceanDrownDuration, Config.oceanDrownRadius);
+                new SpellStats(CONFIG_GROUP.get("molecular_flux.cooldown_ticks"),
+                        "Transforms water related blocks between states.",
+                        CONFIG_GROUP.get("molecular_flux.range"), CONFIG_GROUP.get("molecular_flux.duration_seconds"));
+            case "drown" -> new SpellStats(CONFIG_GROUP.get("drown.cooldown_ticks"),
+                    "Drowns players within " + CONFIG_GROUP.get("drown.radius") + " and activates passives on land for "
+                            + CONFIG_GROUP.get("drown.duration_seconds") + "s.",
+                    CONFIG_GROUP.get("drown.duration_seconds"), CONFIG_GROUP.get("drown.radius"));
             default -> null;
         };
     }
@@ -78,6 +117,10 @@ public class Ocean implements Order {
             default -> "";
         };
     }
+
+    /*
+     * Main body
+     */
 
     @Override
     public boolean canWalkOnPowderSnow(ServerPlayer player) {
@@ -131,19 +174,5 @@ public class Ocean implements Order {
             player.removeEffect(MobEffects.WATER_BREATHING);
             player.removeEffect(MobEffects.DOLPHINS_GRACE);
         }
-    }
-
-    public String getOrderName() {
-        return "ocean";
-    }
-
-    public TextColor getOrderColor() {
-        // Dark blue
-        return TextColor.fromRgb(0x001eff);
-    }
-
-    @Override
-    public String getOrderIcon() {
-        return "\uE184";
     }
 }

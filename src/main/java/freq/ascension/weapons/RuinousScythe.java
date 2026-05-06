@@ -7,9 +7,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 import freq.ascension.Ascension;
-import freq.ascension.Config;
 import freq.ascension.Utils;
 import freq.ascension.api.DelayedTask;
+import freq.ascension.config.Config;
 import freq.ascension.orders.End;
 import freq.ascension.orders.Order;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;

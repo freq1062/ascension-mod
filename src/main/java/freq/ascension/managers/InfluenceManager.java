@@ -91,12 +91,10 @@ public class InfluenceManager {
 
         ServerLivingEntityEvents.AFTER_DEATH.register((ent, src) -> {
             if (!ent.level().isClientSide() && ent instanceof ServerPlayer victim) {
-                Ascension.LOGGER.info("AFTER_DEATH fired for player: " + victim.getName().getString());
                 Entity attacker = src.getEntity();
                 AscensionData data = (AscensionData) victim;
 
                 if (attacker == null || !(attacker instanceof ServerPlayer killer)) {
-                    Ascension.LOGGER.info("Handling natural death for: " + victim.getName().getString());
                     handleNaturalDeathInfluenceLoss(victim, data);
                 } else {
                     // Killer gains influence directly
@@ -133,10 +131,9 @@ public class InfluenceManager {
         if (server == null)
             return;
         try {
-            Ascension.LOGGER.info("Banned");
             data.addInfluence(1);
             Date expires = new Date(
-                    System.currentTimeMillis() + (long) freq.ascension.Config.influenceBanDuration * 1000L);
+                    System.currentTimeMillis() + (long) freq.ascension.config.Config.influenceBanDuration * 1000L);
             net.minecraft.server.players.NameAndId nameAndId = new net.minecraft.server.players.NameAndId(
                     victim.getGameProfile());
             net.minecraft.server.players.UserBanListEntry entry = new net.minecraft.server.players.UserBanListEntry(
