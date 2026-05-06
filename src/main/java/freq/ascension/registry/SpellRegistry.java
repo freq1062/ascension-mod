@@ -65,6 +65,18 @@ public class SpellRegistry {
                 .add(spell);
     }
 
+    public static List<Spell> getByOrderAndType(Order order, String type) {
+        Ascension.LOGGER.info("Keys in map: {}", BY_ORDER_AND_TYPE.keySet());
+        Ascension.LOGGER.info("Looking for: {} ({})", order, System.identityHashCode(order));
+        Map<String, List<Spell>> byType = BY_ORDER_AND_TYPE.get(order);
+        Ascension.LOGGER.info(String.valueOf(byType));
+        if (byType == null)
+            return List.of();
+        Ascension.LOGGER.info("TYPE SEARCH: " + type);
+        Ascension.LOGGER.info(String.valueOf(byType.getOrDefault(type, List.of())));
+        return byType.getOrDefault(type, List.of());
+    }
+
     public static List<Spell> getEquippableSpells(ServerPlayer player) {
         List<Spell> equippable = new ArrayList<>();
         AscensionData data = (AscensionData) player;
@@ -86,10 +98,7 @@ public class SpellRegistry {
         // base orders. Normalize to the base order so god players can look up their
         // spells.
         Order baseOrder = OrderRegistry.get(order.getOrderName());
-        Map<String, List<Spell>> orderSpells = BY_ORDER_AND_TYPE.get(baseOrder != null ? baseOrder : order);
-        if (orderSpells == null)
-            return;
-        List<Spell> spells = orderSpells.get(type);
+        List<Spell> spells = getByOrderAndType(baseOrder, type);
         if (spells != null) {
             targetList.addAll(spells);
         }
@@ -425,7 +434,7 @@ public class SpellRegistry {
                         target.hasImpulse = true;
 
                         // Apply Darkness effect
-                        target.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                        target.addEffect(new MobEffectInstance(
                                 net.minecraft.world.effect.MobEffects.DARKNESS, 40, 0, true, true, true));
                     }
                 }));
@@ -439,16 +448,16 @@ public class SpellRegistry {
         ActiveSpell currSpell = SpellCooldownManager.addToActiveSpells(player,
                 SpellCooldownManager.get("dolphins_grace"));
         boolean isGod = "god".equals(((AscensionData) player).getRank());
-        net.minecraft.world.effect.MobEffectInstance currentEffect = player
+        MobEffectInstance currentEffect = player
                 .getEffect(net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE);
         if (currentEffect == null) {
             // off → DG1 (both demigod and god)
-            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+            player.addEffect(new MobEffectInstance(
                     net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE, 60, 0, true, false, true));
         } else if (currentEffect.getAmplifier() == 0 && isGod) {
             // DG1 → DG2 (god only)
             player.removeEffect(net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE);
-            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+            player.addEffect(new MobEffectInstance(
                     net.minecraft.world.effect.MobEffects.DOLPHINS_GRACE, 60, 1, true, false, true));
         } else {
             // DG1 → off (demigod) or DG2 → off (god)
@@ -1034,7 +1043,7 @@ public class SpellRegistry {
             disguise.disguiseAs(form);
             disguise.setTrueSight(true);
 
-            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+            player.addEffect(new MobEffectInstance(
                     net.minecraft.world.effect.MobEffects.NIGHT_VISION,
                     durationTicks + 40, 0, true, false, true));
 

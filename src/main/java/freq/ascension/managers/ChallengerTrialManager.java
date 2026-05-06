@@ -1,7 +1,7 @@
 package freq.ascension.managers;
 
 import freq.ascension.Ascension;
-import freq.ascension.Config;
+import freq.ascension.config.*;
 import freq.ascension.api.ContinuousTask;
 import freq.ascension.api.DelayedTask;
 import freq.ascension.api.TaskScheduler;
@@ -346,7 +346,7 @@ public class ChallengerTrialManager {
     public void initiateTrial(ServerPlayer challenger, String orderName, ServerLevel level) {
         if (!Config.challengerTrialsEnabled) {
             challenger.sendSystemMessage(
-                Component.literal("§cChallenger Trials are not currently available."));
+                    Component.literal("§cChallenger Trials are not currently available."));
             return;
         }
         orderName = orderName.toLowerCase();

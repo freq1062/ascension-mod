@@ -10,8 +10,10 @@ import freq.ascension.Ascension;
 import freq.ascension.Utils;
 import freq.ascension.config.Config;
 import freq.ascension.managers.AscensionData;
+import freq.ascension.managers.Spell;
 import freq.ascension.orders.Order;
 import freq.ascension.registry.OrderRegistry;
+import freq.ascension.registry.SpellRegistry;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.ClickEvent;
@@ -90,16 +92,12 @@ public class AscensionMenu {
 
                 for (Order order : OrderRegistry.iterable()) {
                         firstPageMap.put(order.getOrderName().toLowerCase(), currentPageTracker);
-                        List<Component> orderPages = createOrderPages(order, data, currentPageTracker);
+                        List<Component> orderPages = createOrderPages(order, data, player, currentPageTracker);
                         for (Component p : orderPages) {
                                 pages.add(Filterable.passThrough(p));
                                 currentPageTracker++;
                         }
                 }
-
-                // Now construct the menu icons with the correct page links. If an order isn't
-                // present in the registry, or mapping is missing, clicking will go home (page
-                // 1).
                 menuIcons = Component.empty()
                                 .append(Component.literal("\uF806\uE181\uF801\uF801\uF801\uF801\uF804\uF804\n"))
                                 .append(Component.literal("\uF802\uF802\uF804   "))
@@ -131,9 +129,7 @@ public class AscensionMenu {
                                 "freq1062", 3, pages, true));
 
                 BookGui gui = new BookGui(player, book);
-                // gui.open();
                 if (gui.open()) {
-                        // Ascension.LOGGER.info(String.valueOf(gui.getPage()));
                         gui.setPage(selectedPageIndex);
                 } else {
                         Ascension.LOGGER.warn("[Menu Open] failed to open BookGui");
@@ -168,7 +164,8 @@ public class AscensionMenu {
                                                                 Component.literal("Go to " + orderName))));
         }
 
-        public List<Component> createOrderPages(Order order, AscensionData data, int startPageIndex) {
+        public List<Component> createOrderPages(Order order, AscensionData data, ServerPlayer player,
+                        int startPageIndex) {
                 List<Component> finalPages = new ArrayList<>();
                 int maxLines = 11; // Header (1) + Spacer (1) + Home (1) + 11 content lines = 14
                 int currentLineCount = 0;
@@ -185,8 +182,6 @@ public class AscensionMenu {
                 sections.add(new Section("Combat", data.getUnlockedOrder(order.getOrderName()).hasCombat(),
                                 data.getCombat() != null && data.getCombat().getOrderName()
                                                 .equalsIgnoreCase(order.getOrderName())));
-
-                // ... (Section setup code same as before)
 
                 for (Section s : sections) {
                         // 1. Add Section Title
@@ -206,6 +201,7 @@ public class AscensionMenu {
                                         && data.getGodOrder().equalsIgnoreCase(order.getOrderName());
                         Order displayOrder = isGodOfThisOrder ? order.getVersion("god") : order;
                         List<String> wrapped = wrapTextPixels(displayOrder.getDescription(s.type), 140);
+
                         for (String line : wrapped) {
                                 if (currentLineCount >= maxLines) {
                                         finalPages.add(finishPage(currentPage, order,
@@ -215,6 +211,52 @@ public class AscensionMenu {
                                 }
                                 currentPage.append(Component.literal(line).withStyle(ChatFormatting.DARK_GRAY))
                                                 .append(Component.literal("\n"));
+                                currentLineCount++;
+                        }
+
+                        // Build a single inline row of spell names with hover tooltips
+                        List<Spell> spells = SpellRegistry.getByOrderAndType(order, s.type.toLowerCase());
+
+                        if (spells != null && !spells.isEmpty()) {
+                                if (currentLineCount >= maxLines) {
+                                        finalPages.add(finishPage(currentPage, order,
+                                                        startPageIndex + localPageCount++));
+                                        currentPage = Component.empty();
+                                        currentLineCount = 0;
+                                }
+
+                                MutableComponent spellLine = Component.empty();
+
+                                for (int i = 0; i < spells.size(); i++) {
+                                        Spell spell = spells.get(i);
+                                        // Gold bold small caps with dark gray shadow effect
+                                        MutableComponent name;
+                                        try {
+                                                name = Component
+                                                                .literal(Utils.smallCaps(spell.getId()))
+                                                                .withStyle(style -> style
+                                                                                .withColor(ChatFormatting.GOLD)
+                                                                                .withBold(true)
+                                                                                .withShadowColor(ChatFormatting.GRAY
+                                                                                                .getColor())
+                                                                                .withHoverEvent(new HoverEvent.ShowText(
+                                                                                                Component.literal(spell
+                                                                                                                .getStats(player)
+                                                                                                                .getDescription()))));
+                                        } catch (Exception e) {
+                                                Ascension.LOGGER.error(
+                                                                "Failed building spell component for: " + spell.getId(),
+                                                                e);
+                                                name = Component.literal(Utils.smallCaps(spell.getId()));
+                                        }
+                                        spellLine.append(name);
+                                        if (i < spells.size() - 1) {
+                                                spellLine.append(Component.literal(" ")
+                                                                .withStyle(ChatFormatting.DARK_GRAY));
+                                        }
+                                }
+                                currentPage.append(spellLine).append(Component.literal("\n"));
+
                                 currentLineCount++;
                         }
 
@@ -276,7 +318,7 @@ public class AscensionMenu {
 
         private MutableComponent buildSectionTitle(Section s, Order order, int globalPageForTitle, AscensionData data) {
                 HoverEvent hover = new HoverEvent.ShowText(
-                                Component.literal(s.equipped ? "Equipped!"
+                                Component.literal(s.equipped ? "Click to unequip"
                                                 : (s.unlocked ? "Click to equip!"
                                                                 : "Click to unlock (costs 1 influence)")));
 

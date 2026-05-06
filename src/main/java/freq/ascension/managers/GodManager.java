@@ -24,21 +24,29 @@ import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Server-wide persistent store that tracks which player is currently the god of each order.
+ * Server-wide persistent store that tracks which player is currently the god of
+ * each order.
  *
- * <p>Saved to {@code world/data/ascension_gods.dat} via Fabric's {@link PersistentState} API.
+ * <p>
+ * Saved to {@code world/data/ascension_gods.dat} via Fabric's
+ * {@link PersistentState} API.
  *
- * <p><b>Single entry point:</b> all promotion and demotion must go through this class.
- * The {@code /setrank} command and the future ascension menu both delegate here.
+ * <p>
+ * <b>Single entry point:</b> all promotion and demotion must go through this
+ * class.
+ * The {@code /setrank} command and the future ascension menu both delegate
+ * here.
  *
- * <p><b>Invariants enforced:</b>
+ * <p>
+ * <b>Invariants enforced:</b>
  * <ul>
- *   <li>At most one god per order at any time.</li>
- *   <li>A player can be god of at most one order at any time.</li>
- *   <li>A player cannot hold a mythical weapon while a demigod.</li>
- *   <li>God status is removed on death (wired via {@code ServerLivingEntityEvents.AFTER_DEATH}
- *       in {@code AbilityManager.init()}).</li>
- *   <li>Demotion carries a 24-hour cooldown tracked by UUID.</li>
+ * <li>At most one god per order at any time.</li>
+ * <li>A player can be god of at most one order at any time.</li>
+ * <li>A player cannot hold a mythical weapon while a demigod.</li>
+ * <li>God status is removed on death (wired via
+ * {@code ServerLivingEntityEvents.AFTER_DEATH}
+ * in {@code AbilityManager.init()}).</li>
+ * <li>Demotion carries a 24-hour cooldown tracked by UUID.</li>
  * </ul>
  */
 public class GodManager extends SavedData {
@@ -65,7 +73,8 @@ public class GodManager extends SavedData {
 
     // ─── Constructors ─────────────────────────────────────────────────────────
 
-    private GodManager() {}
+    private GodManager() {
+    }
 
     private static GodManager fromMaps(Map<String, String> gods, Map<String, Long> cooldowns,
             Map<String, Integer> losses, Map<String, Long> dailyLoss, Map<String, String> godNames) {
@@ -80,35 +89,33 @@ public class GodManager extends SavedData {
 
     // ─── Serialisation (Codec) ────────────────────────────────────────────────
 
-    private static final Codec<GodManager> CODEC = RecordCodecBuilder.create(instance ->
-            instance.group(
-                    Codec.unboundedMap(Codec.STRING, Codec.STRING)
-                            .optionalFieldOf("gods", Map.of())
-                            .forGetter(m -> Map.copyOf(m.godsByOrder)),
-                    Codec.unboundedMap(Codec.STRING, Codec.LONG)
-                            .optionalFieldOf("cooldowns", Map.of())
-                            .forGetter(m -> Map.copyOf(m.demotionCooldowns)),
-                    Codec.unboundedMap(Codec.STRING, Codec.INT)
-                            .optionalFieldOf("loss_counters", Map.of())
-                            .forGetter(m -> Map.copyOf(m.lossCounters)),
-                    Codec.unboundedMap(Codec.STRING, Codec.LONG)
-                            .optionalFieldOf("daily_loss_timestamps", Map.of())
-                            .forGetter(m -> Map.copyOf(m.lastDailyLossMs)),
-                    Codec.unboundedMap(Codec.STRING, Codec.STRING)
-                            .optionalFieldOf("god_names", Map.of())
-                            .forGetter(m -> Map.copyOf(m.godNamesByOrder))
-            ).apply(instance, GodManager::fromMaps)
-    );
+    private static final Codec<GodManager> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Codec.unboundedMap(Codec.STRING, Codec.STRING)
+                    .optionalFieldOf("gods", Map.of())
+                    .forGetter(m -> Map.copyOf(m.godsByOrder)),
+            Codec.unboundedMap(Codec.STRING, Codec.LONG)
+                    .optionalFieldOf("cooldowns", Map.of())
+                    .forGetter(m -> Map.copyOf(m.demotionCooldowns)),
+            Codec.unboundedMap(Codec.STRING, Codec.INT)
+                    .optionalFieldOf("loss_counters", Map.of())
+                    .forGetter(m -> Map.copyOf(m.lossCounters)),
+            Codec.unboundedMap(Codec.STRING, Codec.LONG)
+                    .optionalFieldOf("daily_loss_timestamps", Map.of())
+                    .forGetter(m -> Map.copyOf(m.lastDailyLossMs)),
+            Codec.unboundedMap(Codec.STRING, Codec.STRING)
+                    .optionalFieldOf("god_names", Map.of())
+                    .forGetter(m -> Map.copyOf(m.godNamesByOrder)))
+            .apply(instance, GodManager::fromMaps));
 
     public static final SavedDataType<GodManager> TYPE = new SavedDataType<>(
             KEY,
             GodManager::new,
             CODEC,
-            null
-    );
+            null);
 
     /**
-     * Retrieves (or creates) the {@link GodManager} from the server's overworld data storage.
+     * Retrieves (or creates) the {@link GodManager} from the server's overworld
+     * data storage.
      * Must be called on the server thread.
      */
     public static GodManager get(MinecraftServer server) {
@@ -118,12 +125,15 @@ public class GodManager extends SavedData {
     // ─── Query ────────────────────────────────────────────────────────────────
 
     /**
-     * Returns the UUID of the current god of the given order, or {@code null} if there is none.
+     * Returns the UUID of the current god of the given order, or {@code null} if
+     * there is none.
      */
     public UUID getGodUUID(String orderName) {
-        if (orderName == null) return null;
+        if (orderName == null)
+            return null;
         String uuidStr = godsByOrder.get(orderName.toLowerCase());
-        if (uuidStr == null) return null;
+        if (uuidStr == null)
+            return null;
         try {
             return UUID.fromString(uuidStr);
         } catch (IllegalArgumentException e) {
@@ -132,12 +142,14 @@ public class GodManager extends SavedData {
     }
 
     /**
-     * Returns the online {@link ServerPlayer} who is currently god of the given order, or
+     * Returns the online {@link ServerPlayer} who is currently god of the given
+     * order, or
      * {@code null} if there is no god or the god is offline.
      */
     public ServerPlayer getGodPlayer(String orderName, MinecraftServer server) {
         UUID uuid = getGodUUID(orderName);
-        if (uuid == null) return null;
+        if (uuid == null)
+            return null;
         return server.getPlayerList().getPlayer(uuid);
     }
 
@@ -152,30 +164,35 @@ public class GodManager extends SavedData {
     }
 
     /**
-     * Returns the order name that the given player is god of, or {@code null} if they are not a
+     * Returns the order name that the given player is god of, or {@code null} if
+     * they are not a
      * god (or not recorded in the persistent state).
      */
     public String getGodOrderName(ServerPlayer player) {
         String uuidStr = player.getStringUUID();
         for (Map.Entry<String, String> e : godsByOrder.entrySet()) {
-            if (e.getValue().equals(uuidStr)) return e.getKey();
+            if (e.getValue().equals(uuidStr))
+                return e.getKey();
         }
         return null;
     }
 
     /**
-     * Returns the order name that the given UUID is god of, or {@code null} if not found.
+     * Returns the order name that the given UUID is god of, or {@code null} if not
+     * found.
      */
     public String getGodOrderName(UUID uuid) {
         String uuidStr = uuid.toString();
         for (Map.Entry<String, String> e : godsByOrder.entrySet()) {
-            if (e.getValue().equals(uuidStr)) return e.getKey();
+            if (e.getValue().equals(uuidStr))
+                return e.getKey();
         }
         return null;
     }
 
     /**
-     * Returns {@code true} if the player is on a 24-hour post-demotion cooldown that prevents
+     * Returns {@code true} if the player is on a 24-hour post-demotion cooldown
+     * that prevents
      * them from being promoted to god again.
      */
     public boolean isOnDemotionCooldown(ServerPlayer player) {
@@ -190,23 +207,29 @@ public class GodManager extends SavedData {
     }
 
     /**
-     * Returns the number of milliseconds remaining on the player's demotion cooldown,
+     * Returns the number of milliseconds remaining on the player's demotion
+     * cooldown,
      * or {@code 0} if not on cooldown.
      */
     public long getDemotionCooldownRemainingMs(ServerPlayer player) {
         Long until = demotionCooldowns.get(player.getStringUUID());
-        if (until == null) return 0;
+        if (until == null)
+            return 0;
         return Math.max(0, until - System.currentTimeMillis());
     }
 
     /** UUID-based overload for use in tests or non-player contexts. */
     public long getDemotionCooldownRemainingMs(UUID uuid) {
         Long until = demotionCooldowns.get(uuid.toString());
-        if (until == null) return 0;
+        if (until == null)
+            return 0;
         return Math.max(0, until - System.currentTimeMillis());
     }
 
-    /** Returns an unmodifiable view of the order → UUID string map (for inspection/testing). */
+    /**
+     * Returns an unmodifiable view of the order → UUID string map (for
+     * inspection/testing).
+     */
     public Map<String, String> getGodsByOrder() {
         return Collections.unmodifiableMap(godsByOrder);
     }
@@ -215,38 +238,47 @@ public class GodManager extends SavedData {
 
     /** Returns the current loss counter for the god of the given order. */
     public int getLossCounter(String orderName) {
-        if (orderName == null) return 0;
+        if (orderName == null)
+            return 0;
         return lossCounters.getOrDefault(orderName.toLowerCase(), 0);
     }
 
     /** Sets the loss counter for the given order and marks dirty. */
     public void setLossCounter(String orderName, int count) {
-        if (orderName == null) return;
+        if (orderName == null)
+            return;
         lossCounters.put(orderName.toLowerCase(), count);
         setDirty();
     }
 
     /** Increments the loss counter for the given order by 1 and marks dirty. */
     public void incrementLossCounter(String orderName) {
-        if (orderName == null) return;
+        if (orderName == null)
+            return;
         lossCounters.merge(orderName.toLowerCase(), 1, Integer::sum);
         setDirty();
     }
 
-    /** Decrements the loss counter for the given order by 1 (minimum 0) and marks dirty. */
+    /**
+     * Decrements the loss counter for the given order by 1 (minimum 0) and marks
+     * dirty.
+     */
     public void decrementLossCounter(String orderName) {
-        if (orderName == null) return;
+        if (orderName == null)
+            return;
         String key = orderName.toLowerCase();
         lossCounters.put(key, Math.max(0, lossCounters.getOrDefault(key, 0) - 1));
         setDirty();
     }
 
     /**
-     * Increments the loss counter only if the last daily-loss increment was more than 24 real
+     * Increments the loss counter only if the last daily-loss increment was more
+     * than 24 real
      * hours ago. Returns true if the increment occurred, false if on cooldown.
      */
     public boolean tryIncrementDailyLoss(String orderName) {
-        if (orderName == null) return false;
+        if (orderName == null)
+            return false;
         String key = orderName.toLowerCase();
         long now = System.currentTimeMillis();
         long last = lastDailyLossMs.getOrDefault(key, 0L);
@@ -264,20 +296,25 @@ public class GodManager extends SavedData {
     /**
      * Promotes a player to god of the given order.
      *
-     * <p>Steps:
+     * <p>
+     * Steps:
      * <ol>
-     *   <li>Demote any existing god of this order (if online; if offline, just clear the entry).</li>
-     *   <li>If the player is already a god of another order, demote them from it first.</li>
-     *   <li>Update the player's {@link AscensionData}: rank → "god", godOrder → orderName,
-     *       all three ability slots → orderName.</li>
-     *   <li>Remove any active demotion cooldown (promotion overrides it).</li>
-     *   <li>Record the new god in the persistent map and mark dirty.</li>
-     *   <li>Give the player the mythical weapon if one is registered for this order.</li>
+     * <li>Demote any existing god of this order (if online; if offline, just clear
+     * the entry).</li>
+     * <li>If the player is already a god of another order, demote them from it
+     * first.</li>
+     * <li>Update the player's {@link AscensionData}: rank → "god", godOrder →
+     * orderName,
+     * all three ability slots → orderName.</li>
+     * <li>Remove any active demotion cooldown (promotion overrides it).</li>
+     * <li>Record the new god in the persistent map and mark dirty.</li>
+     * <li>Give the player the mythical weapon if one is registered for this
+     * order.</li>
      * </ol>
      *
-     * @param player    the player being promoted
-     * @param order     the order they will be god of
-     * @param server    the running server instance
+     * @param player the player being promoted
+     * @param order  the order they will be god of
+     * @param server the running server instance
      */
     public void promoteToGod(ServerPlayer player, Order order, MinecraftServer server) {
         String orderName = order.getOrderName().toLowerCase();
@@ -292,7 +329,7 @@ public class GodManager extends SavedData {
                     demoteFromGod(existingGod, server);
                     existingGod.sendSystemMessage(Component.literal(
                             "§cYou have been dethroned as the God of " +
-                            capitalize(order.getOrderName()) + "!"));
+                                    capitalize(order.getOrderName()) + "!"));
                 } else {
                     // Offline — clear the entry only (cannot remove weapon or send message)
                     godsByOrder.remove(orderName);
@@ -310,7 +347,7 @@ public class GodManager extends SavedData {
             demoteFromGod(player, server);
             player.sendSystemMessage(Component.literal(
                     "§eYou relinquished your title as God of " +
-                    capitalize(oldOrder != null ? oldOrder : "?") + "."));
+                            capitalize(oldOrder != null ? oldOrder : "?") + "."));
         }
 
         // Before step 3: save current slots so they can be restored on demotion
@@ -347,7 +384,7 @@ public class GodManager extends SavedData {
             }
             player.sendSystemMessage(Component.literal(
                     "§6⚔ You received your mythical weapon: " +
-                    MythicWeapon.formatWeaponName(weapon.getWeaponId()) + "!"));
+                            MythicWeapon.formatWeaponName(weapon.getWeaponId()) + "!"));
         }
 
         // Step 7: spawn promotion animation
@@ -365,9 +402,10 @@ public class GodManager extends SavedData {
         level.playSound(null, px, py, pz, net.minecraft.sounds.SoundEvents.BEACON_ACTIVATE,
                 net.minecraft.sounds.SoundSource.PLAYERS, 1.2f, 0.9f);
 
-        // Particle orbit task: 8 "orbs" of END_ROD particles rotating around the player,
+        // Particle orbit task: 8 "orbs" of END_ROD particles rotating around the
+        // player,
         // each trailed by ELECTRIC_SPARK particles. Runs for 70 ticks (3.5 s).
-        int[] orbitTick = {0};
+        int[] orbitTick = { 0 };
         ContinuousTask orbitTask = new ContinuousTask(1, () -> {
             orbitTick[0]++;
             for (int i = 0; i < 8; i++) {
@@ -395,7 +433,7 @@ public class GodManager extends SavedData {
         freq.ascension.Ascension.scheduler.schedule(orbitTask);
 
         // Totem particle ring task — unchanged, runs for 70 ticks
-        int[] particleTick = {0};
+        int[] particleTick = { 0 };
         ContinuousTask particleTask = new ContinuousTask(1, () -> {
             particleTick[0]++;
             if (particleTick[0] % 3 == 0) {
@@ -425,20 +463,23 @@ public class GodManager extends SavedData {
     /**
      * Demotes the given player from god status.
      *
-     * <p>Steps:
+     * <p>
+     * Steps:
      * <ol>
-     *   <li>Verify the player is actually a god; no-op otherwise.</li>
-     *   <li>Remove all mythical weapons from their inventory.</li>
-     *   <li>Reset AscensionData: rank → "demigod", godOrder → null, all slots → null.</li>
-     *   <li>Record a 24-hour demotion cooldown.</li>
-     *   <li>Remove from persistent map and mark dirty.</li>
+     * <li>Verify the player is actually a god; no-op otherwise.</li>
+     * <li>Remove all mythical weapons from their inventory.</li>
+     * <li>Reset AscensionData: rank → "demigod", godOrder → null, all slots →
+     * null.</li>
+     * <li>Record a 24-hour demotion cooldown.</li>
+     * <li>Remove from persistent map and mark dirty.</li>
      * </ol>
      *
      * @param player the player being demoted
      * @param server the running server instance
      */
     public void demoteFromGod(ServerPlayer player, MinecraftServer server) {
-        if (!isGod(player)) return;
+        if (!isGod(player))
+            return;
 
         String orderName = getGodOrderName(player);
 
@@ -453,7 +494,7 @@ public class GodManager extends SavedData {
 
         // Step 4: record demotion cooldown (duration from Config)
         demotionCooldowns.put(player.getStringUUID(),
-                System.currentTimeMillis() + (long) freq.ascension.Config.godDeathCooldown * 1000L);
+                System.currentTimeMillis() + (long) freq.ascension.config.Config.godDeathCooldown * 1000L);
 
         // Step 5: update persistent map
         if (orderName != null) {
@@ -464,17 +505,23 @@ public class GodManager extends SavedData {
     }
 
     /**
-     * Removes the god entry for the given order without triggering a full demotion sequence
-     * (no cooldown recorded, no weapon removal). Use when cleaning up stale/offline god entries.
+     * Removes the god entry for the given order without triggering a full demotion
+     * sequence
+     * (no cooldown recorded, no weapon removal). Use when cleaning up stale/offline
+     * god entries.
      */
     public void clearGod(String orderName) {
-        if (orderName == null) return;
+        if (orderName == null)
+            return;
         godsByOrder.remove(orderName.toLowerCase());
         godNamesByOrder.remove(orderName.toLowerCase());
         setDirty();
     }
 
-    /** Returns the stored display name of the current god of the given order, or {@code "Unknown"}. */
+    /**
+     * Returns the stored display name of the current god of the given order, or
+     * {@code "Unknown"}.
+     */
     public String getGodName(String orderName) {
         return godNamesByOrder.getOrDefault(orderName.toLowerCase(), "Unknown");
     }
@@ -490,7 +537,8 @@ public class GodManager extends SavedData {
     }
 
     /**
-     * Directly records a god entry without running the full promotion sequence (no AscensionData
+     * Directly records a god entry without running the full promotion sequence (no
+     * AscensionData
      * changes, no weapon granting). Use only in game tests to set up preconditions.
      */
     public void setGodEntryForTesting(String orderName, UUID uuid) {
@@ -506,7 +554,8 @@ public class GodManager extends SavedData {
     }
 
     /**
-     * Directly removes a god entry without running the demotion sequence. Use in game tests.
+     * Directly removes a god entry without running the demotion sequence. Use in
+     * game tests.
      */
     public void clearGodEntryForTesting(String orderName) {
         godsByOrder.remove(orderName.toLowerCase());
@@ -514,7 +563,8 @@ public class GodManager extends SavedData {
     }
 
     /**
-     * Directly records a demotion cooldown without triggering a demotion. Use in game tests.
+     * Directly records a demotion cooldown without triggering a demotion. Use in
+     * game tests.
      */
     public void setDemotionCooldownForTesting(UUID uuid, long expiresAtMillis) {
         demotionCooldowns.put(uuid.toString(), expiresAtMillis);
@@ -522,11 +572,13 @@ public class GodManager extends SavedData {
     }
 
     /**
-     * Directly sets the last-daily-loss timestamp for the given order. Use only in game tests
+     * Directly sets the last-daily-loss timestamp for the given order. Use only in
+     * game tests
      * to simulate that a daily-loss increment occurred at a specific time.
      */
     public void setLastDailyLossTimestampForTesting(String orderName, long epochMs) {
-        if (orderName == null) return;
+        if (orderName == null)
+            return;
         lastDailyLossMs.put(orderName.toLowerCase(), epochMs);
         setDirty();
     }
@@ -577,7 +629,8 @@ public class GodManager extends SavedData {
     }
 
     private static String capitalize(String s) {
-        if (s == null || s.isEmpty()) return s;
+        if (s == null || s.isEmpty())
+            return s;
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 }

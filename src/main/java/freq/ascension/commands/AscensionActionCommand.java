@@ -20,96 +20,8 @@ public class AscensionActionCommand {
         dispatcher.register(Commands.literal("ascension_action")
                 .then(Commands.argument("order", StringArgumentType.word())
                         .then(Commands.argument("type", StringArgumentType.word())
-                                .executes(AscensionActionCommand::run)
                                 .then(Commands.argument("page", IntegerArgumentType.integer(1))
                                         .executes(AscensionActionCommand::runWithPage)))));
-    }
-
-    private static int run(CommandContext<CommandSourceStack> context) {
-        ServerPlayer player;
-        try {
-            player = context.getSource().getPlayerOrException();
-        } catch (CommandSyntaxException e) {
-            context.getSource().sendFailure(Component.literal("Players only."));
-            return 0;
-        }
-
-        String orderName = StringArgumentType.getString(context, "order");
-        String type = StringArgumentType.getString(context, "type").toLowerCase();
-
-        Order order = OrderRegistry.get(orderName);
-        if (order == null) {
-            context.getSource().sendFailure(Component.literal("Order not found: " + orderName));
-            return 0;
-        }
-
-        AscensionData data = (AscensionData) player;
-
-        // Check unlocked state
-        boolean unlocked;
-        switch (type) {
-            case "passive" -> unlocked = data.getUnlockedOrder(orderName).hasPassive();
-            case "utility" -> unlocked = data.getUnlockedOrder(orderName).hasUtility();
-            case "combat" -> unlocked = data.getUnlockedOrder(orderName).hasCombat();
-            default -> {
-                context.getSource()
-                        .sendFailure(Component.literal("Invalid type: " + type + ". Use passive, utility, or combat."));
-                return 0;
-            }
-        }
-
-        if (!unlocked) {
-            if (data.getInfluence() < 1) {
-                context.getSource().sendFailure(Component.literal("You need at least 1 influence to unlock this ability."));
-                return 0;
-            }
-            data.unlock(orderName, type);
-            data.addInfluence(-1);
-            context.getSource().sendSuccess(() -> Component.literal("Unlocked " + orderName + " (" + type + ")"), false);
-        } else {
-            // If unlocked but not equipped, equip it
-            boolean alreadyEquipped = switch (type) {
-                case "passive" -> data.getPassive() == order;
-                case "utility" -> data.getUtility() == order;
-                case "combat" -> data.getCombat() == order;
-                default -> false;
-            };
-
-            if (!alreadyEquipped) {
-                // Gods cannot swap ability slots — their slots are bound to their order
-                if ("god".equals(data.getRank())) {
-                    context.getSource().sendFailure(Component.literal(
-                        "§cAs a God, your abilities are bound to your order. " +
-                        "You cannot change your equipped abilities."));
-                    return 0;
-                }
-                // Check if the currently equipped order in this slot allows unequipping
-                Order currentOrder = switch (type) {
-                    case "passive" -> data.getPassive();
-                    case "utility" -> data.getUtility();
-                    case "combat" -> data.getCombat();
-                    default -> null;
-                };
-                if (currentOrder != null && !currentOrder.canUnequip(player)) {
-                    return 0;
-                }
-                switch (type) {
-                    case "passive" -> data.setPassive(orderName);
-                    case "utility" -> data.setUtility(orderName);
-                    case "combat" -> data.setCombat(orderName);
-                }
-                context.getSource().sendSuccess(() -> Component.literal("Equipped " + orderName + " (" + type + ")"),
-                        true);
-            } else {
-                context.getSource().sendSuccess(
-                        () -> Component.literal(orderName + " (" + type + ") is already equipped."), false);
-            }
-        }
-
-        // Do not reopen the menu to avoid resetting the player's current page; the
-        // client-side book will remain open so the player stays on the same page.
-
-        return 1;
     }
 
     private static int runWithPage(CommandContext<CommandSourceStack> context) {
@@ -150,12 +62,14 @@ public class AscensionActionCommand {
 
         if (!unlocked) {
             if (data.getInfluence() < 1) {
-                context.getSource().sendFailure(Component.literal("You need at least 1 influence to unlock this ability."));
+                context.getSource()
+                        .sendFailure(Component.literal("You need at least 1 influence to unlock this ability."));
                 return 0;
             }
             data.unlock(orderName, type);
             data.addInfluence(-1);
-            context.getSource().sendSuccess(() -> Component.literal("Unlocked " + orderName + " (" + type + ")"), false);
+            context.getSource().sendSuccess(() -> Component.literal("Unlocked " + orderName + " (" + type + ")"),
+                    false);
         } else {
             boolean alreadyEquipped = switch (type) {
                 case "passive" -> data.getPassive() == order;
@@ -163,22 +77,22 @@ public class AscensionActionCommand {
                 case "combat" -> data.getCombat() == order;
                 default -> false;
             };
-
+            Order currentOrder2 = switch (type) {
+                case "passive" -> data.getPassive();
+                case "utility" -> data.getUtility();
+                case "combat" -> data.getCombat();
+                default -> null;
+            };
             if (!alreadyEquipped) {
                 // Gods cannot swap ability slots — their slots are bound to their order
                 if ("god".equals(data.getRank())) {
                     context.getSource().sendFailure(Component.literal(
-                        "§cAs a God, your abilities are bound to your order. " +
-                        "You cannot change your equipped abilities."));
+                            "§cAs a God, your abilities are bound to your order. " +
+                                    "You cannot change your equipped abilities."));
                     return 0;
                 }
                 // Check if the currently equipped order in this slot allows unequipping
-                Order currentOrder2 = switch (type) {
-                    case "passive" -> data.getPassive();
-                    case "utility" -> data.getUtility();
-                    case "combat" -> data.getCombat();
-                    default -> null;
-                };
+
                 if (currentOrder2 != null && !currentOrder2.canUnequip(player)) {
                     return 0;
                 }
@@ -190,8 +104,16 @@ public class AscensionActionCommand {
                 context.getSource().sendSuccess(() -> Component.literal("Equipped " + orderName + " (" + type + ")"),
                         true);
             } else {
+                if (currentOrder2 != null && !currentOrder2.canUnequip(player)) {
+                    return 0;
+                }
+                switch (type) {
+                    case "passive" -> data.setPassive("");
+                    case "utility" -> data.setUtility("");
+                    case "combat" -> data.setCombat("");
+                }
                 context.getSource().sendSuccess(
-                        () -> Component.literal(orderName + " (" + type + ") is already equipped."), false);
+                        () -> Component.literal("Unequipped " + orderName + " (" + type + ")"), false);
             }
         }
         // Reopen menu
