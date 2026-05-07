@@ -116,15 +116,8 @@ public class Config {
         OceanGod.CONFIG_GROUP.load(config);
 
         // Sky
-        skyDoubleJumpCD = config.getOrElse("sky.double_jump.cooldown_ticks", 160);
-        skyDoubleJumpRange = config.getOrElse("sky.double_jump.range", 6);
-        skyDashCD = config.getOrElse("sky.dash.cooldown_ticks", 225);
-        skyDashDistance = config.getOrElse("sky.dash.distance", 9);
-        skyStarStrikeCD = config.getOrElse("sky.star_strike.cooldown_ticks", 675);
-        skyGodDoubleJumpCD = config.getOrElse("sky_god.double_jump.cooldown_ticks", 160);
-        skyGodDashCD = config.getOrElse("sky_god.dash.cooldown_ticks", 225);
-        skyGodDashDistance = config.getOrElse("sky_god.dash.distance", 12);
-        skyGodStarStrikeCD = config.getOrElse("sky_god.star_strike.cooldown_ticks", 675);
+        Sky.CONFIG_GROUP.load(config);
+        SkyGod.CONFIG_GROUP.load(config);
 
         // Flora
         floraThornsCD = config.getOrElse("flora.thorns.cooldown_ticks", 60);
@@ -206,17 +199,6 @@ public class Config {
         // Ocean
         Ocean.CONFIG_GROUP.setAll(config);
         OceanGod.CONFIG_GROUP.setAll(config);
-
-        // Sky
-        config.set("sky.double_jump.cooldown_ticks", skyDoubleJumpCD);
-        config.set("sky.double_jump.range", skyDoubleJumpRange);
-        config.set("sky.dash.cooldown_ticks", skyDashCD);
-        config.set("sky.dash.distance", skyDashDistance);
-        config.set("sky.star_strike.cooldown_ticks", skyStarStrikeCD);
-        config.set("sky_god.double_jump.cooldown_ticks", skyGodDoubleJumpCD);
-        config.set("sky_god.dash.cooldown_ticks", skyGodDashCD);
-        config.set("sky_god.dash.distance", skyGodDashDistance);
-        config.set("sky_god.star_strike.cooldown_ticks", skyGodStarStrikeCD);
 
         // Flora
         config.set("flora.thorns.cooldown_ticks", floraThornsCD);

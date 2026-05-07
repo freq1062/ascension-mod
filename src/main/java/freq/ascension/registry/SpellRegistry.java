@@ -329,12 +329,11 @@ public class SpellRegistry {
         }
     }
 
-    public static void starStrike(ServerPlayer player, boolean augmented) {
+    public static void starStrike(ServerPlayer player, int glow, int range, int damage_percent) {
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(player,
                 SpellCooldownManager.get("star_strike"));
 
         Level level = player.level();
-        double range = augmented ? 64.0 : 32.0;
 
         // Perform raycast to find target or fallback to max range
         Vec3 eyePos = player.getEyePosition();
@@ -390,14 +389,11 @@ public class SpellRegistry {
             strikePoint = hitResult.getLocation();
         }
 
-        {
-            int hex = augmented ? 0x000000 : 0xFFFFFF;
-            float r = ((hex >> 16) & 0xFF) / 255.0f;
-            float g = ((hex >> 8) & 0xFF) / 255.0f;
-            float b = (hex & 0xFF) / 255.0f;
-            Vector3f colorVec = new Vector3f(r, g, b);
-            StarStrike.spawnGammaRay(player, strikePoint.toVector3f(), 1.5f, colorVec);
-        }
+        float r = ((glow >> 16) & 0xFF) / 255.0f;
+        float g = ((glow >> 8) & 0xFF) / 255.0f;
+        float b = (glow & 0xFF) / 255.0f;
+        Vector3f colorVec = new Vector3f(r, g, b);
+        StarStrike.spawnGammaRay(player, strikePoint.toVector3f(), 1.5f, colorVec);
 
         int growTicks = 5;
         int holdTicks = 20;
@@ -426,7 +422,7 @@ public class SpellRegistry {
                         if (target == player)
                             continue;
 
-                        Utils.spellDmg(target, player, 25.0f);
+                        Utils.spellDmg(target, player, damage_percent);
 
                         // Launch upwards
                         Vec3 currentVel = target.getDeltaMovement();

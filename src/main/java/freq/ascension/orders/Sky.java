@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import freq.ascension.Utils;
-import freq.ascension.config.Config;
+import freq.ascension.config.ConfigGroup;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
@@ -33,14 +33,6 @@ public class Sky implements Order {
     public static final Sky INSTANCE = new Sky();
     private static final Map<UUID, Long> DOUBLE_JUMP_COOLDOWNS = new HashMap<>();
 
-    @Override
-    public Order getVersion(String rank) {
-        if ("god".equals(rank)) {
-            return SkyGod.INSTANCE;
-        }
-        return this;
-    }
-
     public static Map<UUID, Long> getDoubleJumpCooldowns() {
         return DOUBLE_JUMP_COOLDOWNS;
     }
@@ -48,6 +40,26 @@ public class Sky implements Order {
     public static void putDoubleJumpCooldown(UUID playerId, long timestamp) {
         DOUBLE_JUMP_COOLDOWNS.put(playerId, timestamp);
     }
+
+    /*
+     * Default configs
+     */
+
+    public static final ConfigGroup CONFIG_GROUP = new ConfigGroup("sky")
+            .add("dripstone_dmg_percent", 50)
+            .add("projectile_speed_percent", 50)
+            .add("double_jump.cooldown_ticks", 160)
+            .add("double_jump_height", 6)
+            .add("dash.cooldown_ticks", 225)
+            .add("dash.distance", 9)
+            .add("star_strike.cooldown_ticks", 675)
+            .add("star_strike.damage_percent", 30)
+            .add("star_strike.range", 32)
+            .add("star_strike.glowcol", 0xFFFFFF);
+
+    /*
+     * Metadata
+     */
 
     @Override
     public String getOrderName() {
@@ -60,47 +72,77 @@ public class Sky implements Order {
     }
 
     @Override
+    public String getOrderIcon() {
+        return "\uE182";
+    }
+
+    /*
+     * Stats, spells, descriptions
+     */
+
+    @Override
+    public Order getVersion(String rank) {
+        if ("god".equals(rank)) {
+            return SkyGod.INSTANCE;
+        }
+        return this;
+    }
+
+    @Override
+    public String getDescription(String slotType) {
+        return switch (slotType.toLowerCase()) {
+            // Double jump is also implemented in SpellRegistry.java
+            case "passive" -> {
+                int dp = CONFIG_GROUP.get("dripstone_dmg_percent");
+                int pp = CONFIG_GROUP.get("projectile_speed_percent");
+                yield "No fall damage. Dripstone deals " + dp + "% damage. Harmful projectiles slowed to " + pp
+                        + "%. Breezes are passive. Double jump by jumping twice quickly.";
+            }
+            default -> "";
+        };
+    }
+
+    @Override
     public void registerSpells() {
         SpellCooldownManager.register(new Spell("dash", this, "utility", (player, stats) -> {
             SpellRegistry.dash(player, Utils.isGod(player), stats.getInt(0)); // Distance (blocks)
         }));
 
         SpellCooldownManager.register(new Spell("star_strike", this, "combat", (player, stats) -> {
-            SpellRegistry.starStrike(player, stats.getBool(0));
-            // augmented
+            SpellRegistry.starStrike(
+                    player,
+                    stats.getInt(0), // glowcol
+                    stats.getInt(1), // range(blocks)
+                    stats.getInt(2) // damage(percent)
+            );
         }));
     }
 
     @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "double_jump" -> new SpellStats(Config.skyDoubleJumpCD, "Jump twice mid-air to double jump",
-                    Config.skyDoubleJumpRange, false);
-            // Jump height, slam
-            case "dash" -> new SpellStats(Config.skyDashCD, "Dash forward 9 blocks", Config.skyDashDistance);
-            case "star_strike" -> new SpellStats(Config.skyStarStrikeCD,
-                    "Summon a 2x2 beam of light that damages and launches entities",
-                    false);
+            case "dash" -> {
+                int cd = CONFIG_GROUP.get("dash.cooldown_ticks");
+                int ds = CONFIG_GROUP.get("dash.distance");
+                yield new SpellStats(cd, "Dash in the direction you're facing by " + ds + " blocks. ", ds);
+            }
+            case "star_strike" -> {
+                int cd = CONFIG_GROUP.get("star_strike.cooldown_ticks");
+                int gl = CONFIG_GROUP.get("star_strike.glowcol");
+                int ran = CONFIG_GROUP.get("star_strike.range");
+                int dmg = CONFIG_GROUP.get("star_strike.damage_percent");
+                yield new SpellStats(cd,
+                        "Summon a 2x2 beam of light that deals " + dmg
+                                + "% max hp and launches entities into the sky. Range" + ran + " blocks.",
+                        gl, ran, dmg);
+            }
             default -> null;
         };
     }
 
-    @Override
-    public String getDescription(String slotType) {
-        return switch (slotType.toLowerCase()) {
-            case "passive" ->
-                "No fall damage. Dripstone deals 50% less damage. Harmful projectiles slowed by 50%. Breezes are passive.Double jump ability: Tap jump twice to activate.";
-            case "utility" -> {
-                SpellStats s = getSpellStats("dash");
-                yield "DASH: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
-            }
-            case "combat" -> {
-                SpellStats s = getSpellStats("star_strike");
-                yield "STAR STRIKE: " + s.getDescription();
-            }
-            default -> "";
-        };
-    }
+    /*
+     * Main body
+     */
 
     @Override
     public void onEntityDamage(ServerPlayer victim, DamageContext context) {
@@ -110,7 +152,7 @@ public class Sky implements Order {
         // Dripstone damage: 50% reduction for demigods (gods get full immunity via
         // SkyGod).
         if (source.is(DamageTypes.STALAGMITE)) {
-            context.setAmount(context.getAmount() * 0.5f);
+            context.setAmount(context.getAmount() * (CONFIG_GROUP.get("dripstone_dmg_percent") / 100));
         } else if (source.is(DamageTypeTags.IS_FALL)) {
             // Demigods: only fall damage is cancelled, not projectile damage
             context.setCancelled(true);
@@ -210,10 +252,5 @@ public class Sky implements Order {
             player.getAbilities().flying = false;
             player.onUpdateAbilities();
         }
-    }
-
-    @Override
-    public String getOrderIcon() {
-        return "\uE182";
     }
 }
