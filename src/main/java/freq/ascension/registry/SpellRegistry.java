@@ -20,6 +20,7 @@ import freq.ascension.animation.StarStrike;
 import freq.ascension.animation.Thorns;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.AscensionData;
+import freq.ascension.managers.DisguiseManager;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
@@ -47,6 +48,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import xyz.nucleoid.disguiselib.api.EntityDisguise;
 
 public class SpellRegistry {
     // {id: spell}
@@ -465,6 +467,7 @@ public class SpellRegistry {
         currSpell.setInUse(false); // Allow cooldown to start
     }
 
+    @SuppressWarnings("deprecation")
     public static void drown(ServerPlayer player, int durationSecs, int radius) {
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("drown"));
         BlockPos center = player.getOnPos();
@@ -1035,12 +1038,12 @@ public class SpellRegistry {
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("shapeshift"));
 
         try {
-            xyz.nucleoid.disguiselib.api.EntityDisguise disguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
+            EntityDisguise disguise = (EntityDisguise) player;
             disguise.disguiseAs(form);
             disguise.setTrueSight(true);
 
             player.addEffect(new MobEffectInstance(
-                    net.minecraft.world.effect.MobEffects.NIGHT_VISION,
+                    MobEffects.NIGHT_VISION,
                     durationTicks + 40, 0, true, false, true));
 
             String formName = form.getDescription().getString();
@@ -1048,7 +1051,7 @@ public class SpellRegistry {
 
             Ascension.scheduler.schedule(new DelayedTask(durationTicks, () -> {
                 try {
-                    xyz.nucleoid.disguiselib.api.EntityDisguise freshDisguise = (xyz.nucleoid.disguiselib.api.EntityDisguise) player;
+                    EntityDisguise freshDisguise = (EntityDisguise) player;
                     if (!player.isAlive() || player.isRemoved()) {
                         // Player disconnected or died while shapeshifted. We cannot send
                         // profile-update packets to watchers (the entity is gone), but we
@@ -1057,23 +1060,16 @@ public class SpellRegistry {
                         // tryRemoveDisguiseSilently clears the disguise fields without
                         // broadcasting any packets, preventing an NPE on the next load.
                         if (freshDisguise.isDisguised()) {
-                            Ascension.clearDisguiseSilently(player, "shapeshift cleanup");
+                            DisguiseManager.clearDisguiseSilently(player, "shapeshift cleanup");
                         }
                         freshDisguise.setTrueSight(false);
                         if (as != null)
                             as.setInUse(false);
                         return;
                     }
-                    // Re-cast player to EntityDisguise to avoid stale reference issues.
-                    // Use removeDisguise() instead of disguiseAs(PLAYER) to prevent a
-                    // persistent PLAYER disguise from being saved in NBT on disconnect.
-                    if (Ascension.isGameTestPlayer(player) || player.connection == null) {
-                        Ascension.clearDisguiseSilently(player, "shapeshift restore");
-                    } else {
-                        freshDisguise.removeDisguise();
-                    }
+                    freshDisguise.removeDisguise();
                     freshDisguise.setTrueSight(false);
-                    player.removeEffect(net.minecraft.world.effect.MobEffects.NIGHT_VISION);
+                    player.removeEffect(MobEffects.NIGHT_VISION);
                     player.sendSystemMessage(Component.literal("§7You have returned to your normal form."));
                 } catch (Exception e) {
                     Ascension.LOGGER.error("Failed to restore player form after shapeshift: " + e.getMessage());
@@ -1114,6 +1110,7 @@ public class SpellRegistry {
         teleport(player, maxBlocks, 2);
     }
 
+    @SuppressWarnings("deprecation")
     public static void teleport(ServerPlayer player, int maxBlocks, int maxSolidBlocks) {
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("teleport"));
 

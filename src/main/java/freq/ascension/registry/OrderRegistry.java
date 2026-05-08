@@ -10,10 +10,9 @@ public class OrderRegistry {
     private static final Map<String, Order> ORDERS = new HashMap<>();
 
     static {
-        // register(Ocean.INSTANCE);
+        register(Ocean.INSTANCE);
         register(Earth.INSTANCE);
         register(Sky.INSTANCE);
-        register(Ocean.INSTANCE);
         register(Magic.INSTANCE);
         register(Flora.INSTANCE);
         register(Nether.INSTANCE);

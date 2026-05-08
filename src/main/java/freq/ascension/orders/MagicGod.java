@@ -2,6 +2,7 @@ package freq.ascension.orders;
 
 import freq.ascension.animation.PotionFlame;
 import freq.ascension.config.Config;
+import freq.ascension.config.ConfigGroup;
 import freq.ascension.managers.SpellStats;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.EntityTypeTags;
@@ -12,6 +13,14 @@ import net.minecraft.world.entity.Mob;
 public class MagicGod extends Magic {
     public static final MagicGod INSTANCE = new MagicGod();
 
+    public static final ConfigGroup CONFIG_GROUP = new ConfigGroup("magic")
+            .add("enchant_reduction_percent", 90)
+            .add("potion_extension_duration_ticks", 12000)
+            .add("tipped_arrow_extension_duration_ticks", 1800)
+            .add("shapeshift.cooldown_ticks", 600)
+            .add("shapeshift.max_transformations", 7)
+            .add("shapeshift.duration_ticks", 900);
+
     private MagicGod() {
         super();
     }
@@ -21,11 +30,6 @@ public class MagicGod extends Magic {
         if (hasCapability(player, "passive"))
             // Speed 2 (amplifier 1)
             player.addEffect(new MobEffectInstance(MobEffects.SPEED, 60, 1, true, false, true));
-    }
-
-    @Override
-    public int modifyEnchantmentCost(int originalCost) {
-        return Math.max(1, (int) Math.floor(originalCost * 0.1));
     }
 
     /** Gods: illagers are fully passive (never attack), not just neutral. */
@@ -40,78 +44,19 @@ public class MagicGod extends Magic {
     }
 
     @Override
-    protected int getMaxShapeshiftHistory() {
-        return 8;
-    }
-
-    @Override
-    protected int getPotionEffectTicks() {
-        // 10 minutes
-        return 10 * 60 * 20;
-    }
-
-    @Override
-    public MobEffectInstance onPotionEffect(ServerPlayer player, MobEffectInstance effectInstance) {
-        if (!hasCapability(player, "utility"))
-            return effectInstance;
-
-        // Skip negative effects
-        if (!effectInstance.getEffect().value().isBeneficial())
-            return effectInstance;
-
-        // Skip turtle master effects (RESISTANCE, SLOWNESS)
-        if (effectInstance.getEffect() == MobEffects.RESISTANCE
-                || effectInstance.getEffect() == MobEffects.SLOWNESS)
-            return effectInstance;
-
-        if (effectInstance.isInfiniteDuration() || effectInstance.isAmbient())
-            return effectInstance;
-
-        int dur = effectInstance.getDuration();
-
-        // Identify effect source via heuristics:
-        // - !ambient && visible → from potion/arrow/splash
-        // - dur <= 220 ticks (~11s max for tipped arrows) → tipped arrow
-        // - dur > 220 ticks and <= 10 min → regular potion or splash
-        // - Otherwise → "other source" → cap to 1m30s
-        boolean fromPotionOrArrow = effectInstance.isVisible();
-
-        if (fromPotionOrArrow && dur <= getPotionEffectTicks()) {
-            // Extend to 10 minutes
-            int targetDuration = getPotionEffectTicks();
-            int durationGranted = Math.max(0, targetDuration - dur);
-            int flameDuration = (dur <= 220) ? 20 : 60;
-            PotionFlame.spawnPotionFlame(player, flameDuration, durationGranted);
-
-            return new MobEffectInstance(
-                    effectInstance.getEffect(),
-                    targetDuration,
-                    effectInstance.getAmplifier(),
-                    effectInstance.isAmbient(),
-                    effectInstance.isVisible(),
-                    effectInstance.showIcon());
-        } else if (!fromPotionOrArrow || dur > getPotionEffectTicks()) {
-            // Other sources: cap to 1 minute 30 seconds (1800 ticks)
-            if (!effectInstance.isAmbient() && dur != 1800) {
-                return new MobEffectInstance(
-                        effectInstance.getEffect(),
-                        1800,
-                        effectInstance.getAmplifier(),
-                        effectInstance.isAmbient(),
-                        effectInstance.isVisible(),
-                        effectInstance.showIcon());
-            }
-        }
-
-        return effectInstance;
-    }
-
-    @Override
     public SpellStats getSpellStats(String spellId) {
         return switch (spellId.toLowerCase()) {
-            case "shapeshift" -> new SpellStats(Config.magicGodShapeshiftCD,
-                    "Transform into the last mob you killed for 45s. Up to 8 forms in history. Boss mobs and other players allowed.",
-                    Config.magicGodShapeshiftDuration);
+            case "shapeshift" -> {
+                int cd = CONFIG_GROUP.get("shapeshift.cooldown_ticks");
+                int ds = CONFIG_GROUP.get("shapeshift.duration_ticks") / 20;
+                int his = CONFIG_GROUP.get("shapeshift.max_transformations");
+                yield new SpellStats(cd,
+                        "Transform into the last mob you killed, including boss mobs and players for " + ds
+                                + "s. Up to " + his
+                                + " transformations can be stored. If you die as the mob, you die for real. View your form history using /sh.",
+                        ds * 20);
+            }
+
             default -> null;
         };
     }
@@ -119,12 +64,15 @@ public class MagicGod extends Magic {
     @Override
     public String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
-            case "passive" -> "Permanent Speed 2. Enchantments are 90% cheaper. Illagers are passive.";
-            case "utility" ->
-                "Potions are extended to 10 minutes. Tipped arrows are extended to 1 minute 30 seconds. Excludes resistance and negative effects.";
-            case "combat" -> {
-                SpellStats s = getSpellStats("shapeshift");
-                yield "SHAPESHIFT: " + s.getDescription() + " " + s.getCooldownSecs() + "s cooldown.";
+            case "passive" -> "Permanent Speed 2. Enchantments are " + CONFIG_GROUP.get("enchant_reduction_percent")
+                    + "% cheaper. Illagers are passive.";
+            case "utility" -> {
+                // Didn't really format it sorry
+                int pdm = CONFIG_GROUP.get("potion_extension_duration_ticks") / (60 * 20);
+                int tdm = CONFIG_GROUP.get("tipped_arrow_extension_duration_ticks") / (60 * 20);
+                yield "Potions under " + pdm
+                        + " minutes are extended to " + pdm + " minutes. Tipped arrows are extended to " + tdm
+                        + " minute. Excludes resistance and negative effects.";
             }
             default -> "";
         };

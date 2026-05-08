@@ -436,7 +436,8 @@ public class PrismWand implements MythicWeapon {
      * Must be called from {@code Ascension.onInitialize()} before the server
      * starts.
      */
-    public static void register() {
+    @Override
+    public void init() {
         if (registered)
             return;
         registered = true;

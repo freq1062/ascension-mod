@@ -6,17 +6,27 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import freq.ascension.Ascension;
 import freq.ascension.api.ContinuousTask;
 import freq.ascension.api.TaskScheduler;
+import freq.ascension.items.ChallengerSigil;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Brightness;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Interaction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -46,6 +56,11 @@ import java.util.*;
  * as their integer registry ID via {@link Block#BLOCK_STATE_REGISTRY}.
  */
 public class PoiManager extends SavedData {
+
+    /**
+     * Per-player last POI interact tick — used to debounce UseEntityCallback spam.
+     */
+    private static final Map<java.util.UUID, Integer> lastPoiInteractTick = new java.util.HashMap<>();
 
     private static final String KEY = "ascension_poi";
 
@@ -88,6 +103,170 @@ public class PoiManager extends SavedData {
     }
 
     private PoiManager() {
+    }
+
+    // TODO: Deal with this later and clean ts up
+    public static void init() {
+        // Spawn POI entities for all saved orders on server start
+        ServerLifecycleEvents.SERVER_STARTED.register(startedServer -> {
+            PoiManager poi = PoiManager.get(startedServer);
+
+            // Phase 1: force-load every POI chunk so that entities saved in the
+            // previous run are accessible to the entity query below.
+            for (String orderName : poi.getAllPoiOrders()) {
+                net.minecraft.core.BlockPos pos = poi.getPoiPosition(orderName);
+                if (pos == null)
+                    continue;
+                String dimKey = poi.getPoiDimension(orderName);
+                ResourceKey<Level> levelKey = ResourceKey.create(
+                        Registries.DIMENSION, ResourceLocation.parse(dimKey));
+                ServerLevel level = startedServer.getLevel(levelKey);
+                if (level != null) {
+                    level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
+                }
+            }
+
+            // Phase 2: discard stale POI entities across all POI dimensions (chunks now
+            // loaded).
+            PoiManager.cleanupStalePOIs(startedServer.overworld(), poi);
+
+            // Phase 3: spawn fresh POI entities.
+            for (String orderName : poi.getAllPoiOrders()) {
+                net.minecraft.core.BlockPos pos = poi.getPoiPosition(orderName);
+                String dimKey = poi.getPoiDimension(orderName);
+                ResourceKey<Level> levelKey = ResourceKey.create(
+                        Registries.DIMENSION, ResourceLocation.parse(dimKey));
+                ServerLevel level = startedServer.getLevel(levelKey);
+                if (level != null && pos != null) {
+                    poi.spawnPoiEntities(orderName, level, pos, Ascension.scheduler);
+                }
+            }
+            // Wire up server/scheduler references in the trial manager
+            ChallengerTrialManager.get().registerEvents(startedServer, Ascension.scheduler);
+        });
+
+        // Discard stale POI entities that might have been saved into chunks
+        // (e.g. if the chunk unloaded during gameplay or after a crash)
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            if (entity instanceof net.minecraft.world.entity.Display.ItemDisplay
+                    || entity instanceof net.minecraft.world.entity.Interaction) {
+                boolean isNewPoi = entity.getTags().contains("ascension_poi_display")
+                        || entity.getTags().contains("ascension_poi");
+                boolean isLegacyPoi = entity.hasCustomName()
+                        && entity.getCustomName().getString().startsWith("ascension_poi_");
+                if (isNewPoi || isLegacyPoi) {
+                    if (world instanceof ServerLevel sl) {
+                        PoiManager poi = PoiManager.get(sl.getServer());
+                        // If this entity's UUID is not the actively managed one in the PoiManager,
+                        // discard it
+                        if (!poi.isActivePoiEntity(entity.getUUID())) {
+                            entity.discard();
+                        }
+                    }
+                }
+            }
+        });
+
+        // POI cube right-click → promotion request or challenger trial
+        UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            if (!(world instanceof ServerLevel level))
+                return InteractionResult.PASS;
+            if (!(player instanceof ServerPlayer sp))
+                return InteractionResult.PASS;
+            if (!(entity instanceof Interaction))
+                return InteractionResult.PASS;
+            // Identify POI interaction entity by tag (new) or legacy name prefix
+            String orderName = null;
+            if (entity.getTags().contains("ascension_poi") && !entity.getTags().contains("ascension_poi_display")) {
+                orderName = entity.getTags().stream()
+                        .filter(t -> t.startsWith("ascension_poi_") && !t.equals("ascension_poi"))
+                        .map(t -> t.substring("ascension_poi_".length()))
+                        .findFirst().orElse(null);
+            } else if (entity.hasCustomName()) {
+                String nameStr = entity.getCustomName().getString();
+                if (nameStr.startsWith("ascension_poi_"))
+                    orderName = nameStr.substring("ascension_poi_".length());
+            }
+            if (orderName == null)
+                return InteractionResult.PASS;
+
+            // Debounce: suppress repeated fires while holding right-click (10-tick window)
+            int currentTick = level.getServer().getTickCount();
+            Integer lastTick = lastPoiInteractTick.get(sp.getUUID());
+            if (lastTick != null && currentTick - lastTick < 10) {
+                return InteractionResult.SUCCESS;
+            }
+            lastPoiInteractTick.put(sp.getUUID(), currentTick);
+
+            handlePoiRightClick(sp, orderName, level, hand);
+
+            // White glow flash on the cube for any successful right-click
+            PoiManager poi = PoiManager.get(level.getServer());
+            net.minecraft.world.entity.Display.ItemDisplay cubeDisplay = poi.getDisplayEntity(orderName,
+                    level.getServer());
+            if (cubeDisplay != null) {
+                cubeDisplay.setGlowingTag(true);
+                cubeDisplay.setGlowColorOverride(0xFFFFFF);
+                Ascension.scheduler.schedule(new freq.ascension.api.DelayedTask(5, () -> {
+                    if (!cubeDisplay.isRemoved()) {
+                        cubeDisplay.setGlowingTag(false);
+                    }
+                }));
+            }
+
+            return InteractionResult.SUCCESS;
+        });
+    }
+
+    /**
+     * Handles a right-click on an Order POI interaction entity.
+     * Routes to the challenger trial system if a Challenger's Sigil is held, heals
+     * the cube
+     * by 30 if a diamond block is held during an active trial, otherwise falls
+     * through to the
+     * standard promotion confirmation flow.
+     */
+    private static void handlePoiRightClick(ServerPlayer player, String orderName,
+            ServerLevel level, net.minecraft.world.InteractionHand hand) {
+        net.minecraft.world.item.ItemStack held = player.getItemInHand(hand);
+        if (ChallengerSigil.isSigil(held)) {
+            // Route to challenger trial
+            ChallengerTrialManager.get().initiateTrial(player, orderName, level);
+        } else if (held.is(net.minecraft.world.item.Items.DIAMOND_BLOCK)) {
+            // Diamond-block heal during an active trial
+            ChallengerTrialManager ctm = ChallengerTrialManager.get();
+            ChallengerTrialManager.TrialState state = ctm.get(orderName);
+            if (state != null && state.phase == ChallengerTrialManager.Phase.ACTIVE) {
+                ctm.healCube(orderName, 30, level.getServer());
+                held.shrink(1);
+
+                // Bug 9B: golden glow on cube for 2 seconds
+                if (state.cubeDisplay != null && !state.cubeDisplay.isRemoved()) {
+                    state.cubeDisplay.setGlowColorOverride(0xFFD700);
+                    state.cubeDisplay.setGlowingTag(true);
+                    Ascension.scheduler.schedule(new freq.ascension.api.DelayedTask(40, () -> {
+                        if (!state.cubeDisplay.isRemoved()) {
+                            state.cubeDisplay.setGlowingTag(false);
+                            state.cubeDisplay.setGlowColorOverride(-1);
+                        }
+                    }));
+                }
+                // Bug 9B: spawn heart particles around the cube
+                PoiManager healPoi = PoiManager.get(level.getServer());
+                net.minecraft.core.BlockPos cubePos = healPoi.getPoiPosition(orderName);
+                if (cubePos != null) {
+                    level.sendParticles(net.minecraft.core.particles.ParticleTypes.HEART,
+                            cubePos.getX() + 0.5, cubePos.getY() + 1.0, cubePos.getZ() + 0.5,
+                            10, 0.6, 0.5, 0.6, 0.05);
+                }
+            } else {
+                // Not an active trial — fall through to promotion flow
+                PromotionHandler.handlePromotionRequest(player, orderName, level.getServer());
+            }
+        } else {
+            // Route to promotion confirmation flow
+            PromotionHandler.handlePromotionRequest(player, orderName, level.getServer());
+        }
     }
 
     // ─── Codec ───────────────────────────────────────────────────────────────

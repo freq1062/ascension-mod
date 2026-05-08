@@ -29,12 +29,6 @@ public class Config {
     public static int godDeathCooldown = 86400;
     public static int influenceBanDuration = 86400;
 
-    // === MAGIC ===
-    public static int magicShapeshiftCD = 600;
-    public static int magicShapeshiftDuration = 600;
-    public static int magicGodShapeshiftCD = 600;
-    public static int magicGodShapeshiftDuration = 900;
-
     // === NETHER ===
     public static int netherGhastCarryCD = 60;
     public static int netherSoulDrainCD = 60;
@@ -109,10 +103,8 @@ public class Config {
         FloraGod.CONFIG_GROUP.load(config);
 
         // Magic
-        magicShapeshiftCD = config.getOrElse("magic.shapeshift.cooldown_ticks", 600);
-        magicShapeshiftDuration = config.getOrElse("magic.shapeshift.duration_ticks", 600);
-        magicGodShapeshiftCD = config.getOrElse("magic_god.shapeshift.cooldown_ticks", 600);
-        magicGodShapeshiftDuration = config.getOrElse("magic_god.shapeshift.duration_ticks", 900);
+        Magic.CONFIG_GROUP.load(config);
+        MagicGod.CONFIG_GROUP.load(config);
 
         // Nether
         netherGhastCarryCD = config.getOrElse("nether.ghast_carry.cooldown_ticks", 60);
@@ -194,10 +186,8 @@ public class Config {
         FloraGod.CONFIG_GROUP.setAll(config);
 
         // Magic
-        config.set("magic.shapeshift.cooldown_ticks", magicShapeshiftCD);
-        config.set("magic.shapeshift.duration_ticks", magicShapeshiftDuration);
-        config.set("magic_god.shapeshift.cooldown_ticks", magicGodShapeshiftCD);
-        config.set("magic_god.shapeshift.duration_ticks", magicGodShapeshiftDuration);
+        Magic.CONFIG_GROUP.setAll(config);
+        MagicGod.CONFIG_GROUP.setAll(config);
 
         // Nether
         config.set("nether.ghast_carry.cooldown_ticks", netherGhastCarryCD);

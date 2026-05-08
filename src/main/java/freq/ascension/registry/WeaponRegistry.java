@@ -5,34 +5,49 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-
-import freq.ascension.weapons.MythicWeapon;
+import freq.ascension.weapons.*;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Registry that maps weapon IDs and order names to their {@link MythicWeapon} instances.
+ * Registry that maps weapon IDs and order names to their {@link MythicWeapon}
+ * instances.
  *
- * <p>Architecture mirrors {@link OrderRegistry}: concrete weapon singletons are registered here
+ * <p>
+ * Architecture mirrors {@link OrderRegistry}: concrete weapon singletons are
+ * registered here
  * during mod initialization. Provides helpers for inventory scanning.
  *
- * <p><b>Registration order:</b> call {@link #register(MythicWeapon)} in {@code Ascension.onInitialize()}
- * after the order registry is ready. No weapons are registered by default; concrete weapon classes
+ * <p>
+ * <b>Registration order:</b> call {@link #register(MythicWeapon)} in
+ * {@code Ascension.onInitialize()}
+ * after the order registry is ready. No weapons are registered by default;
+ * concrete weapon classes
  * will register themselves here once implemented.
  */
 public class WeaponRegistry {
 
-    private static final Map<String, MythicWeapon> BY_ID    = new HashMap<>();
+    private static final Map<String, MythicWeapon> BY_ID = new HashMap<>();
     private static final Map<String, MythicWeapon> BY_ORDER = new HashMap<>();
 
-    private WeaponRegistry() {}
+    static {
+        register(ColossusHammer.INSTANCE);
+        register(VinewrathAxe.INSTANCE);
+        register(GravitonGauntlet.INSTANCE);
+        register(TempestTrident.INSTANCE);
+        register(RuinousScythe.INSTANCE);
+        register(HellfireCrossbow.INSTANCE);
+        register(PrismWand.INSTANCE);
+    }
 
     /**
-     * Registers a mythical weapon. Keyed by both {@link MythicWeapon#getWeaponId()} and
+     * Registers a mythical weapon. Keyed by both {@link MythicWeapon#getWeaponId()}
+     * and
      * {@link MythicWeapon#getParentOrder()}'s order name (lowercase).
      *
-     * @throws IllegalArgumentException if a weapon with the same ID or order is already registered.
+     * @throws IllegalArgumentException if a weapon with the same ID or order is
+     *                                  already registered.
      */
     public static void register(MythicWeapon weapon) {
         String id = weapon.getWeaponId().toLowerCase();
@@ -49,34 +64,46 @@ public class WeaponRegistry {
 
         BY_ID.put(id, weapon);
         BY_ORDER.put(order, weapon);
+        weapon.init();
     }
 
-    /** Returns the weapon with the given ID, or {@code null} if none is registered. */
+    /**
+     * Returns the weapon with the given ID, or {@code null} if none is registered.
+     */
     public static MythicWeapon get(String weaponId) {
-        if (weaponId == null) return null;
+        if (weaponId == null)
+            return null;
         return BY_ID.get(weaponId.toLowerCase());
     }
 
-    /** Returns the mythical weapon for the given order name, or {@code null} if none. */
+    /**
+     * Returns the mythical weapon for the given order name, or {@code null} if
+     * none.
+     */
     public static MythicWeapon getForOrder(String orderName) {
-        if (orderName == null) return null;
+        if (orderName == null)
+            return null;
         return BY_ORDER.get(orderName.toLowerCase());
     }
 
     /**
-     * Returns {@code true} if the given ItemStack is any registered mythical weapon, as
+     * Returns {@code true} if the given ItemStack is any registered mythical
+     * weapon, as
      * determined by each weapon's {@link MythicWeapon#isItem(ItemStack)} check.
      */
     public static boolean isMythicalWeapon(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) return false;
+        if (stack == null || stack.isEmpty())
+            return false;
         for (MythicWeapon weapon : BY_ID.values()) {
-            if (weapon.isItem(stack)) return true;
+            if (weapon.isItem(stack))
+                return true;
         }
         return false;
     }
 
     /**
-     * Returns {@code true} if any slot in the given player's inventory (including armour and
+     * Returns {@code true} if any slot in the given player's inventory (including
+     * armour and
      * off-hand) contains a registered mythical weapon.
      */
     public static boolean hasWeapon(ServerPlayer player) {
@@ -93,12 +120,15 @@ public class WeaponRegistry {
     }
 
     /**
-     * Returns the {@link MythicWeapon} definition that matches the given stack, or {@code null}.
+     * Returns the {@link MythicWeapon} definition that matches the given stack, or
+     * {@code null}.
      */
     public static MythicWeapon identifyWeapon(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) return null;
+        if (stack == null || stack.isEmpty())
+            return null;
         for (MythicWeapon weapon : BY_ID.values()) {
-            if (weapon.isItem(stack)) return weapon;
+            if (weapon.isItem(stack))
+                return weapon;
         }
         return null;
     }
@@ -108,7 +138,9 @@ public class WeaponRegistry {
         return Collections.unmodifiableCollection(BY_ID.values());
     }
 
-    /** Returns {@code true} if any weapon is registered for the given order name. */
+    /**
+     * Returns {@code true} if any weapon is registered for the given order name.
+     */
     public static boolean hasWeaponForOrder(String orderName) {
         return orderName != null && BY_ORDER.containsKey(orderName.toLowerCase());
     }
@@ -118,7 +150,8 @@ public class WeaponRegistry {
     private static ItemStack findMythicalWeaponStack(Inventory inv) {
         for (int i = 0; i < inv.getContainerSize(); i++) {
             ItemStack stack = inv.getItem(i);
-            if (isMythicalWeapon(stack)) return stack;
+            if (isMythicalWeapon(stack))
+                return stack;
         }
         return null;
     }

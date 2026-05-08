@@ -121,6 +121,34 @@ public class Ocean implements Order {
      * Main body
      */
 
+    // Ocean passive: prevent freeze ticks and provide scaffolding-like ascent in
+    // powder snow.
+    // for (ServerPlayer player : s.getPlayerList().getPlayers()) {
+    // if (!AbilityManager.anyMatch(player, order ->
+    // order.canWalkOnPowderSnow(player)))
+    // continue;
+
+    // // Clear freeze ticks every tick — synced to client via SynchedEntityData,
+    // // which eliminates the snowflake overlay without needing fake equipment
+    // // packets.
+    // if (player.getTicksFrozen() > 0) {
+    // player.setTicksFrozen(0);
+    // }
+
+    // // When the player is inside powder snow and pressing jump (not crouching),
+    // // apply upward velocity. This replicates the LivingEntity powder-snow ascent
+    // // that normally requires wasInPowderSnow=true, which we suppress via the
+    // mixin.
+    // if (!player.isShiftKeyDown()
+    // && player.isJumping()
+    // && player.getInBlockState().is(Blocks.POWDER_SNOW)) {
+    // player.setDeltaMovement(
+    // player.getDeltaMovement().x,
+    // 0.2,
+    // player.getDeltaMovement().z);
+    // }
+    // }
+
     @Override
     public boolean canWalkOnPowderSnow(ServerPlayer player) {
         if (hasCapability(player, "passive"))
