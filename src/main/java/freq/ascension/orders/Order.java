@@ -3,6 +3,7 @@ package freq.ascension.orders;
 import java.util.ArrayList;
 import java.util.List;
 
+import freq.ascension.config.ConfigGroup;
 import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
@@ -59,6 +60,9 @@ public interface Order {
     String getOrderIcon();
 
     TextColor getOrderColor();
+
+    default void init() {
+    }
 
     default String getDescription(String slotType) {
         return switch (slotType.toLowerCase()) {
@@ -142,13 +146,8 @@ public interface Order {
         return effectInstance;
     }
 
-    default boolean hasPlantProximityEffect(ServerPlayer player) {
-        return false;
-    }
-
-    /** FloraGod: returns true when utility is equipped AND player has a plant block in their inventory. */
-    default boolean hasInventoryPlantEffect(ServerPlayer player) {
-        return false;
+    default double reduceFollowRangeMultiplier(ServerPlayer player) {
+        return 1.0;
     }
 
     /** Called when a player finishes eating or drinking an item. */
@@ -164,7 +163,8 @@ public interface Order {
     }
 
     default boolean hasCapability(ServerPlayer player, String type) {
-        if (player == null) return false;
+        if (player == null)
+            return false;
         AscensionData data = (AscensionData) player;
         switch (type) {
             case "passive":
@@ -205,7 +205,8 @@ public interface Order {
      * Called before the player unequips (changes) this order in a given slot.
      *
      * @return {@code true} if unequipping is allowed; {@code false} to block it.
-     *         Implementations that block must send the player an explanatory message.
+     *         Implementations that block must send the player an explanatory
+     *         message.
      */
     default boolean canUnequip(ServerPlayer player) {
         return true;

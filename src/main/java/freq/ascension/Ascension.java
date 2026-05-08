@@ -61,7 +61,6 @@ import freq.ascension.managers.AscensionData;
 import freq.ascension.managers.ChallengerTrialManager;
 import freq.ascension.managers.GodManager;
 import freq.ascension.managers.InfluenceManager;
-import freq.ascension.managers.PlantProximityManager;
 import freq.ascension.managers.PoiManager;
 import freq.ascension.managers.PromotionHandler;
 import freq.ascension.managers.SpellCooldownManager;
@@ -196,7 +195,6 @@ public class Ascension implements ModInitializer {
 		ChallengerTrialManager.get().registerEventListeners();
 		AbilityManager.init();
 		InfluenceManager.init();
-		PlantProximityManager.init();
 
 		// Spawn POI entities for all saved orders on server start
 		ServerLifecycleEvents.SERVER_STARTED.register(startedServer -> {

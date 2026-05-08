@@ -4,18 +4,22 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+// Should be moved to nether
+
 /**
  * Tracks which players currently have lava-flight active (elytra-style creative
  * flight granted while submerged in lava by the Nether order passive).
  *
- * <p>Kept outside {@code LavaSwimmingMixin} because Mixin rules forbid non-private
+ * <p>
+ * Kept outside {@code LavaSwimmingMixin} because Mixin rules forbid non-private
  * static members on Mixin classes.
  */
 public final class LavaFlightManager {
 
     private static final Map<UUID, Boolean> LAVA_FLIGHT_ACTIVE = new ConcurrentHashMap<>();
 
-    private LavaFlightManager() {}
+    private LavaFlightManager() {
+    }
 
     public static boolean isActive(UUID uuid) {
         return LAVA_FLIGHT_ACTIVE.getOrDefault(uuid, false);

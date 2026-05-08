@@ -682,7 +682,8 @@ public class SpellRegistry {
         STUNNED_PLAYERS.clear();
     }
 
-    public static void thorns(ServerPlayer player) {
+    public static void thorns(ServerPlayer player, int freezeTicks, int initialDamagePercent, int pullDamagePercent,
+            int poisonTicks) {
         ActiveSpell as = SpellCooldownManager.addToActiveSpells(player, SpellCooldownManager.get("thorns"));
 
         // Activate targeting mode for 5 seconds
@@ -709,13 +710,12 @@ public class SpellRegistry {
             return; // Timed out
         }
 
-        // God vs demigod thorns parameters
-        boolean isFloraGod = freq.ascension.managers.AbilityManager.anyMatch(player, o -> o instanceof FloraGod);
-        int freezeTicks = isFloraGod ? 80 : 60;
-        float initialDamage = isFloraGod ? 25.0f : 15.0f;
-        float pullDamage = isFloraGod ? 15.0f : 5.0f;
-
         Level level = player.level();
+        SpellStats stats = SPELLS.get("thorns").getStats(player);
+        int freezeTicks = stats.getInt(0);
+        int initialDamagePercent = stats.getInt(1);
+        int pullDamagePercent = stats.getInt(2);
+        int poisonTicks = stats.getInt(3);
 
         // Spawn thorns animation scaled to freeze duration
         Thorns.spawnThorns(player, target, 6, freezeTicks);
@@ -751,10 +751,10 @@ public class SpellRegistry {
         }
 
         // Apply poison 1 for 10 seconds
-        target.addEffect(new MobEffectInstance(MobEffects.POISON, 200, 0, false, true));
+        target.addEffect(new MobEffectInstance(MobEffects.POISON, poisonTicks, 0, false, true));
 
         // Initial impale damage
-        Utils.spellDmg(target, player, initialDamage);
+        Utils.spellDmg(target, player, initialDamagePercent);
 
         // Play sound
         level.playSound(null, target.getX(), target.getY(), target.getZ(),
@@ -763,7 +763,7 @@ public class SpellRegistry {
                 SoundEvents.BEE_STING, SoundSource.PLAYERS, 1.0f, 0.8f + level.random.nextFloat() * 0.4f);
 
         // Schedule unfreeze + pull-out damage after freeze ends
-        final float finalPullDamage = pullDamage;
+        final float finalPullDamage = pullDamagePercent;
         Ascension.scheduler.schedule(new DelayedTask(freezeTicks, () -> {
             if (target instanceof net.minecraft.world.entity.Mob frozenMob) {
                 frozenMob.setNoAi(hadNoAi); // restore original AI state

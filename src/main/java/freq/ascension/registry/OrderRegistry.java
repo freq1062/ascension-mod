@@ -22,6 +22,7 @@ public class OrderRegistry {
 
     private static void register(Order order) {
         ORDERS.put(order.getOrderName().toLowerCase(), order);
+        order.init();
     }
 
     public static Order get(String name) {

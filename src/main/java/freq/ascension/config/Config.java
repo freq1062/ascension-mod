@@ -29,21 +29,6 @@ public class Config {
     public static int godDeathCooldown = 86400;
     public static int influenceBanDuration = 86400;
 
-    // === SKY ===
-    public static int skyDoubleJumpCD = 160;
-    public static int skyDoubleJumpRange = 6;
-    public static int skyDashCD = 225;
-    public static int skyDashDistance = 9;
-    public static int skyStarStrikeCD = 675;
-    public static int skyGodDoubleJumpCD = 160;
-    public static int skyGodDashCD = 225;
-    public static int skyGodDashDistance = 12;
-    public static int skyGodStarStrikeCD = 675;
-
-    // === FLORA ===
-    public static int floraThornsCD = 60;
-    public static int floraGodThornsCD = 60;
-
     // === MAGIC ===
     public static int magicShapeshiftCD = 600;
     public static int magicShapeshiftDuration = 600;
@@ -120,8 +105,8 @@ public class Config {
         SkyGod.CONFIG_GROUP.load(config);
 
         // Flora
-        floraThornsCD = config.getOrElse("flora.thorns.cooldown_ticks", 60);
-        floraGodThornsCD = config.getOrElse("flora_god.thorns.cooldown_ticks", 60);
+        Flora.CONFIG_GROUP.load(config);
+        FloraGod.CONFIG_GROUP.load(config);
 
         // Magic
         magicShapeshiftCD = config.getOrElse("magic.shapeshift.cooldown_ticks", 600);
@@ -200,9 +185,13 @@ public class Config {
         Ocean.CONFIG_GROUP.setAll(config);
         OceanGod.CONFIG_GROUP.setAll(config);
 
+        // Sky
+        Sky.CONFIG_GROUP.setAll(config);
+        SkyGod.CONFIG_GROUP.setAll(config);
+
         // Flora
-        config.set("flora.thorns.cooldown_ticks", floraThornsCD);
-        config.set("flora_god.thorns.cooldown_ticks", floraGodThornsCD);
+        Flora.CONFIG_GROUP.setAll(config);
+        FloraGod.CONFIG_GROUP.setAll(config);
 
         // Magic
         config.set("magic.shapeshift.cooldown_ticks", magicShapeshiftCD);
