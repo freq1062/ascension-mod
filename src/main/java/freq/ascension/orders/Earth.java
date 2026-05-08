@@ -48,8 +48,7 @@ public class Earth implements Order {
     // Keep track of supermine state per player
     private static final Map<UUID, Boolean> SUPERMINE_ENABLED = new ConcurrentHashMap<>();
     private static final Set<UUID> IS_MINING_INTERNALLY = new HashSet<>();
-    private static final ResourceLocation BREAK_SPEED_ID = ResourceLocation.fromNamespaceAndPath("ascension",
-            "earth_block_break_speed");
+    private static final String BLOCK_BREAK_SPEED_ID = "earth_demigod_block_break_speed";
 
     /*
      * Default configs
@@ -185,11 +184,9 @@ public class Earth implements Order {
         if (hasCapability(player, "passive")) {
             player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
                     net.minecraft.world.effect.MobEffects.HASTE, 60, 0, true, false, true));
-            var breakSpeed = player.getAttribute(Attributes.BLOCK_BREAK_SPEED);
-            if (breakSpeed != null && !breakSpeed.hasModifier(BREAK_SPEED_ID)) {
-                breakSpeed.addTransientModifier(new AttributeModifier(
-                        BREAK_SPEED_ID, 0.2, AttributeModifier.Operation.ADD_VALUE));
-            }
+
+            Utils.applyAttributeModifier(player, Attributes.BLOCK_BREAK_SPEED, BLOCK_BREAK_SPEED_ID, 0.2,
+                    AttributeModifier.Operation.ADD_VALUE);
         }
     }
 
@@ -281,9 +278,7 @@ public class Earth implements Order {
     public void onUnequip(ServerPlayer player, String slotType) {
         if ("passive".equals(slotType)) {
             player.removeEffect(MobEffects.HASTE);
-            var breakSpeed = player.getAttribute(Attributes.BLOCK_BREAK_SPEED);
-            if (breakSpeed != null)
-                breakSpeed.removeModifier(BREAK_SPEED_ID);
+            Utils.removeAttributeModifier(player, Attributes.BLOCK_BREAK_SPEED, BLOCK_BREAK_SPEED_ID);
         }
     }
 

@@ -2,13 +2,17 @@ package freq.ascension;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import freq.ascension.managers.AscensionData;
+import freq.ascension.mixin.AttributeMapAccessor;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.state.BlockState;
+import xyz.nucleoid.disguiselib.api.EntityDisguise;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -18,8 +22,13 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeMap;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ResolvableProfile;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 
 /**
@@ -287,6 +296,80 @@ public class Utils {
             };
         } catch (NumberFormatException e) {
             return 24L * 60L * 60L * 1000L; // Parse error, use default
+        }
+    }
+
+    public static void clearAttributeModifications(ServerPlayer player) {
+        AttributeMap attributeMap = player.getAttributes();
+        Map<Holder<Attribute>, AttributeInstance> attributes = ((AttributeMapAccessor) attributeMap).getAttributes();
+
+        for (AttributeInstance instance : attributes.values()) {
+            instance.getModifiers().stream()
+                    .filter(mod -> mod.id().getNamespace().equals("ascension"))
+                    .forEach(instance::removeModifier);
+        }
+    }
+
+    public static void applyAttributeModifier(ServerPlayer player, Holder<Attribute> attribute,
+            String name, double value, AttributeModifier.Operation operation) {
+        AttributeInstance instance = player.getAttribute(attribute);
+        if (instance == null)
+            return;
+
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("ascension", name);
+        instance.removeModifier(id); // remove first to avoid stacking on reapply
+        instance.addPermanentModifier(new AttributeModifier(id, value, operation));
+    }
+
+    public static void zeroAttributeModifier(ServerPlayer player, Holder<Attribute> attribute, String name) {
+        applyAttributeModifier(player, attribute, name, -1.0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+    }
+
+    public static void removeAttributeModifier(ServerPlayer player, Holder<Attribute> attribute, String name) {
+        AttributeInstance instance = player.getAttribute(attribute);
+        if (instance == null)
+            return;
+
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("ascension", name);
+        instance.removeModifier(id);
+    }
+
+    public static void clearPlayerModifications(ServerPlayer player) {
+        // Clear ascension attribute modifiers
+        try {
+            clearAttributeModifications(player);
+        } catch (Exception e) {
+            Ascension.LOGGER.info("Failed to clear attribute modifiers for " + player.nameAndId());
+        }
+
+        // Reset abilities if in survival/adventure
+        try {
+            GameType mode = player.gameMode();
+            if (mode == GameType.SURVIVAL || mode == GameType.ADVENTURE) {
+                player.getAbilities().mayfly = false;
+                player.getAbilities().flying = false;
+                player.onUpdateAbilities();
+            }
+        } catch (Exception e) {
+            Ascension.LOGGER.info("Failed to reset flying permissions for " + player.nameAndId());
+        }
+
+        // Run on unequip concrete implementations if any
+        try {
+            AscensionData data = (AscensionData) player;
+            data.getPassive().onUnequip(player, "passive");
+            data.getUtility().onUnequip(player, "utility");
+            data.getCombat().onUnequip(player, "combat");
+        } catch (Exception e) {
+            Ascension.LOGGER.info("Failed to run unequip methods for player" + player.nameAndId());
+        }
+        try {
+            // Clear disguises from DisguiseLib
+            EntityDisguise freshDisguise = (EntityDisguise) player;
+            freshDisguise.removeDisguise();
+            freshDisguise.setTrueSight(false);
+        } catch (Exception e) {
+            Ascension.LOGGER.info("Failed to remove disguise for player" + player.nameAndId());
         }
     }
 }

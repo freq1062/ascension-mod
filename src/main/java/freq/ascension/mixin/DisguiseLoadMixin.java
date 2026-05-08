@@ -8,8 +8,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+//TODO: Check if this is even necessary? seems to only matter if somebody joins with a disguise, which should never happen
 /**
- * Guards against DisguiseLib load crashes when a ServerPlayer logs in with stale
+ * Guards against DisguiseLib load crashes when a ServerPlayer logs in with
+ * stale
  * disguise data still present in saved NBT.
  *
  * <p>
@@ -18,11 +20,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * <li>{@code PrepareSpawnTask.spawn()} calls {@code Entity.load(ValueInput)}
  * to restore player state from disk.</li>
  * <li>DisguiseLib's load injection (in {@code EntityMixin_Disguise}) reads the
- * saved {@code DisguiseLib} compound (or legacy {@code disguiselib$...} keys) and
+ * saved {@code DisguiseLib} compound (or legacy {@code disguiselib$...} keys)
+ * and
  * calls
  * {@code Entity.setGameProfile(GameProfile)}.</li>
  * <li>{@code setGameProfile} calls {@code disguiselib$sendProfileUpdates()},
- * which constructs a {@code ClientboundPlayerInfoUpdatePacket} using DisguiseLib's
+ * which constructs a {@code ClientboundPlayerInfoUpdatePacket} using
+ * DisguiseLib's
  * internal {@code serverPlayer} reference — a field that is only populated
  * when the entity is tracked by the chunk-loading manager.</li>
  * <li>Because the player has not entered the PLAY phase yet, that reference is
@@ -33,9 +37,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * <b>Carpet bot variant:</b> {@code EntityPlayerMPFake.loadPlayerData()} calls
  * {@code Entity.readFromNbt()} inside a delayed task that runs <em>after</em>
  * {@code onPlayerConnect()} — so {@code connection} and
- * {@code level().getServer()} are both non-null. The entity is, however, not yet
+ * {@code level().getServer()} are both non-null. The entity is, however, not
+ * yet
  * registered in the {@code ServerLevel}'s entity lookup (
- * {@code ServerLevel.getEntity(id)} returns {@code null}). Guard #3 detects this
+ * {@code ServerLevel.getEntity(id)} returns {@code null}). Guard #3 detects
+ * this
  * condition and cancels the profile update, preventing the
  * {@code ClientboundPlayerInfoUpdatePacket} NPE.
  *
@@ -56,7 +62,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * <b>Compile warnings:</b> The Mixin annotation processor emits warnings about
  * "Cannot find target method" for both {@code setGameProfile} and
  * {@code disguiselib$constructFakePlayer}. These warnings are expected and safe
- * to ignore — the methods are added by DisguiseLib at runtime via its own Mixins
+ * to ignore — the methods are added by DisguiseLib at runtime via its own
+ * Mixins
  * and do not exist at compile time. The {@code require = 0} parameter on both
  * {@code @Inject} annotations ensures the game will not crash if DisguiseLib
  * changes its implementation in future versions.
@@ -88,7 +95,8 @@ public abstract class DisguiseLoadMixin {
      * vanilla class at compile time. Remapping is intentionally skipped.
      * 
      * <p>
-     * {@code require = 0}: This method is added by DisguiseLib at runtime and will not
+     * {@code require = 0}: This method is added by DisguiseLib at runtime and will
+     * not
      * be found at compile time. The compile warning is expected and safe to ignore.
      */
     @SuppressWarnings("InvalidInjectorMethodSignature")
@@ -157,7 +165,8 @@ public abstract class DisguiseLoadMixin {
      * class at compile time.
      * 
      * <p>
-     * {@code require = 0}: This method is added by DisguiseLib at runtime and will not
+     * {@code require = 0}: This method is added by DisguiseLib at runtime and will
+     * not
      * be found at compile time. The compile warning is expected and safe to ignore.
      */
     @SuppressWarnings("InvalidInjectorMethodSignature")

@@ -2,6 +2,7 @@ package freq.ascension.util;
 
 import net.minecraft.server.level.ServerPlayer;
 
+// TODO: what the hell is this
 /**
  * Context holder for passing player information between FoodMixin and
  * FoodDataMixin.

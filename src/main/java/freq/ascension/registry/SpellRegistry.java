@@ -20,7 +20,6 @@ import freq.ascension.animation.StarStrike;
 import freq.ascension.animation.Thorns;
 import freq.ascension.managers.ActiveSpell;
 import freq.ascension.managers.AscensionData;
-import freq.ascension.managers.DisguiseManager;
 import freq.ascension.managers.Spell;
 import freq.ascension.managers.SpellCooldownManager;
 import freq.ascension.managers.SpellStats;
@@ -40,6 +39,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.HappyGhast;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -663,27 +663,6 @@ public class SpellRegistry {
      */
 
     private static final Map<UUID, Long> THORNS_ACTIVE = new HashMap<>();
-    private static final Set<UUID> STUNNED_PLAYERS = ConcurrentHashMap.newKeySet();
-
-    public static void stunPlayer(ServerPlayer player, int durationTicks) {
-        STUNNED_PLAYERS.add(player.getUUID());
-        player.setNoGravity(false); // ensure normal gravity stays on
-        Ascension.scheduler.schedule(new DelayedTask(durationTicks, () -> {
-            STUNNED_PLAYERS.remove(player.getUUID());
-        }));
-    }
-
-    public static boolean isStunned(ServerPlayer player) {
-        return STUNNED_PLAYERS.contains(player.getUUID());
-    }
-
-    public static void clearStun(UUID uuid) {
-        STUNNED_PLAYERS.remove(uuid);
-    }
-
-    public static void clearAllStuns() {
-        STUNNED_PLAYERS.clear();
-    }
 
     public static void thorns(ServerPlayer player, int freezeTicks, int initialDamagePercent, int pullDamagePercent,
             int poisonTicks) {
@@ -723,36 +702,6 @@ public class SpellRegistry {
         // Spawn thorns animation scaled to freeze duration
         Thorns.spawnThorns(player, target, 6, freezeTicks);
 
-        // Freeze: disable mob AI; preserve original AI state for correct restoration
-        boolean tempHadNoAi = false;
-        if (target instanceof net.minecraft.world.entity.Mob mob) {
-            tempHadNoAi = mob.isNoAi();
-            mob.setNoAi(true);
-        }
-        final boolean hadNoAi = tempHadNoAi;
-        target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, freezeTicks, 255, false, false));
-        target.setDeltaMovement(0, Math.min(target.getDeltaMovement().y, 0), 0);
-
-        if (target instanceof ServerPlayer targetPlayer) {
-            // Flag-based stun: StunMixin suppresses travel/jump/knockback each tick
-            stunPlayer(targetPlayer, freezeTicks);
-        } else {
-            // For mobs: zero velocity every tick; setNoGravity keeps them in place
-            target.setNoGravity(true);
-            final int capTicks = freezeTicks;
-            int[] stunTicks = { 0 };
-            ContinuousTask[] stunTaskRef = { null };
-            stunTaskRef[0] = new ContinuousTask(1, () -> {
-                stunTicks[0]++;
-                if (!target.isAlive() || stunTicks[0] >= capTicks) {
-                    stunTaskRef[0].stop();
-                    return;
-                }
-                target.setDeltaMovement(0, 0, 0);
-            });
-            Ascension.scheduler.schedule(stunTaskRef[0]);
-        }
-
         // Apply poison 1 for 10 seconds
         target.addEffect(new MobEffectInstance(MobEffects.POISON, poisonTicks, 0, false, true));
 
@@ -765,20 +714,47 @@ public class SpellRegistry {
         level.playSound(null, target.getX(), target.getY(), target.getZ(),
                 SoundEvents.BEE_STING, SoundSource.PLAYERS, 1.0f, 0.8f + level.random.nextFloat() * 0.4f);
 
-        // Schedule unfreeze + pull-out damage after freeze ends
-        final float finalPullDamage = pullDamagePercent;
-        Ascension.scheduler.schedule(new DelayedTask(freezeTicks, () -> {
-            if (target instanceof net.minecraft.world.entity.Mob frozenMob) {
-                frozenMob.setNoAi(hadNoAi); // restore original AI state
-            }
-            target.removeEffect(MobEffects.SLOWNESS);
-            target.setNoGravity(false);
-            if (target.isAlive()) {
-                Utils.spellDmg(target, player, finalPullDamage);
-                level.playSound(null, target.getX(), target.getY(), target.getZ(),
-                        SoundEvents.VINE_BREAK, SoundSource.PLAYERS, 1.0f, 1.2f);
-            }
-        }));
+        // If player is dead this is handled on attribute clearing cleanup
+        if (target instanceof ServerPlayer targetPlayer) {
+            Utils.zeroAttributeModifier(targetPlayer, Attributes.MOVEMENT_SPEED, "flora_thorns_movement_speed");
+            Utils.zeroAttributeModifier(targetPlayer, Attributes.GRAVITY, "flora_thorns_gravity");
+            Utils.zeroAttributeModifier(targetPlayer, Attributes.MOVEMENT_EFFICIENCY, "flora_thorns_movement_eff");
+            Utils.zeroAttributeModifier(targetPlayer, Attributes.JUMP_STRENGTH, "flora_thorns_jump_str");
+
+            BlockPos freezePos = targetPlayer.blockPosition();
+
+            Ascension.scheduler.schedule(new DelayedTask(freezeTicks, () -> {
+                Utils.removeAttributeModifier(targetPlayer, Attributes.MOVEMENT_SPEED, "flora_thorns_movement_speed");
+                Utils.removeAttributeModifier(targetPlayer, Attributes.GRAVITY, "flora_thorns_gravity");
+                Utils.removeAttributeModifier(targetPlayer, Attributes.MOVEMENT_EFFICIENCY,
+                        "flora_thorns_movement_eff");
+                Utils.removeAttributeModifier(targetPlayer, Attributes.JUMP_STRENGTH, "flora_thorns_jump_str");
+            }));
+
+            Ascension.scheduler.schedule(new ContinuousTask(1, () -> {
+                if (targetPlayer.blockPosition() != freezePos && targetPlayer.isAlive()) {
+                    Utils.spellDmg(target, player, pullDamagePercent);
+                    level.playSound(null, target.getX(), target.getY(), target.getZ(),
+                            SoundEvents.VINE_BREAK, SoundSource.PLAYERS, 1.0f, 1.2f);
+                    Utils.removeAttributeModifier(targetPlayer, Attributes.MOVEMENT_SPEED,
+                            "flora_thorns_movement_speed");
+                    Utils.removeAttributeModifier(targetPlayer, Attributes.GRAVITY, "flora_thorns_gravity");
+                    Utils.removeAttributeModifier(targetPlayer, Attributes.MOVEMENT_EFFICIENCY,
+                            "flora_thorns_movement_eff");
+                    Utils.removeAttributeModifier(targetPlayer, Attributes.JUMP_STRENGTH, "flora_thorns_jump_str");
+                }
+            }));
+        } else if (target instanceof net.minecraft.world.entity.Mob mob) {
+            // For mobs: just set NoAI and no gravity
+            target.setNoGravity(true);
+            mob.setNoAi(true);
+            target.setDeltaMovement(0, 0, 0);
+
+            Ascension.scheduler.schedule(new DelayedTask(freezeTicks, () -> {
+                target.setNoGravity(false);
+                mob.setNoAi(false);
+            }));
+        }
 
         // Mark spell as no longer in use
         ActiveSpell as = SpellCooldownManager.getActiveSpell(player, SpellCooldownManager.get("thorns"));
@@ -1052,21 +1028,6 @@ public class SpellRegistry {
             Ascension.scheduler.schedule(new DelayedTask(durationTicks, () -> {
                 try {
                     EntityDisguise freshDisguise = (EntityDisguise) player;
-                    if (!player.isAlive() || player.isRemoved()) {
-                        // Player disconnected or died while shapeshifted. We cannot send
-                        // profile-update packets to watchers (the entity is gone), but we
-                        // must still clear DisguiseLib's in-memory state so the NBT that was
-                        // already written on disconnect does not accumulate stale entries.
-                        // tryRemoveDisguiseSilently clears the disguise fields without
-                        // broadcasting any packets, preventing an NPE on the next load.
-                        if (freshDisguise.isDisguised()) {
-                            DisguiseManager.clearDisguiseSilently(player, "shapeshift cleanup");
-                        }
-                        freshDisguise.setTrueSight(false);
-                        if (as != null)
-                            as.setInUse(false);
-                        return;
-                    }
                     freshDisguise.removeDisguise();
                     freshDisguise.setTrueSight(false);
                     player.removeEffect(MobEffects.NIGHT_VISION);

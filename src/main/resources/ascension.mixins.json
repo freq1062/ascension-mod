@@ -5,6 +5,7 @@
 	"refmap": "ascension-refmap.json",
 	"mixins": [
 		"ActionBarPacketMixin",
+		"AttributeMapAccessor.java",
 		"AnvilPrepareMixin",
 		"BowReleaseMixin",
 		"BreezeTargetMixin",
@@ -15,7 +16,6 @@
 		"DamageMixin",
 		"DropExperienceBlockMixin",
 		"GodProtectionMixin",
-		"DisguiseLoadMixin",
 		"EnchantmentMixin",
 		"EnderChestMixin",
 		"EntitySharedFlagInvoker",
@@ -38,7 +38,6 @@
 		"SculkShriekerMixin",
 		"SplashPotionStrengthMixin",
 		"ServerPlayerMixin",
-		"StunMixin",
 		"SwingHandlerMixin",
 		"ThrownTridentPickupMixin",
 		"TridentVisibilityMixin",

@@ -1,7 +1,5 @@
 package freq.ascension.orders;
 
-import freq.ascension.animation.PotionFlame;
-import freq.ascension.config.Config;
 import freq.ascension.config.ConfigGroup;
 import freq.ascension.managers.SpellStats;
 import net.minecraft.server.level.ServerPlayer;
